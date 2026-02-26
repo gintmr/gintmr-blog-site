@@ -2,6 +2,20 @@
 个人主页 site 仓库
 本项目直接基于[astro-obsidian-blog](https://github.com/vsme/astro-obsidian-blog)项目修改，非常感谢原作者！
 
+## 自动化发布（双仓库）
+
+- 内容仓库 `gintmr-blog-content` push 到 `main` 后，会自动更新本仓库 `src/data` 的 submodule 指针。
+- 本仓库 push 到 `main` 后，会触发 GitHub Actions 使用 Vercel CLI 自动部署生产环境。
+
+### 本仓库需要配置的 Secrets
+
+- `CONTENT_REPO_TOKEN`: 访问私有内容仓库 `gintmr-blog-content` 的 token（至少 `Contents: Read`）。
+- `VERCEL_TOKEN`: Vercel 访问令牌。
+- `VERCEL_ORG_ID`: Vercel 组织 ID。
+- `VERCEL_PROJECT_ID`: Vercel 项目 ID。
+
+工作流文件：`.github/workflows/deploy-vercel.yml`
+
 
 ---
 
