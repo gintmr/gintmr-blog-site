@@ -92,6 +92,9 @@ interface ParsedDiaryImage {
 }
 
 const OBSIDIAN_IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
+const OBSIDIAN_IMAGE_TOKEN_REGEX = /!\[\[[^\]]+\]\]/g;
+const MARKDOWN_IMAGE_TOKEN_REGEX = /!\[[^\]]*\]\([^\)]*\)/g;
+const IMAGE_GROUP_PLACEHOLDER_PREFIX = "++DIARY_IMAGE_GROUP_";
 
 function decodeURIComponentSafe(value: string): string {
   try {
@@ -189,6 +192,23 @@ function parseMarkdownImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
   return embeds;
 }
 
+function isImageOnlyLine(line: string): boolean {
+  const strippedLine = line
+    .replace(OBSIDIAN_IMAGE_TOKEN_REGEX, "")
+    .replace(MARKDOWN_IMAGE_TOKEN_REGEX, "")
+    .replace(/\s+/g, "")
+    .trim();
+  return strippedLine.length === 0 || /^[-*]+$/.test(strippedLine);
+}
+
+function stripImageTokensFromLine(line: string): string {
+  return line
+    .replace(OBSIDIAN_IMAGE_TOKEN_REGEX, "")
+    .replace(MARKDOWN_IMAGE_TOKEN_REGEX, "")
+    .replace(/\s{2,}/g, " ")
+    .trimEnd();
+}
+
 // 解析日记条目的函数
 export async function parseEntry(entry: CollectionEntry<"diary">) {
   const diaryMeta = parseDiaryIdentifier(entry.id);
@@ -228,16 +248,98 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     // 移除其他类型的代码块标识（imgs、html、card-等）
     text = text.replace(/```(imgs|html|card-[\s\S]*?)[\s\S]*?```/g, "").trim();
 
-    const obsidianImageEmbeds = parseObsidianImageEmbeds(text);
-    const markdownImageEmbeds = parseMarkdownImageEmbeds(text);
-    // 清理 Obsidian 图片语法，避免原始 ![[...]] 文本直接渲染在页面里
-    text = text
-      .replace(/^[ \t>*-]*!\[\[[^\]]+\]\]\s*$/gm, "")
-      .replace(/!\[\[[^\]]+\]\]/g, "")
-      .replace(/^[ \t>*-]*!\[[^\]]*\]\([^\)]*\)\s*$/gm, "")
-      .replace(/!\[[^\]]*\]\([^\)]*\)/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+    const images: ParsedDiaryImage[] = [];
+    const imageGroups: ParsedDiaryImage[][] = [];
+
+    const optimizeDiaryImage = async (
+      alt: string,
+      src: string,
+      title = ""
+    ): Promise<ParsedDiaryImage> => {
+      try {
+        const optimizedInfo = await optimizeImage(src, {
+          needFullSize: true,
+        });
+        return {
+          alt,
+          src: optimizedInfo.thumbnail,
+          original: optimizedInfo.original || optimizedInfo.thumbnail,
+          title,
+          width: optimizedInfo.width,
+          height: optimizedInfo.height,
+        };
+      } catch {
+        return {
+          alt,
+          original: src,
+          src,
+          title,
+          width: 400,
+          height: 300,
+        };
+      }
+    };
+
+    const optimizeEmbedList = async (
+      embeds: ParsedObsidianImageEmbed[]
+    ): Promise<ParsedDiaryImage[]> => {
+      const result: ParsedDiaryImage[] = [];
+      for (const embed of embeds) {
+        result.push(await optimizeDiaryImage(embed.alt, embed.src, embed.title));
+      }
+      return result;
+    };
+
+    const buildImageGroupPlaceholder = (groupIndex: number) =>
+      `${IMAGE_GROUP_PLACEHOLDER_PREFIX}${groupIndex}++`;
+
+    const textLines = text.split("\n");
+    const processedTextLines: string[] = [];
+    let pendingImageEmbeds: ParsedObsidianImageEmbed[] = [];
+
+    const flushPendingImageEmbeds = async () => {
+      if (pendingImageEmbeds.length === 0) {
+        return;
+      }
+      const optimizedGroup = await optimizeEmbedList(pendingImageEmbeds);
+      if (optimizedGroup.length > 0) {
+        const groupIndex = imageGroups.push(optimizedGroup) - 1;
+        processedTextLines.push(buildImageGroupPlaceholder(groupIndex));
+      }
+      pendingImageEmbeds = [];
+    };
+
+    for (const rawLine of textLines) {
+      const lineEmbeds = [
+        ...parseObsidianImageEmbeds(rawLine),
+        ...parseMarkdownImageEmbeds(rawLine),
+      ];
+
+      if (lineEmbeds.length === 0) {
+        await flushPendingImageEmbeds();
+        processedTextLines.push(rawLine);
+        continue;
+      }
+
+      if (isImageOnlyLine(rawLine)) {
+        pendingImageEmbeds.push(...lineEmbeds);
+        continue;
+      }
+
+      await flushPendingImageEmbeds();
+      processedTextLines.push(stripImageTokensFromLine(rawLine));
+
+      const inlineImageGroup = await optimizeEmbedList(lineEmbeds);
+      if (inlineImageGroup.length > 0) {
+        const groupIndex = imageGroups.push(inlineImageGroup) - 1;
+        processedTextLines.push(buildImageGroupPlaceholder(groupIndex));
+      }
+    }
+
+    await flushPendingImageEmbeds();
+
+    // 清理空行，避免解析后出现过大的空白
+    text = processedTextLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 
     // 解析 Markdown 行内代码为 HTML code 标签
     text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -300,52 +402,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
       return `<blockquote class="px-3 py-2 my-2 italic text-foreground/80 relative"><span class="text-4xl text-foreground/30 absolute -left-1 -top-1">“</span>${lines}<span class="text-4xl text-foreground/30 absolute -right-0 -bottom-2">”</span></blockquote>`;
     });
 
-    // 提取图片并优化
-    const images: ParsedDiaryImage[] = [];
-    const pushOptimizedImage = async (
-      alt: string,
-      src: string,
-      title = ""
-    ): Promise<void> => {
-      try {
-        const optimizedInfo = await optimizeImage(src, {
-          needFullSize: true,
-        });
-        images.push({
-          alt,
-          src: optimizedInfo.thumbnail,
-          original: optimizedInfo.original || optimizedInfo.thumbnail,
-          title,
-          width: optimizedInfo.width,
-          height: optimizedInfo.height,
-        });
-      } catch {
-        images.push({
-          alt,
-          original: src,
-          src,
-          title,
-          width: 400,
-          height: 300,
-        });
-      }
-    };
-
-    for (const obsidianImage of obsidianImageEmbeds) {
-      await pushOptimizedImage(
-        obsidianImage.alt,
-        obsidianImage.src,
-        obsidianImage.title
-      );
-    }
-
-    for (const markdownImage of markdownImageEmbeds) {
-      await pushOptimizedImage(
-        markdownImage.alt,
-        markdownImage.src,
-        markdownImage.title
-      );
-    }
+    // 解析 ```imgs 代码块中的图片（兼容旧语法）
 
     const imgMatches = blockContent.match(/```imgs([\s\S]*?)```/);
     if (imgMatches) {
@@ -356,7 +413,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
       while ((imgMatch = imgRegex.exec(imgContent)) !== null) {
         const src = imgMatch[2];
         const title = imgMatch[3] || imgMatch[4] || ""; // 支持双引号或单引号的title
-        await pushOptimizedImage(imgMatch[1], src, title);
+        images.push(await optimizeDiaryImage(imgMatch[1], src, title));
       }
     }
 
@@ -573,7 +630,8 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
         // 检查是否为占位符
         if (
           trimmedLine.includes("++HTML_BLOCK_") ||
-          trimmedLine.includes("++PROTECTED_CODE_BLOCK_")
+          trimmedLine.includes("++PROTECTED_CODE_BLOCK_") ||
+          trimmedLine.includes(IMAGE_GROUP_PLACEHOLDER_PREFIX)
         ) {
           return trimmedLine;
         }
@@ -604,6 +662,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
 
     if (
       text ||
+      imageGroups.length > 0 ||
       images.length > 0 ||
       htmlContent ||
       movieData ||
@@ -615,6 +674,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
         time,
         showTime: hasTimeMarkers,
         text,
+        imageGroups,
         images,
         htmlContent,
         movieData,

@@ -59,7 +59,24 @@ export interface TimeBlock {
   time: string;
   showTime?: boolean;
   text?: string;
-  images?: Array<{ alt: string; src: string; title?: string }>;
+  images?: Array<{
+    alt: string;
+    src: string;
+    title?: string;
+    original?: string;
+    width?: number;
+    height?: number;
+  }>;
+  imageGroups?: Array<
+    Array<{
+      alt: string;
+      src: string;
+      title?: string;
+      original?: string;
+      width?: number;
+      height?: number;
+    }>
+  >;
   htmlContent?: string;
   movieData?: LocalMovieData;
   tvData?: LocalTVData;
@@ -208,6 +225,7 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
             date={date}
             text={block.text}
             images={block.images}
+            imageGroups={block.imageGroups}
             htmlContent={block.htmlContent}
             movieData={block.movieData}
             tvData={block.tvData}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import MediaCard from "./MediaCard";
 import EmojiReactions from "./EmojiReactions";
 import type { MediaCardData } from "../types/media";
@@ -13,19 +13,53 @@ export interface TimelineItemProps {
   showTime?: boolean;
   date?: string;
   text?: string;
-  images?: Array<{
-    alt: string;
-    src: string;
-    title?: string;
-    original?: string;
-    width?: number;
-    height?: number;
-  }>;
+  images?: TimelineImage[];
+  imageGroups?: TimelineImage[][];
   htmlContent?: string;
   movieData?: MediaCardData;
   tvData?: MediaCardData;
   bookData?: MediaCardData;
   musicData?: MediaCardData;
+}
+
+interface TimelineImage {
+  alt: string;
+  src: string;
+  title?: string;
+  original?: string;
+  width?: number;
+  height?: number;
+}
+
+interface NormalizedTimelineImage {
+  alt: string;
+  thumbnail: string;
+  original: string;
+  title?: string;
+  width: number;
+  height: number;
+}
+
+const IMAGE_GROUP_PLACEHOLDER_REGEX = /\+\+DIARY_IMAGE_GROUP_(\d+)\+\+/g;
+
+function normalizeTimelineImage(image: TimelineImage): NormalizedTimelineImage {
+  return {
+    alt: image.alt,
+    thumbnail: image.src,
+    original: image.original || image.src,
+    title: image.title,
+    width: image.width || 800,
+    height: image.height || 600,
+  };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 const TimelineItemReact: React.FC<TimelineItemProps> = ({
@@ -34,6 +68,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
   date,
   text,
   images,
+  imageGroups,
   htmlContent,
   movieData,
   tvData,
@@ -42,48 +77,35 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
 }) => {
   const galleryRef = useRef<HTMLDivElement>(null);
   const lightGalleryRef = useRef<{ destroy: () => void } | null>(null);
-  const [optimizedImages, setOptimizedImages] = useState<
-    {
-      thumbnail: string;
-      original: string;
-      width?: number;
-      height?: number;
-    }[]
-  >([]);
-  const [isImagesLoaded, setIsImagesLoaded] = useState(false);
+  const normalizedInlineImageGroups = useMemo(
+    () =>
+      (imageGroups || [])
+        .map(group => group.map(normalizeTimelineImage))
+        .filter(group => group.length > 0),
+    [imageGroups]
+  );
 
-  // 优化图片
-  useEffect(() => {
-    if (images && images.length > 0) {
-      const optimizeAllImages = async () => {
-        const optimizedResults = images.map(img => {
-          // 如果图片数据中已经包含宽高信息，直接使用
-          if (img.width && img.height) {
-            return {
-              thumbnail: img.src,
-              original: img.original || img.src,
-              width: img.width,
-              height: img.height,
-            };
-          }
-          // 否则使用默认尺寸信息
-          return {
-            thumbnail: img.src,
-            original: img.original || img.src,
-            width: 800,
-            height: 600,
-          };
-        });
-        setOptimizedImages(optimizedResults);
-        setIsImagesLoaded(true);
-      };
-      optimizeAllImages();
-    }
-  }, [images]);
+  const normalizedLegacyImages = useMemo(
+    () => (images || []).map(normalizeTimelineImage),
+    [images]
+  );
+
+  const allGalleryGroups = useMemo(
+    () => [
+      ...normalizedInlineImageGroups,
+      ...(normalizedLegacyImages.length > 0 ? [normalizedLegacyImages] : []),
+    ],
+    [normalizedInlineImageGroups, normalizedLegacyImages]
+  );
+
+  const hasInlineImageMarkers = Boolean(
+    text && text.includes("++DIARY_IMAGE_GROUP_")
+  );
+  const hasAnyGalleryImages = allGalleryGroups.length > 0;
 
   // 初始化 lightgallery（依赖于图片优化完成）
   useEffect(() => {
-    if (isImagesLoaded && optimizedImages.length > 0 && galleryRef.current) {
+    if (hasAnyGalleryImages && galleryRef.current) {
       // 使用动态导入来避免 ES 模块问题
       const initLightGallery = async () => {
         try {
@@ -120,7 +142,163 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
         lightGalleryRef.current.destroy();
       }
     };
-  }, [isImagesLoaded, optimizedImages]);
+  }, [hasAnyGalleryImages, allGalleryGroups]);
+
+  const renderImageGroup = (
+    groupImages: NormalizedTimelineImage[],
+    groupKey: string
+  ) => {
+    if (groupImages.length === 0) return null;
+
+    return (
+      <figure
+        key={groupKey}
+        className="images-grid mb-4"
+        role="group"
+        aria-label={`图片集合，共 ${groupImages.length} 张图片`}
+      >
+        <div
+          className={`grid gap-3 ${
+            htmlContent
+              ? "w-full grid-cols-1"
+              : groupImages.length === 1
+                ? "max-w-80 grid-cols-1"
+                : groupImages.length === 2
+                  ? "max-w-83 grid-cols-2"
+                  : groupImages.length === 4
+                    ? "max-w-83 grid-cols-2"
+                    : "max-w-126 grid-cols-3"
+          }`}
+        >
+          {groupImages.map((image, imageIndex) => {
+            const hasCaption = Boolean(image.title);
+            const captionForLightbox =
+              image.title || `${image.width}x${image.height}`;
+
+            return (
+              <div
+                key={`${groupKey}-${imageIndex}`}
+                className={hasCaption ? "space-y-1" : ""}
+              >
+                <a
+                  className={`lg-item group focus:ring-skin-accent block overflow-hidden rounded-xl focus:outline-none ${
+                    groupImages.length === 1
+                      ? "relative"
+                      : "image-item relative aspect-square"
+                  }`}
+                  style={
+                    groupImages.length === 1
+                      ? {}
+                      : ({
+                          aspectRatio: "1 / 1",
+                          WebkitAspectRatio: "1 / 1",
+                        } as React.CSSProperties)
+                  }
+                  data-src={image.original}
+                  data-lg-size={`${image.width}-${image.height}`}
+                  data-sub-html={`<h4>${escapeHtml(image.alt)}</h4><p>${escapeHtml(captionForLightbox)}</p>`}
+                  href={image.original}
+                  aria-label={`查看大图：${image.alt}${image.title ? ` - ${image.title}` : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.currentTarget.click();
+                    }
+                  }}
+                >
+                  <img
+                    src={image.thumbnail}
+                    alt={image.alt || `图片 ${imageIndex + 1}`}
+                    className="h-full w-full cursor-pointer object-cover transition-transform duration-300 hover:scale-105"
+                    style={
+                      groupImages.length === 1
+                        ? {}
+                        : {
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }
+                    }
+                    loading="lazy"
+                    title={image.title}
+                  />
+                </a>
+                {hasCaption && (
+                  <figcaption className="text-skin-base/70 px-1 text-xs leading-snug">
+                    {image.title}
+                  </figcaption>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {groupImages.length > 1 && (
+          <figcaption className="sr-only">
+            图片集合包含 {groupImages.length} 张图片，点击任意图片可查看大图
+          </figcaption>
+        )}
+      </figure>
+    );
+  };
+
+  const renderTextWithInlineImageGroups = () => {
+    if (!text) return null;
+
+    if (!hasInlineImageMarkers) {
+      return (
+        <div
+          className="mb-4 text-base leading-relaxed whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ __html: text }}
+        />
+      );
+    }
+
+    IMAGE_GROUP_PLACEHOLDER_REGEX.lastIndex = 0;
+    const renderedNodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null = null;
+    let segmentIndex = 0;
+
+    while ((match = IMAGE_GROUP_PLACEHOLDER_REGEX.exec(text)) !== null) {
+      const htmlSegment = text.slice(lastIndex, match.index);
+      if (htmlSegment.trim()) {
+        renderedNodes.push(
+          <div
+            key={`html-segment-${segmentIndex}`}
+            className="mb-4 text-base leading-relaxed whitespace-pre-wrap"
+            dangerouslySetInnerHTML={{ __html: htmlSegment }}
+          />
+        );
+        segmentIndex++;
+      }
+
+      const groupIndex = Number.parseInt(match[1], 10);
+      const targetGroup = normalizedInlineImageGroups[groupIndex];
+      if (targetGroup && targetGroup.length > 0) {
+        renderedNodes.push(
+          renderImageGroup(targetGroup, `inline-group-${groupIndex}`)
+        );
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    const tailSegment = text.slice(lastIndex);
+    if (tailSegment.trim()) {
+      renderedNodes.push(
+        <div
+          key={`html-segment-${segmentIndex}`}
+          className="mb-4 text-base leading-relaxed whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ __html: tailSegment }}
+        />
+      );
+    }
+
+    return renderedNodes;
+  };
+
   const hasTimeLabel = showTime && Boolean(time);
   const timeLabel = hasTimeLabel ? `${time} 时间段的记录` : "日记记录";
   const reactionKey = `${date ?? "unknown"}-${
@@ -148,97 +326,12 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
             </h3>
           )}
           {/* 内容区域 */}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1" ref={galleryRef}>
             {/* 帖子内容 */}
             <div className="text-skin-base">
-              {text && (
-                <div
-                  className="mb-4 text-base leading-relaxed whitespace-pre-wrap"
-                  dangerouslySetInnerHTML={{ __html: text }}
-                />
-              )}
-
-              {isImagesLoaded && optimizedImages.length > 0 && (
-                <figure
-                  className="images-grid mb-4"
-                  ref={galleryRef}
-                  role="group"
-                  aria-label={`图片集合，共 ${optimizedImages.length} 张图片`}
-                >
-                  <div
-                    className={`grid gap-3 ${
-                      htmlContent
-                        ? "w-full grid-cols-1"
-                        : optimizedImages.length === 1
-                          ? "max-w-80 grid-cols-1"
-                          : optimizedImages.length === 2
-                            ? "max-w-83 grid-cols-2"
-                            : optimizedImages.length === 4
-                              ? "max-w-83 grid-cols-2"
-                              : "max-w-126 grid-cols-3"
-                    }`}
-                  >
-                    {optimizedImages.map((optimizedImg, index) => {
-                      const originalImg = images![index];
-
-                      return (
-                        <a
-                          key={index}
-                          className={`lg-item group focus:ring-skin-accent block overflow-hidden rounded-xl focus:outline-none ${
-                            optimizedImages.length === 1
-                              ? "relative"
-                              : "image-item relative aspect-square"
-                          }`}
-                          style={
-                            optimizedImages.length === 1
-                              ? {}
-                              : ({
-                                  aspectRatio: "1 / 1",
-                                  WebkitAspectRatio: "1 / 1",
-                                } as React.CSSProperties)
-                          }
-                          data-src={optimizedImg.original}
-                          data-lg-size={`${optimizedImg.width}-${optimizedImg.height}`}
-                          data-sub-html={`<h4>${originalImg.alt}</h4><p>${originalImg.title || `${originalImg.width}x${optimizedImg.height}`}</p>`}
-                          href={optimizedImg.original}
-                          aria-label={`查看大图：${originalImg.alt}${originalImg.title ? ` - ${originalImg.title}` : ""}`}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              e.currentTarget.click();
-                            }
-                          }}
-                        >
-                          <img
-                            src={optimizedImg.thumbnail}
-                            alt={originalImg.alt || `图片 ${index + 1}`}
-                            className="h-full w-full cursor-pointer object-cover transition-transform duration-300 hover:scale-105"
-                            style={
-                              optimizedImages.length === 1
-                                ? {}
-                                : {
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                  }
-                            }
-                            loading="lazy"
-                            title={originalImg.title}
-                          />
-                        </a>
-                      );
-                    })}
-                  </div>
-                  {optimizedImages.length > 1 && (
-                    <figcaption className="sr-only">
-                      图片集合包含 {optimizedImages.length}{" "}
-                      张图片，点击任意图片可查看大图
-                    </figcaption>
-                  )}
-                </figure>
-              )}
+              {renderTextWithInlineImageGroups()}
+              {normalizedLegacyImages.length > 0 &&
+                renderImageGroup(normalizedLegacyImages, "legacy-image-group")}
 
               {htmlContent && (
                 <div

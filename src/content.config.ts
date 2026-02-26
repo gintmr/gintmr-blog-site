@@ -2,6 +2,13 @@ import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
 import { SITE, BLOG_PATH, DIARY_PATH } from "@/config";
 
+const normalizeOptionalString = (value: unknown): unknown => {
+  if (value == null) return undefined;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const blog = defineCollection({
   loader: glob({ pattern: "**/[^_]*.{md,mdx}", base: `./${BLOG_PATH}` }),
   schema: ({ image }) =>
@@ -21,8 +28,14 @@ const blog = defineCollection({
       summary: z.string().optional(),
       keywords: z.array(z.string()).optional(),
       mainPoints: z.array(z.string()).optional(),
-      password: z.string().min(1).optional(),
-      passwordHint: z.string().optional(),
+      password: z.preprocess(
+        normalizeOptionalString,
+        z.string().min(1).optional()
+      ),
+      passwordHint: z.preprocess(
+        normalizeOptionalString,
+        z.string().optional()
+      ),
     }),
 });
 
