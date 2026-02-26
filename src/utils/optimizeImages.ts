@@ -8,6 +8,14 @@ const images = import.meta.glob(
 // 图片优化缓存
 const imageCache = new Map<string, OptimizedImageInfo>();
 
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * 图片优化配置接口
  */
@@ -71,22 +79,36 @@ export async function optimizeImage<T extends boolean = false>(
   }
 
   // 从图片路径中提取文件名，只处理 attachment/ 目录后的部分
-  const normalizedImagePath = imagePath.replace(/\\/g, "/");
+  const normalizedImagePath = decodeURIComponentSafe(imagePath)
+    .replace(/\\/g, "/")
+    .split(/[?#]/)[0]
+    .trim();
+
+  const normalizedPathWithoutDotPrefix = normalizedImagePath.replace(
+    /^(\.\/|\.\.\/)+/,
+    ""
+  );
+
   let fileName = "";
-  if (normalizedImagePath.includes("attachment")) {
+  if (normalizedPathWithoutDotPrefix.includes("attachment/")) {
     // 提取 attachment/ 后面的部分
-    const afterAttachment = normalizedImagePath.split("attachment/")[1];
+    const afterAttachment =
+      normalizedPathWithoutDotPrefix.split("attachment/")[1];
     if (afterAttachment) {
       fileName = afterAttachment;
     } else {
-      fileName = normalizedImagePath.split("/").pop() || normalizedImagePath;
+      fileName =
+        normalizedPathWithoutDotPrefix.split("/").pop() ||
+        normalizedPathWithoutDotPrefix;
     }
   } else {
-    fileName = normalizedImagePath.split("/").pop() || normalizedImagePath;
+    fileName = normalizedPathWithoutDotPrefix || normalizedImagePath;
   }
 
-  // 在导入的图片中查找匹配的图片，只匹配 attachment/ 目录后的部分
-  const imageKey = Object.keys(images).find(key => {
+  const normalizedFileName = fileName.toLowerCase();
+  const baseName = fileName.split("/").pop()?.toLowerCase() || "";
+
+  const imageEntries = Object.keys(images).map(key => {
     const normalizedKey = key.replace(/\\/g, "/");
     let keyAfterAttachment = "";
     if (normalizedKey.includes("attachment/")) {
@@ -94,12 +116,42 @@ export async function optimizeImage<T extends boolean = false>(
     } else {
       keyAfterAttachment = normalizedKey;
     }
-
-    // 比较 attachment/ 后的路径部分（忽略大小写）
-    return keyAfterAttachment.toLowerCase() === fileName.toLowerCase();
+    return {
+      key,
+      keyAfterAttachment,
+      keyAfterAttachmentLower: keyAfterAttachment.toLowerCase(),
+      baseNameLower: keyAfterAttachment.split("/").pop()?.toLowerCase() || "",
+    };
   });
 
-  console.log("imageKey", imageKey);
+  // 在导入的图片中查找匹配的图片，只匹配 attachment/ 目录后的部分
+  let imageKey =
+    imageEntries.find(
+      entry => entry.keyAfterAttachmentLower === normalizedFileName
+    )?.key || "";
+
+  if (!imageKey && normalizedFileName.includes("/")) {
+    imageKey =
+      imageEntries.find(entry =>
+        entry.keyAfterAttachmentLower.endsWith(`/${normalizedFileName}`)
+      )?.key || "";
+  }
+
+  // 兜底：如果只传了文件名（比如 Obsidian 的 ![[xxx.png]]），按 basename 匹配
+  if (!imageKey && baseName) {
+    const baseNameMatches = imageEntries.filter(
+      entry => entry.baseNameLower === baseName
+    );
+    const preferredMatch =
+      baseNameMatches.find(entry =>
+        entry.keyAfterAttachmentLower.includes("diary/")
+      ) ||
+      baseNameMatches.find(entry =>
+        entry.keyAfterAttachmentLower.includes("inbox/")
+      ) ||
+      baseNameMatches[0];
+    imageKey = preferredMatch?.key || "";
+  }
 
   if (!imageKey) {
     return {

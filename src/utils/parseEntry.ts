@@ -76,6 +76,119 @@ interface LocalMusicData {
   url?: string;
 }
 
+interface ParsedObsidianImageEmbed {
+  alt: string;
+  src: string;
+  title: string;
+}
+
+interface ParsedDiaryImage {
+  alt: string;
+  src: string;
+  title: string;
+  original: string;
+  width: number;
+  height: number;
+}
+
+const OBSIDIAN_IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
+
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeObsidianImageSource(path: string): string {
+  const normalized = path.trim().replace(/\\/g, "/");
+  if (!normalized) return normalized;
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("attachment/")) {
+    return `../${normalized}`;
+  }
+
+  if (normalized.includes("attachment/")) {
+    const afterAttachment = normalized.split("attachment/")[1] || normalized;
+    return `../attachment/${afterAttachment}`;
+  }
+
+  return normalized;
+}
+
+function parseObsidianImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
+  const embeds: ParsedObsidianImageEmbed[] = [];
+  const embedRegex = /!\[\[([^\]]+)\]\]/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = embedRegex.exec(content)) !== null) {
+    const embedRaw = match[1].trim();
+    if (!embedRaw) continue;
+
+    const segments = embedRaw
+      .split("|")
+      .map(segment => segment.trim())
+      .filter(Boolean);
+    if (segments.length === 0) continue;
+
+    const targetRaw = segments[0].split("#")[0]?.trim();
+    if (!targetRaw || !OBSIDIAN_IMAGE_EXT_REGEX.test(targetRaw)) {
+      continue;
+    }
+
+    const title =
+      segments
+        .slice(1)
+        .find(segment => !/^\d+(?:x\d+)?$/i.test(segment.replace(/\s+/g, ""))) ||
+      "";
+
+    const decodedTarget = decodeURIComponentSafe(targetRaw);
+    const fallbackAlt =
+      decodedTarget.split("/").pop()?.replace(/\.[^/.]+$/, "").trim() || "image";
+
+    embeds.push({
+      alt: title || fallbackAlt,
+      src: normalizeObsidianImageSource(targetRaw),
+      title,
+    });
+  }
+
+  return embeds;
+}
+
+function parseMarkdownImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
+  const embeds: ParsedObsidianImageEmbed[] = [];
+  const markdownImageRegex =
+    /!\[([^\]]*)\]\(([^\s)]+)(?:\s+"([^"]*)"|\s+\'([^\']*)\')?\)/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = markdownImageRegex.exec(content)) !== null) {
+    const alt = match[1]?.trim() || "";
+    const srcRaw = match[2]?.trim() || "";
+    if (!srcRaw || !OBSIDIAN_IMAGE_EXT_REGEX.test(srcRaw)) {
+      continue;
+    }
+
+    const title = (match[3] || match[4] || "").trim();
+    const decodedTarget = decodeURIComponentSafe(srcRaw);
+    const fallbackAlt =
+      decodedTarget.split("/").pop()?.replace(/\.[^/.]+$/, "").trim() || "image";
+
+    embeds.push({
+      alt: alt || title || fallbackAlt,
+      src: normalizeObsidianImageSource(srcRaw),
+      title,
+    });
+  }
+
+  return embeds;
+}
+
 // 解析日记条目的函数
 export async function parseEntry(entry: CollectionEntry<"diary">) {
   const diaryMeta = parseDiaryIdentifier(entry.id);
@@ -114,6 +227,17 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
 
     // 移除其他类型的代码块标识（imgs、html、card-等）
     text = text.replace(/```(imgs|html|card-[\s\S]*?)[\s\S]*?```/g, "").trim();
+
+    const obsidianImageEmbeds = parseObsidianImageEmbeds(text);
+    const markdownImageEmbeds = parseMarkdownImageEmbeds(text);
+    // 清理 Obsidian 图片语法，避免原始 ![[...]] 文本直接渲染在页面里
+    text = text
+      .replace(/^[ \t>*-]*!\[\[[^\]]+\]\]\s*$/gm, "")
+      .replace(/!\[\[[^\]]+\]\]/g, "")
+      .replace(/^[ \t>*-]*!\[[^\]]*\]\([^\)]*\)\s*$/gm, "")
+      .replace(/!\[[^\]]*\]\([^\)]*\)/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
     // 解析 Markdown 行内代码为 HTML code 标签
     text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -177,7 +301,52 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     });
 
     // 提取图片并优化
-    const images = [];
+    const images: ParsedDiaryImage[] = [];
+    const pushOptimizedImage = async (
+      alt: string,
+      src: string,
+      title = ""
+    ): Promise<void> => {
+      try {
+        const optimizedInfo = await optimizeImage(src, {
+          needFullSize: true,
+        });
+        images.push({
+          alt,
+          src: optimizedInfo.thumbnail,
+          original: optimizedInfo.original || optimizedInfo.thumbnail,
+          title,
+          width: optimizedInfo.width,
+          height: optimizedInfo.height,
+        });
+      } catch {
+        images.push({
+          alt,
+          original: src,
+          src,
+          title,
+          width: 400,
+          height: 300,
+        });
+      }
+    };
+
+    for (const obsidianImage of obsidianImageEmbeds) {
+      await pushOptimizedImage(
+        obsidianImage.alt,
+        obsidianImage.src,
+        obsidianImage.title
+      );
+    }
+
+    for (const markdownImage of markdownImageEmbeds) {
+      await pushOptimizedImage(
+        markdownImage.alt,
+        markdownImage.src,
+        markdownImage.title
+      );
+    }
+
     const imgMatches = blockContent.match(/```imgs([\s\S]*?)```/);
     if (imgMatches) {
       const imgContent = imgMatches[1];
@@ -187,32 +356,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
       while ((imgMatch = imgRegex.exec(imgContent)) !== null) {
         const src = imgMatch[2];
         const title = imgMatch[3] || imgMatch[4] || ""; // 支持双引号或单引号的title
-
-        // 处理相对路径的图片
-        try {
-          // 使用完整的优化函数，获取包含尺寸信息的对象
-          const optimizedInfo = await optimizeImage(src, {
-            needFullSize: true,
-          });
-          images.push({
-            alt: imgMatch[1],
-            src: optimizedInfo.thumbnail,
-            original: optimizedInfo.original,
-            title: title,
-            width: optimizedInfo.width,
-            height: optimizedInfo.height,
-          });
-        } catch {
-          // 失败时使用原始路径和默认尺寸
-          images.push({
-            alt: imgMatch[1],
-            original: src,
-            src: src,
-            title: title,
-            width: 400,
-            height: 300,
-          });
-        }
+        await pushOptimizedImage(imgMatch[1], src, title);
       }
     }
 
