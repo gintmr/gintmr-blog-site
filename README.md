@@ -1,6 +1,15 @@
+# Gintmr-Blog-Site
+个人主页 site 仓库
+本项目直接基于[astro-obsidian-blog](https://github.com/vsme/astro-obsidian-blog)项目修改，非常感谢原作者！
+
+
+---
+
+
+下面是原始项目的README
 # Be Good One
 
-一个基于 [Astro](https://astro.build/) 构建的个人网站，用于记录生活中的片段。
+一个基于 [Astro](https://astro.build/) 构建的个人网站
 
 ## ✨ 特性
 
