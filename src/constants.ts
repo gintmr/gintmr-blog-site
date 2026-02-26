@@ -22,22 +22,22 @@ interface Social {
 export const SOCIALS: readonly Social[] = [
   {
     name: "GitHub",
-    href: "https://github.com/vsme",
+    href: "https://github.com/gintmr",
     linkTitle: `${SITE.title} on GitHub`,
     icon: IconGitHub,
   },
   {
     name: "Bilibili",
-    href: "https://space.bilibili.com/164997305",
+    href: "https://space.bilibili.com/475570627",
     linkTitle: `${SITE.title} on Bilibili`,
     icon: IconBili,
   },
-  {
-    name: "Mail",
-    href: "mailto:hi@yaavi.me",
-    linkTitle: `Send an email to ${SITE.title}`,
-    icon: IconMail,
-  },
+  // {
+  //   name: "Mail",
+  //   href: "mailto:hi@yaavi.me",
+  //   linkTitle: `Send an email to ${SITE.title}`,
+  //   icon: IconMail,
+  // },
   // {
   //   name: "Zhihu",
   //   href: "https://zhihu.com/people/yaavi",

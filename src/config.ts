@@ -2,11 +2,11 @@ export const BLOG_PATH = "src/data/blog";
 export const DIARY_PATH = "src/data/diary";
 
 export const SITE = {
-  website: "https://bgo.me/", // replace this with your deployed domain
-  author: "Yawei Sun",
-  profile: "https://bgo.me/",
+  website: "https://gintmr.20250130.xyz/", // replace this with your deployed domain
+  author: "Gintmr",
+  profile: "https://gintmr.20250130.xyz/",
   desc: "一个时间长河中的个人档案馆。",
-  title: "Bingo!",
+  title: "Gintmr's Home 🏡",
   ogImage: "og.jpg",
   lightAndDarkMode: true,
   postPerIndex: 5,
@@ -17,7 +17,7 @@ export const SITE = {
   editPost: {
     enabled: false,
     text: "Edit page",
-    url: "https://github.com/vsme/obsidian-blog-data",
+    url: "https://github.com/gintmr/gintmr-blog-site",
   },
   comments: {
     enabled: true, // 启用评论功能
