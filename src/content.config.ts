@@ -21,6 +21,8 @@ const blog = defineCollection({
       summary: z.string().optional(),
       keywords: z.array(z.string()).optional(),
       mainPoints: z.array(z.string()).optional(),
+      password: z.string().min(1).optional(),
+      passwordHint: z.string().optional(),
     }),
 });
 

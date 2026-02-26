@@ -162,7 +162,9 @@ async function processHtmlImages(
 
 export async function GET() {
   const posts = await getCollection("blog");
-  const sortedPosts = getSortedPosts(posts);
+  const sortedPosts = getSortedPosts(posts).filter(
+    post => !post.data.password?.trim()
+  );
 
   // 为每篇文章创建RSS项目
   const rssItems = await Promise.all(

@@ -16,6 +16,12 @@ import IconChevronRight from "@/assets/icons/IconChevronRight.svg";
 import { SITE } from "@/config";
 import MediaCard from "../components/MediaCard.astro";
 import Comments from "@/components/Comments.tsx";
+import ProtectedPost from "@/components/ProtectedPost.astro";
+import { encryptPostContent, type EncryptedPostPayload } from "@/utils/protectedPostCrypto";
+import {
+  processProtectedPostHtml,
+  renderProtectedPostHtml,
+} from "@/utils/renderProtectedPostHtml";
 
 export interface Props {
   post: CollectionEntry<"blog">;
@@ -36,11 +42,29 @@ const {
   tags,
   hideEditPost,
   summary,
+  password,
+  passwordHint,
   // keywords,
   // mainPoints,
 } = post.data;
 
-const { Content } = await render(post);
+const hasPasswordProtection = Boolean(password?.trim());
+
+type RenderResult = Awaited<ReturnType<typeof render>>;
+let Content: RenderResult["Content"] | null = null;
+
+if (!hasPasswordProtection) {
+  const renderedPost = await render(post);
+  Content = renderedPost.Content;
+}
+
+let protectedPayload: EncryptedPostPayload | null = null;
+if (hasPasswordProtection && password) {
+  const renderedHtml = post.rendered?.html
+    ? await processProtectedPostHtml(post.rendered.html)
+    : await renderProtectedPostHtml(post.body || "", post.filePath ?? undefined);
+  protectedPayload = await encryptPostContent(renderedHtml, password);
+}
 
 let ogImageUrl: string | undefined;
 
@@ -153,12 +177,22 @@ const nextPost =
       )
     }
 
-    <article
-      id="article"
-      class="app-prose relative mx-auto mt-8 max-w-app prose-pre:bg-(--shiki-light-bg) dark:prose-pre:bg-(--shiki-dark-bg)"
-    >
-      <Content components={{ MediaCard }} />
-    </article>
+    {
+      hasPasswordProtection && protectedPayload ? (
+        <ProtectedPost
+          payload={protectedPayload}
+          postId={post.id}
+          passwordHint={passwordHint}
+        />
+      ) : (
+        <article
+          id="article"
+          class="app-prose relative mx-auto mt-8 max-w-app prose-pre:bg-(--shiki-light-bg) dark:prose-pre:bg-(--shiki-dark-bg)"
+        >
+          {Content && <Content components={{ MediaCard }} />}
+        </article>
+      )
+    }
 
     <hr class="my-8 border-dashed" />
 
