@@ -1,0 +1,134 @@
+---
+import Main from "@/layouts/Main.astro";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import PagefindSearch from "astro-pagefind/components/Search";
+import { SITE } from "@/config";
+---
+
+<Layout title={`Search | ${SITE.title}`}>
+  <Header />
+  <Main pageTitle="搜索" pageDesc="搜索你想了解的内容...">
+    <PagefindSearch
+      id="search"
+      className="pagefind-ui"
+      uiOptions={{ showImages: false, showSubResults: true }}
+    />
+  </Main>
+  <Footer />
+</Layout>
+
+<script>
+  // 浏览器端处理URL参数和搜索状态保持
+  function initSearchFromURL() {
+    const searchInput = document.querySelector(
+      ".pagefind-ui__search-input"
+    ) as HTMLInputElement;
+
+    if (!searchInput) {
+      // 如果搜索组件还没有加载，延迟重试
+      setTimeout(initSearchFromURL, 100);
+      return;
+    }
+
+    // 从URL参数中获取搜索查询
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get("q");
+
+    if (query) {
+      // 设置搜索框的值
+      searchInput.value = decodeURIComponent(query);
+      // 触发搜索
+      searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    // 监听搜索输入变化，同步到 URL
+    let debounceTimer: number | undefined;
+    const updateURL = (query: string) => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(() => {
+        const url = new URL(window.location.href);
+        if (query) {
+          url.searchParams.set("q", query);
+        } else {
+          url.searchParams.delete("q");
+        }
+        window.history.replaceState({}, "", url.toString());
+      }, 300);
+    };
+
+    searchInput.addEventListener("input", e => {
+      const target = e.target as HTMLInputElement;
+      if (!target) return;
+      updateURL(target.value);
+    });
+
+    // 监听清空按钮点击事件
+    const clearButton = document.querySelector(
+      ".pagefind-ui__search-clear"
+    ) as HTMLButtonElement;
+    if (clearButton) {
+      clearButton.addEventListener("click", () => {
+        updateURL("");
+      });
+    }
+  }
+
+  // Astro 页面切换时重新初始化
+  document.addEventListener("astro:after-swap", initSearchFromURL);
+
+  // 首次加载初始化搜索
+  initSearchFromURL();
+</script>
+
+<style is:global>
+  .pagefind-ui {
+    --pagefind-ui-font: var(--font-mono);
+    --pagefind-ui-text: var(--foreground);
+    --pagefind-ui-background: var(--background);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-tag: var(--background);
+    --pagefind-ui-border-radius: 0.375rem;
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-image-border-radius: 8px;
+    --pagefind-ui-image-box-ratio: 3 / 2;
+  }
+
+  .pagefind-ui form::before {
+    background-color: var(--foreground);
+  }
+
+  .pagefind-ui input {
+    font-weight: 400;
+    border: 1px solid var(--border);
+  }
+
+  .pagefind-ui input:focus-visible {
+    outline: 1px solid var(--accent);
+  }
+
+  .pagefind-ui__result-title a {
+    color: var(--accent);
+    outline-offset: 1px;
+    outline-color: var(--accent);
+  }
+
+  .pagefind-ui__result-title a:focus-visible,
+  .pagefind-ui__search-clear:focus-visible {
+    text-decoration-line: none;
+    outline-width: 2px;
+    outline-style: dashed;
+  }
+
+  .pagefind-ui__result:last-of-type {
+    border-bottom: 0 !important;
+  }
+
+  .pagefind-ui__result-nested .pagefind-ui__result-link:before {
+    font-family: system-ui;
+  }
+</style>

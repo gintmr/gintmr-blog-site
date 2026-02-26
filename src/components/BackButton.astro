@@ -1,0 +1,70 @@
+---
+import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
+import LinkButton from "./LinkButton.astro";
+import { SITE } from "@/config";
+---
+
+{
+  SITE.showBackButton && (
+    <div class="mx-auto flex w-full max-w-app items-center justify-start px-2">
+      <LinkButton
+        id="back-button"
+        href="javascript:void(0)"
+        class="focus-outline mt-8 mb-2 flex hover:text-foreground/75"
+      >
+        <IconChevronLeft class="inline-block size-6 rtl:rotate-180" />
+        <span>返回</span>
+      </LinkButton>
+    </div>
+  )
+}
+
+<script>
+  document.addEventListener("astro:page-load", function () {
+    const backButton = document.getElementById("back-button");
+    if (!backButton) return;
+
+    const readStack = () => {
+      try {
+        return JSON.parse(sessionStorage.getItem("lastPages") || "[]");
+      } catch {
+        return [];
+      }
+    };
+    const writeStack = (arr: string[]) => {
+      // 只保留最近 10 条
+      const pruned = arr.slice(-10);
+      sessionStorage.setItem("lastPages", JSON.stringify(pruned));
+    };
+
+    const currentBase = () => location.pathname + location.search;
+
+    // 监听返回按钮点击事件
+    backButton.addEventListener("click", function (e) {
+      e.preventDefault();
+
+      const stack = readStack();
+      const cur = currentBase();
+
+      let targetIndex = -1;
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i] !== cur) {
+          targetIndex = i;
+          break;
+        }
+      }
+
+      if (targetIndex >= 0) {
+        const target = stack[targetIndex];
+
+        const newStack = stack.slice(0, targetIndex + 1);
+        writeStack(newStack);
+
+        location.assign(target);
+      } else {
+        // 兜底：没有历史 → 首页
+        location.assign("/");
+      }
+    });
+  });
+</script>
