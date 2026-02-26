@@ -57,6 +57,7 @@ interface LocalMusicData {
 
 export interface TimeBlock {
   time: string;
+  showTime?: boolean;
   text?: string;
   images?: Array<{ alt: string; src: string; title?: string }>;
   htmlContent?: string;
@@ -68,6 +69,8 @@ export interface TimeBlock {
 
 export interface DiaryEntryProps {
   date: string;
+  dateEnd?: string;
+  isDateRange?: boolean;
   hideYear?: boolean;
   timeBlocks: TimeBlock[];
 }
@@ -92,17 +95,35 @@ function ymdToUTC(ymd: string) {
 
 const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
   date,
+  dateEnd,
+  isDateRange = false,
   hideYear = false,
   timeBlocks,
 }) => {
+  const entryId = isDateRange && dateEnd ? `${date}_to_${dateEnd}` : date;
+
   // 1) 先准备稳定的 SSR 文案：绝对日期 (MM/DD) + 固定时区的星期/年份
   const entryDateUTC = ymdToUTC(date);
 
-  const absoluteLabel = new Intl.DateTimeFormat("zh-CN", {
+  const absoluteStartLabel = new Intl.DateTimeFormat("zh-CN", {
     timeZone: TZ,
     month: "2-digit",
     day: "2-digit",
   }).format(entryDateUTC); // 如 "08/17"
+
+  const entryEndDateUTC = dateEnd ? ymdToUTC(dateEnd) : null;
+  const absoluteEndLabel = entryEndDateUTC
+    ? new Intl.DateTimeFormat("zh-CN", {
+        timeZone: TZ,
+        month: "2-digit",
+        day: "2-digit",
+      }).format(entryEndDateUTC)
+    : null;
+
+  const absoluteLabel =
+    isDateRange && absoluteEndLabel
+      ? `${absoluteStartLabel}-${absoluteEndLabel}`
+      : absoluteStartLabel;
 
   const weekdayLabel = new Intl.DateTimeFormat("zh-CN", {
     timeZone: TZ,
@@ -118,6 +139,11 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
   const [relativeLabel, setRelativeLabel] = React.useState<string | null>(null);
 
   React.useLayoutEffect(() => {
+    if (isDateRange) {
+      setRelativeLabel(null);
+      return;
+    }
+
     const now = new Date();
     // 当天(按 TZ) 与条目日期(按 TZ) 的日历日
     const todayYMD = toYMD(now, TZ);
@@ -135,14 +161,14 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
     else if (diffDays === 1) setRelativeLabel("昨天");
     else if (diffDays === 2) setRelativeLabel("前天");
     else setRelativeLabel(null); // 超过范围就用 SSR 的 absoluteLabel
-  }, [date]);
+  }, [date, isDateRange]);
 
   return (
     <div className="date-group mb-16" data-pagefind-weight="2">
       <header className="mb-8">
         <div className="flex items-baseline gap-3">
           <h2
-            id={`date-${date}`}
+            id={`date-${entryId}`}
             className="text-skin-accent m-0 text-3xl leading-none font-bold"
             aria-label={`${relativeLabel ?? absoluteLabel} ${weekdayLabel} ${!hideYear ? yearLabel : ""} 的日记`}
           >
@@ -169,15 +195,16 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
       </header>
 
       <div
-        id={`content-${date}`}
+        id={`content-${entryId}`}
         className="space-y-0"
         role="group"
-        aria-labelledby={`date-${date}`}
+        aria-labelledby={`date-${entryId}`}
       >
         {timeBlocks.map((block, index) => (
           <TimelineItemReact
             key={`${date}-${block.time}-${index}`}
             time={block.time}
+            showTime={block.showTime}
             date={date}
             text={block.text}
             images={block.images}

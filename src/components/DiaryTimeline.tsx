@@ -3,6 +3,8 @@ import DiaryEntryReact, { type TimeBlock } from "./DiaryEntryReact";
 
 export interface ParsedEntry {
   date: string;
+  dateEnd?: string;
+  isDateRange?: boolean;
   timeBlocks: TimeBlock[];
 }
 
@@ -134,22 +136,31 @@ const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
 
   return (
     <>
-      {displayedEntries.map((entry, index) => (
-        <article
-          key={`${entry.date}-${index}`}
-          role="article"
-          aria-labelledby={`date-${entry.date}`}
-          aria-describedby={`content-${entry.date}`}
-          tabIndex={0}
-          className="focus:ring-skin-accent focus:ring-offset-skin-fill rounded-lg focus:outline-none"
-        >
-          <DiaryEntryReact
-            date={entry.date}
-            hideYear={hideYear}
-            timeBlocks={entry.timeBlocks}
-          />
-        </article>
-      ))}
+      {displayedEntries.map((entry, index) => {
+        const entryId =
+          entry.isDateRange && entry.dateEnd
+            ? `${entry.date}_to_${entry.dateEnd}`
+            : entry.date;
+
+        return (
+          <article
+            key={`${entry.date}-${index}`}
+            role="article"
+            aria-labelledby={`date-${entryId}`}
+            aria-describedby={`content-${entryId}`}
+            tabIndex={0}
+            className="focus:ring-skin-accent focus:ring-offset-skin-fill rounded-lg focus:outline-none"
+          >
+            <DiaryEntryReact
+              date={entry.date}
+              dateEnd={entry.dateEnd}
+              isDateRange={entry.isDateRange}
+              hideYear={hideYear}
+              timeBlocks={entry.timeBlocks}
+            />
+          </article>
+        );
+      })}
 
       {displayedEntries.length === 0 && (
         <article role="article" className="py-12 text-center">

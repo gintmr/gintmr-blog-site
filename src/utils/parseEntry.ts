@@ -4,6 +4,7 @@ import {
 } from "@/utils/optimizeImages";
 import { getVideoPath } from "@/utils/videoUtils";
 import { processLink } from "@/utils/linkProcessor";
+import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import type { CollectionEntry } from "astro:content";
 
 // 通用的poster路径优化函数
@@ -77,10 +78,13 @@ interface LocalMusicData {
 
 // 解析日记条目的函数
 export async function parseEntry(entry: CollectionEntry<"diary">) {
-  const date = entry.id.replace(".md", "");
+  const diaryMeta = parseDiaryIdentifier(entry.id);
+  const date = diaryMeta.startDate;
 
   // 解析markdown内容，提取时间段和内容
-  const content = entry.body || "";
+  const rawContent = entry.body || "";
+  const hasTimeMarkers = /(^|\n)## (\d{2}:\d{2})/m.test(rawContent);
+  const content = hasTimeMarkers ? rawContent : `## 00:00\n\n${rawContent.trim()}`;
   const timeBlocks = [];
 
   // 使用正则表达式匹配时间块
@@ -465,6 +469,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     ) {
       timeBlocks.push({
         time,
+        showTime: hasTimeMarkers,
         text,
         images,
         htmlContent,
@@ -485,6 +490,8 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
 
   return {
     date,
+    dateEnd: diaryMeta.endDate,
+    isDateRange: diaryMeta.isRange,
     timeBlocks,
   };
 }

@@ -6,6 +6,7 @@ import BackToTopButton from "@/components/BackToTopButton.astro";
 import { SITE } from "@/config";
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
+import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 
@@ -19,10 +20,8 @@ export async function getStaticPaths() {
   const quarterGroups = new Map();
 
   publishedEntries.forEach(entry => {
-    const date = entry.id.replace(".md", "");
-    const [year, month] = date.split("-");
-    const quarter = Math.ceil(parseInt(month) / 3);
-    const quarterKey = `${year}-Q${quarter}`;
+    const meta = parseDiaryIdentifier(entry.id);
+    const quarterKey = meta.quarterKey;
 
     if (!quarterGroups.has(quarterKey)) {
       quarterGroups.set(quarterKey, []);
@@ -50,18 +49,15 @@ const publishedEntries = diaryEntries.filter(entry => !entry.data.draft);
 
 // 按季度过滤条目
 let quarterEntries = publishedEntries.filter(entry => {
-  const date = entry.id.replace(".md", "");
-  const [year, month] = date.split("-");
-  const quarter = Math.ceil(parseInt(month) / 3);
-  const entryQuarterKey = `${year}-Q${quarter}`;
-  return entryQuarterKey === quarterKey;
+  const meta = parseDiaryIdentifier(entry.id);
+  return meta.quarterKey === quarterKey;
 });
 
 // 按日期排序，最新的在前
 quarterEntries = quarterEntries.sort((a, b) => {
-  const dateA = a.id.replace(".md", "");
-  const dateB = b.id.replace(".md", "");
-  return dateA.localeCompare(dateB);
+  const metaA = parseDiaryIdentifier(a.id);
+  const metaB = parseDiaryIdentifier(b.id);
+  return metaB.sortKey.localeCompare(metaA.sortKey);
 });
 
 // 解析所有季度条目（不再分页）

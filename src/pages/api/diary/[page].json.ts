@@ -1,5 +1,6 @@
 import type { APIRoute, GetStaticPaths } from "astro";
 import { getCollection } from "astro:content";
+import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 
 export const getStaticPaths: GetStaticPaths = async () => {
@@ -27,9 +28,9 @@ export const GET: APIRoute = async ({ params }) => {
 
     // 按文件名（日期）排序，最新的在前
     const sortedEntries = publishedEntries.sort((a, b) => {
-      const dateA = a.id.replace(".md", "");
-      const dateB = b.id.replace(".md", "");
-      return dateB.localeCompare(dateA);
+      const metaA = parseDiaryIdentifier(a.id);
+      const metaB = parseDiaryIdentifier(b.id);
+      return metaB.sortKey.localeCompare(metaA.sortKey);
     });
 
     // 计算分页

@@ -5,6 +5,7 @@ import BackToTopButton from "@/components/BackToTopButton.astro";
 import { SITE } from "@/config";
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
+import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 
@@ -16,9 +17,9 @@ const publishedEntries = diaryEntries.filter(entry => !entry.data.draft);
 // 按文件名（日期）排序，最新的在前
 // 同时确保同一天内的时间块也按时间倒序排列
 const sortedEntries = publishedEntries.sort((a, b) => {
-  const dateA = a.id.replace(".md", "");
-  const dateB = b.id.replace(".md", "");
-  return dateB.localeCompare(dateA);
+  const metaA = parseDiaryIdentifier(a.id);
+  const metaB = parseDiaryIdentifier(b.id);
+  return metaB.sortKey.localeCompare(metaA.sortKey);
 });
 
 // 分页设置

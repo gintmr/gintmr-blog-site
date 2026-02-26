@@ -10,6 +10,7 @@ import "lightgallery/css/lg-zoom.css";
 
 export interface TimelineItemProps {
   time: string;
+  showTime?: boolean;
   date?: string;
   text?: string;
   images?: Array<{
@@ -29,6 +30,7 @@ export interface TimelineItemProps {
 
 const TimelineItemReact: React.FC<TimelineItemProps> = ({
   time,
+  showTime = true,
   date,
   text,
   images,
@@ -119,25 +121,32 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
       }
     };
   }, [isImagesLoaded, optimizedImages]);
+  const hasTimeLabel = showTime && Boolean(time);
+  const timeLabel = hasTimeLabel ? `${time} 时间段的记录` : "日记记录";
+  const reactionKey = `${date ?? "unknown"}-${
+    hasTimeLabel ? time.replace(":", "-") : "no-time"
+  }`;
+
   return (
     <article
       className="mb-6 border-b border-dashed border-border/30 pb-6 last:border-b-0 last:pb-0"
       tabIndex={0}
       role="article"
-      aria-label={`${time} 时间段的记录`}
+      aria-label={timeLabel}
     >
       <div className="content group transition-all duration-300">
         {/* 时间和内容整合显示 */}
         <div className="flex items-start gap-3">
-          {/* 时间标签 - 使用h3标题以便Pagefind识别为子结果 */}
-          <h3
-            id={date ? `diary-${date}-${time.replace(/:/g, "-")}` : undefined}
-            className="text-skin-base/60 m-0 flex-shrink-0 pr-2 pl-0 text-base font-medium"
-            aria-label={`${time} 时间段的记录`}
-          >
-            <span className="sr-only">{date}</span>
-            <time dateTime={date ? `${date}T${time}` : time}>{time}</time>
-          </h3>
+          {hasTimeLabel && (
+            <h3
+              id={date ? `diary-${date}-${time.replace(/:/g, "-")}` : undefined}
+              className="text-skin-base/60 m-0 flex-shrink-0 pr-2 pl-0 text-base font-medium"
+              aria-label={timeLabel}
+            >
+              <span className="sr-only">{date}</span>
+              <time dateTime={date ? `${date}T${time}` : time}>{time}</time>
+            </h3>
+          )}
           {/* 内容区域 */}
           <div className="min-w-0 flex-1">
             {/* 帖子内容 */}
@@ -279,9 +288,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
 
               {/* 表情组件 */}
               {SUPABASE_URL && SUPABASE_KEY && (
-                <EmojiReactions
-                  id={`emoji-reactions-${date}-${time.replace(":", "-")}`}
-                />
+                <EmojiReactions id={`emoji-reactions-${reactionKey}`} />
               )}
             </div>
           </div>
