@@ -8,151 +8,175 @@ interface Props {
 }
 
 const { payload, postId, passwordHint } = Astro.props;
-const safeId = postId.replace(/[^a-zA-Z0-9_-]/g, "-");
-const rootId = `protected-post-${safeId}`;
-const payloadId = `${rootId}-payload`;
-const contentId = `${rootId}-content`;
 const storageKey = `post-password:${postId}`;
 ---
 
-<section
-  id={rootId}
-  class="mt-8 rounded-xl border border-border/40 bg-card/60 p-5"
-  data-pagefind-ignore
->
-  <h2 class="text-xl font-semibold text-accent">这是一篇受保护文章</h2>
-  <p class="mt-2 text-sm text-skin-base/80">
-    请输入文章密码后解锁正文内容。
-  </p>
-
-  {
-    passwordHint && (
-      <p class="mt-2 text-sm text-skin-base/70">
-        密码提示：<span class="font-medium">{passwordHint}</span>
-      </p>
-    )
-  }
-
-  <form data-role="unlock-form" class="mt-4 flex flex-col gap-3 sm:flex-row">
-    <input
-      type="password"
-      name="password"
-      autocomplete="current-password"
-      placeholder="输入文章密码"
-      class="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none ring-accent/40 focus:ring-2"
-      required
-    />
-    <button
-      type="submit"
-      class="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-skin-inverted transition hover:opacity-90"
-    >
-      解锁
-    </button>
-  </form>
-
-  <p
-    data-role="error"
-    class="mt-3 hidden rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+<div data-protected-post data-storage-key={storageKey} data-pagefind-ignore>
+  <section
+    data-role="unlock-panel"
+    class="mt-8 rounded-xl border border-border/40 bg-card/60 p-5"
   >
-    密码错误，请重试。
-  </p>
-</section>
+    <h2 class="text-xl font-semibold text-accent">这是一篇受保护文章</h2>
+    <p class="mt-2 text-sm text-skin-base/80">
+      请输入文章密码后解锁正文内容。
+    </p>
 
-<article
-  id={contentId}
-  data-role="decrypted-content"
-  class="app-prose relative mx-auto mt-8 hidden max-w-app prose-pre:bg-(--shiki-light-bg) dark:prose-pre:bg-(--shiki-dark-bg)"
-  data-pagefind-ignore
-></article>
-
-<script type="application/json" id={payloadId}>
-  {JSON.stringify(payload)}
-</script>
-
-<script is:inline define:vars={{ rootId, payloadId, contentId, storageKey }}>
-  const root = document.getElementById(rootId);
-  const payloadScript = document.getElementById(payloadId);
-  const contentEl = document.getElementById(contentId);
-
-  if (!root || !payloadScript || !contentEl) {
-    console.warn("Protected post elements are missing");
-  } else {
-    const form = root.querySelector('[data-role="unlock-form"]');
-    const errorBox = root.querySelector('[data-role="error"]');
-    const payload = JSON.parse(payloadScript.textContent || "{}");
-
-    const textEncoder = new TextEncoder();
-    const textDecoder = new TextDecoder();
-
-    function base64ToBytes(base64) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return bytes;
+    {
+      passwordHint && (
+        <p class="mt-2 text-sm text-skin-base/70">
+          密码提示：<span class="font-medium">{passwordHint}</span>
+        </p>
+      )
     }
 
-    async function decryptHtml(password) {
-      const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        textEncoder.encode(password),
-        { name: "PBKDF2" },
-        false,
-        ["deriveKey"]
-      );
+    <form data-role="unlock-form" class="mt-4 flex flex-col gap-3 sm:flex-row">
+      <input
+        type="password"
+        name="password"
+        autocomplete="current-password"
+        placeholder="输入文章密码"
+        class="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none ring-accent/40 focus:ring-2"
+        required
+      />
+      <button
+        type="submit"
+        class="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-skin-inverted transition hover:opacity-90"
+      >
+        解锁
+      </button>
+    </form>
 
-      const key = await crypto.subtle.deriveKey(
-        {
-          name: "PBKDF2",
-          salt: base64ToBytes(payload.salt),
-          iterations: payload.iterations,
-          hash: "SHA-256",
-        },
-        keyMaterial,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["decrypt"]
-      );
+    <p
+      data-role="error"
+      class="mt-3 hidden rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+    >
+      密码错误，请重试。
+    </p>
+  </section>
 
-      const decrypted = await crypto.subtle.decrypt(
-        {
-          name: "AES-GCM",
-          iv: base64ToBytes(payload.iv),
-        },
-        key,
-        base64ToBytes(payload.data)
-      );
+  <article
+    data-role="decrypted-content"
+    class="app-prose relative mx-auto mt-8 hidden max-w-app prose-pre:bg-(--shiki-light-bg) dark:prose-pre:bg-(--shiki-dark-bg)"
+    data-pagefind-ignore
+  ></article>
 
-      return textDecoder.decode(decrypted);
-    }
+  <script
+    type="application/json"
+    data-role="payload"
+    set:html={JSON.stringify(payload)}
+  ></script>
 
-    async function unlock(password, showError = true) {
-      if (!errorBox) return false;
+  <script is:inline>
+    (() => {
+      const currentScript = document.currentScript;
+      const container = currentScript?.closest("[data-protected-post]");
 
-      try {
-        const html = await decryptHtml(password);
-        contentEl.innerHTML = html;
-        contentEl.classList.remove("hidden");
-        root.classList.add("hidden");
-        errorBox.classList.add("hidden");
-        sessionStorage.setItem(storageKey, password);
-        return true;
-      } catch {
-        if (showError) errorBox.classList.remove("hidden");
-        return false;
+      if (!container) {
+        console.warn("Protected post container not found");
+        return;
       }
-    }
 
-    form?.addEventListener("submit", async event => {
-      event.preventDefault();
-      const data = new FormData(form);
-      const password = String(data.get("password") || "");
-      if (!password) return;
-      await unlock(password, true);
-    });
+      const root = container.querySelector('[data-role="unlock-panel"]');
+      const form = container.querySelector('[data-role="unlock-form"]');
+      const errorBox = container.querySelector('[data-role="error"]');
+      const contentEl = container.querySelector('[data-role="decrypted-content"]');
+      const payloadScript = container.querySelector('script[data-role="payload"]');
+      const storageKey = container.getAttribute("data-storage-key") || "";
 
-    const cachedPassword = sessionStorage.getItem(storageKey);
-    if (cachedPassword) {
-      unlock(cachedPassword, false);
-    }
-  }
-</script>
+      if (!root || !form || !errorBox || !contentEl || !payloadScript) {
+        console.warn("Protected post elements are missing");
+        return;
+      }
+
+      let payload;
+      try {
+        payload = JSON.parse(payloadScript.textContent || "{}");
+      } catch {
+        console.error("Invalid encrypted payload");
+        return;
+      }
+
+      if (!window.crypto || !window.crypto.subtle) {
+        errorBox.textContent = "当前浏览器不支持解密功能，请更换浏览器后重试。";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      const textEncoder = new TextEncoder();
+      const textDecoder = new TextDecoder();
+
+      function base64ToBytes(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+
+      async function decryptHtml(password) {
+        const keyMaterial = await crypto.subtle.importKey(
+          "raw",
+          textEncoder.encode(password),
+          { name: "PBKDF2" },
+          false,
+          ["deriveKey"]
+        );
+
+        const key = await crypto.subtle.deriveKey(
+          {
+            name: "PBKDF2",
+            salt: base64ToBytes(payload.salt),
+            iterations: payload.iterations,
+            hash: "SHA-256",
+          },
+          keyMaterial,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["decrypt"]
+        );
+
+        const decrypted = await crypto.subtle.decrypt(
+          {
+            name: "AES-GCM",
+            iv: base64ToBytes(payload.iv),
+          },
+          key,
+          base64ToBytes(payload.data)
+        );
+
+        return textDecoder.decode(decrypted);
+      }
+
+      async function unlock(password, showError = true) {
+        try {
+          const html = await decryptHtml(password);
+          contentEl.innerHTML = html;
+          contentEl.classList.remove("hidden");
+          root.classList.add("hidden");
+          errorBox.classList.add("hidden");
+          if (storageKey) {
+            sessionStorage.setItem(storageKey, password);
+          }
+          return true;
+        } catch {
+          if (showError) errorBox.classList.remove("hidden");
+          return false;
+        }
+      }
+
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const password = String(data.get("password") || "");
+        if (!password) return;
+        await unlock(password, true);
+      });
+
+      const cachedPassword = storageKey
+        ? sessionStorage.getItem(storageKey)
+        : null;
+      if (cachedPassword) {
+        unlock(cachedPassword, false);
+      }
+    })();
+  </script>
+</div>

@@ -11,6 +11,7 @@ import LinkButton from "./LinkButton.astro";
 import { SITE } from "@/config";
 
 const { pathname } = Astro.url;
+const faviconURL = `/${SITE.favicon}?v=${SITE.faviconVersion}`;
 
 // Remove trailing slash from current pathname if exists
 const currentPath =
@@ -48,7 +49,7 @@ const isActive = (path: string) => {
         class="mr-8 py-1 text-xl leading-8 font-semibold whitespace-nowrap sm:my-auto sm:flex-shrink-0 sm:leading-none"
       >
         <div class="relative -left-1.5 flex items-center">
-          <img src="/favicon.png" alt="favicon" class="h-10 w-10" />
+          <img src={faviconURL} alt="favicon" class="h-10 w-10" />
           <span class="ml-2">{SITE.title}</span>
         </div>
       </a>
