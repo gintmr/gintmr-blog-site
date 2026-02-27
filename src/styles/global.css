@@ -330,6 +330,18 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
     0 14px 26px -24px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 74%, transparent);
 }
 
+/* 单图不使用霓虹边框，避免干扰阅读与比例感知 */
+body[data-effect-image-neon="on"] :is(
+    .app-prose > .rehype-figure > img,
+    .app-prose > .rehype-figure > a,
+    .app-prose > p > img:only-child,
+    .images-grid-single .gallery-item
+  ) {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
 @media (hover: hover) and (pointer: fine) {
   body[data-effect-image-lift="on"] :is(
       .app-prose .rehype-figure > img,

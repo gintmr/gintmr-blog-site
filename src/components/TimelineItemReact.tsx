@@ -88,7 +88,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
     return (
       <figure
         key={groupKey}
-        className="images-grid mb-4"
+        className={`images-grid mb-4 ${groupImages.length === 1 ? "images-grid-single" : ""}`}
         role="group"
         aria-label={`图片集合，共 ${groupImages.length} 张图片`}
       >
@@ -107,7 +107,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
           style={
             groupImages.length === 1
               ? ({
-                  width: "50vw",
+                  width: "min(100%, 24rem)",
                   marginInline: "auto",
                 } as React.CSSProperties)
               : undefined

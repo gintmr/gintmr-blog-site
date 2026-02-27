@@ -41,7 +41,7 @@
     }
 
     .rehype-figure-container .rehype-figure:only-child {
-      width: 50vw;
+      width: min(100%, 24rem);
       justify-self: center;
     }
 
@@ -51,10 +51,33 @@
     }
 
     p > img:only-child {
-      width: 50vw;
+      width: min(100%, 24rem);
       max-height: 70vh;
       height: auto;
       object-fit: contain !important;
+    }
+
+    .app-prose > .rehype-figure {
+      width: min(100%, 24rem);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .app-prose > .rehype-figure > img,
+    .app-prose > .rehype-figure > a {
+      width: 100%;
+      max-height: 70vh;
+      height: auto;
+      object-fit: contain !important;
+      aspect-ratio: auto !important;
+    }
+
+    .app-prose > .rehype-figure > a > img {
+      width: 100%;
+      max-height: 70vh;
+      height: auto;
+      object-fit: contain !important;
+      aspect-ratio: auto !important;
     }
 
     .rehype-figure figcaption {
