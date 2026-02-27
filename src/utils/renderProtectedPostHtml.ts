@@ -9,6 +9,7 @@ import rehypeSlug from "rehype-slug";
 import remarkWrap from "./remarkWrap";
 import { remarkMediaCard } from "./remarkMediaCard";
 import { remarkLinkProcessor } from "./remarkLinkProcessor";
+import { remarkObsidianEmbeds } from "./remarkObsidianEmbeds";
 import { optimizeImage } from "./optimizeImages";
 
 function escapeHtml(input: string): string {
@@ -48,6 +49,7 @@ export async function renderProtectedPostHtml(
   try {
     const processed = await unified()
       .use(remarkParse)
+      .use(remarkObsidianEmbeds, { enableDebug: false })
       .use(remarkLinkProcessor, { enableDebug: false })
       .use(remarkMediaCard, { enableDebug: false })
       .use(remarkToc, { heading: "目录" })

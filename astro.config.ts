@@ -20,6 +20,7 @@ import remarkWrap from "./src/utils/remarkWrap";
 import rehypeHeadingLinks from "./src/utils/rehypeHeadingLinks";
 import { remarkMediaCard } from "./src/utils/remarkMediaCard";
 import { remarkLinkProcessor } from "./src/utils/remarkLinkProcessor";
+import { remarkObsidianEmbeds } from "./src/utils/remarkObsidianEmbeds";
 import pagefind from "astro-pagefind";
 
 import compress from "astro-compress";
@@ -61,6 +62,7 @@ export default defineConfig({
   ],
   markdown: {
     remarkPlugins: [
+      [remarkObsidianEmbeds, { enableDebug: false }],
       [remarkLinkProcessor, { enableDebug: false }],
       [remarkMediaCard, { enableDebug: false }],
       [remarkToc, { heading: "目录" }],
