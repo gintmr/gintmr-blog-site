@@ -41,6 +41,7 @@ const {
   tags,
   hideEditPost,
   summary,
+  enableAISummary,
   password,
   passwordHint,
   // keywords,
@@ -48,6 +49,7 @@ const {
 } = post.data;
 
 const hasPasswordProtection = Boolean(password?.trim());
+const showAISummary = Boolean(enableAISummary && summary?.trim());
 
 type RenderResult = Awaited<ReturnType<typeof render>>;
 let Content: RenderResult["Content"] | null = null;
@@ -143,8 +145,8 @@ const nextPost =
     </div>
 
     {
-      summary && (
-        <div class="mt-6 mb-8 rounded-lg border border-purple-500/10 bg-gradient-to-br from-purple-500/20 via-purple-500/5 to-blue-500/10 p-4 font-sans shadow-[inset_0_2px_6px_rgba(0,0,0,0.05)] selection:bg-purple-800/40 dark:selection:bg-purple-200/50">
+      showAISummary && (
+        <div class="ai-summary-card mt-6 mb-8 rounded-lg border p-4 font-sans">
           <div class="mb-3 flex items-center gap-2">
             <svg class="h-5 w-5" fill="url(#starGradient)" viewBox="0 0 24 24">
               <defs>
@@ -155,8 +157,8 @@ const nextPost =
                   x2="100%"
                   y2="100%"
                 >
-                  <stop offset="0%" style="stop-color:#e0abff" />
-                  <stop offset="100%" style="stop-color:#7a43d8" />
+                  <stop offset="0%" style="stop-color:var(--site-ai-summary-star-from)" />
+                  <stop offset="100%" style="stop-color:var(--site-ai-summary-star-to)" />
                 </linearGradient>
               </defs>
               <path d="M12 2L9.1 9.1 2 12l7.1 2.9L12 22l2.9-7.1L22 12l-7.1-2.9z" />
@@ -166,12 +168,12 @@ const nextPost =
                 d="M12 2L9.1 9.1 2 12l7.1 2.9L12 22l2.9-7.1L22 12l-7.1-2.9z"
               />
             </svg>
-            <h3 class="bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-lg font-bold text-transparent">
+            <h3 class="ai-summary-title text-lg font-bold">
               AI 总结
             </h3>
           </div>
 
-          {summary && (
+          {showAISummary && (
             <p class="text-sm leading-relaxed text-foreground/80">{summary}</p>
           )}
         </div>

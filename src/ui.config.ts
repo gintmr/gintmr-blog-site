@@ -15,6 +15,39 @@ export const UI_FONTS = {
     "'JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace",
 } as const;
 
+export const UI_COLORS = {
+  // 全站主色板（浅色）
+  light: {
+    background: "#fffaff",
+    foreground: "#2f2638",
+    accent: "#b992ff",
+    muted: "#ecdff8",
+    border: "#e4d2ef",
+  },
+  // 全站主色板（深色）
+  dark: {
+    background: "#1b1728",
+    foreground: "#f4ecff",
+    accent: "#d7a2ff",
+    muted: "#67557f",
+    border: "#8b74ad4d",
+  },
+  // 图片霓虹特效颜色（建议高亮色）
+  imageNeonGlow: "#ffe35a",
+  // AI 总结卡片的视觉色板
+  aiSummary: {
+    border: "#d7b6ff66",
+    bgFrom: "#ccadff3a",
+    bgVia: "#f4c6f62e",
+    bgTo: "#ffc8e32b",
+    titleFrom: "#f2c4ff",
+    titleTo: "#c995ff",
+    starFrom: "#ffd8ff",
+    starTo: "#b581ff",
+    selectionBg: "#c89dff66",
+  },
+} as const;
+
 export const UI_EFFECTS = {
   // 页面背景环境光
   ambientGlow: true,

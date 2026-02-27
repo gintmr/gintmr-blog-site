@@ -2,7 +2,7 @@
 import { ClientRouter } from "astro:transitions";
 import { PUBLIC_GOOGLE_SITE_VERIFICATION, PUBLIC_GOOGLE_ANALYTICS_ID } from "astro:env/client";
 import { SITE } from "@/config";
-import { UI_EFFECTS, UI_FONTS, UI_THEME } from "@/ui.config";
+import { UI_COLORS, UI_EFFECTS, UI_FONTS, UI_THEME } from "@/ui.config";
 import "@/styles/global.css";
 
 import Analytics from "@vercel/analytics/astro";
@@ -34,11 +34,31 @@ const {
 
 const socialImageURL = new URL(ogImage, Astro.url);
 const faviconURL = `/${SITE.favicon}?v=${SITE.faviconVersion}`;
-const fontVarCss = `
+const designTokenCss = `
   :root {
     --site-font-sans: ${UI_FONTS.sans};
     --site-font-serif: ${UI_FONTS.serif};
     --site-font-mono: ${UI_FONTS.mono};
+    --site-light-background: ${UI_COLORS.light.background};
+    --site-light-foreground: ${UI_COLORS.light.foreground};
+    --site-light-accent: ${UI_COLORS.light.accent};
+    --site-light-muted: ${UI_COLORS.light.muted};
+    --site-light-border: ${UI_COLORS.light.border};
+    --site-dark-background: ${UI_COLORS.dark.background};
+    --site-dark-foreground: ${UI_COLORS.dark.foreground};
+    --site-dark-accent: ${UI_COLORS.dark.accent};
+    --site-dark-muted: ${UI_COLORS.dark.muted};
+    --site-dark-border: ${UI_COLORS.dark.border};
+    --site-image-neon-glow: ${UI_COLORS.imageNeonGlow};
+    --site-ai-summary-border: ${UI_COLORS.aiSummary.border};
+    --site-ai-summary-bg-from: ${UI_COLORS.aiSummary.bgFrom};
+    --site-ai-summary-bg-via: ${UI_COLORS.aiSummary.bgVia};
+    --site-ai-summary-bg-to: ${UI_COLORS.aiSummary.bgTo};
+    --site-ai-summary-title-from: ${UI_COLORS.aiSummary.titleFrom};
+    --site-ai-summary-title-to: ${UI_COLORS.aiSummary.titleTo};
+    --site-ai-summary-star-from: ${UI_COLORS.aiSummary.starFrom};
+    --site-ai-summary-star-to: ${UI_COLORS.aiSummary.starTo};
+    --site-ai-summary-selection-bg: ${UI_COLORS.aiSummary.selectionBg};
   }
 `;
 
@@ -168,7 +188,7 @@ const structuredData = {
 
     <script is:inline src="/app-controls.js"></script>
     <script is:inline src="/site-effects.js"></script>
-    <style is:inline set:html={fontVarCss}></style>
+    <style is:inline set:html={designTokenCss}></style>
   </head>
   <body
     data-effect-ambient={UI_EFFECTS.ambientGlow ? "on" : "off"}

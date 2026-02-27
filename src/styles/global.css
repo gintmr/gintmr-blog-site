@@ -16,19 +16,19 @@
 
 :root,
 html[data-theme="light"] {
-  --background: #fdfdfd;
-  --foreground: #282728;
-  --accent: #006658;
-  --muted: #c5ced0;
-  --border: #c6d7d8;
+  --background: var(--site-light-background, #fdfdfd);
+  --foreground: var(--site-light-foreground, #282728);
+  --accent: var(--site-light-accent, #006658);
+  --muted: var(--site-light-muted, #c5ced0);
+  --border: var(--site-light-border, #c6d7d8);
 }
 
 html[data-theme="dark"] {
-  --background: oklch(24.521% 0.00755 285.784);
-  --foreground: #e9edf1;
-  --accent: #78fff6;
-  --muted: #55716a;
-  --border: #43868663;
+  --background: var(--site-dark-background, oklch(24.521% 0.00755 285.784));
+  --foreground: var(--site-dark-foreground, #e9edf1);
+  --accent: var(--site-dark-accent, #78fff6);
+  --muted: var(--site-dark-muted, #55716a);
+  --border: var(--site-dark-border, #43868663);
 }
 
 @theme inline {
@@ -97,6 +97,33 @@ html[data-theme="dark"] {
     content: "";
     @apply absolute top-0 left-0 h-full w-full rounded-md bg-accent/5;
   }
+}
+
+.ai-summary-card {
+  border-color: var(--site-ai-summary-border, color-mix(in srgb, var(--accent) 24%, transparent));
+  background-image: linear-gradient(
+    135deg,
+    var(--site-ai-summary-bg-from, color-mix(in srgb, var(--accent) 24%, transparent)) 0%,
+    var(--site-ai-summary-bg-via, color-mix(in srgb, var(--accent) 8%, transparent)) 50%,
+    var(--site-ai-summary-bg-to, color-mix(in srgb, var(--accent) 18%, transparent)) 100%
+  );
+  box-shadow: inset 0 2px 6px color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.ai-summary-card *::selection {
+  background: var(--site-ai-summary-selection-bg, color-mix(in srgb, var(--accent) 45%, transparent));
+  color: var(--background);
+}
+
+.ai-summary-title {
+  background-image: linear-gradient(
+    90deg,
+    var(--site-ai-summary-title-from, color-mix(in srgb, var(--accent) 75%, white)),
+    var(--site-ai-summary-title-to, color-mix(in srgb, var(--accent) 95%, transparent))
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 /* Source: https://piccalil.li/blog/a-more-modern-css-reset/ */
@@ -281,18 +308,18 @@ body[data-effect-image-neon="on"] :is(
     .media-card img,
     .media-card-static img
   ) {
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 58%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent),
-    0 14px 28px -22px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 26px -20px color-mix(in srgb, var(--accent) 88%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 20%, transparent),
+    0 14px 28px -22px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 72%, transparent),
+    0 0 30px -18px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 95%, transparent);
 }
 
 body[data-effect-image-neon="on"] .images-grid .lg-item {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent),
-    0 0 18px -12px color-mix(in srgb, var(--accent) 95%, transparent),
-    0 14px 26px -24px color-mix(in srgb, var(--accent) 70%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 22%, transparent),
+    0 0 22px -10px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 100%, transparent),
+    0 14px 26px -24px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 74%, transparent);
 }
 
 @media (hover: hover) and (pointer: fine) {
