@@ -15,6 +15,7 @@ import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
 import IconChevronRight from "@/assets/icons/IconChevronRight.svg";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
+import { optimizeImage } from "@/utils/optimizeImages";
 import MediaCard from "../components/MediaCard.astro";
 import Comments from "@/components/Comments.tsx";
 import ProtectedPost from "@/components/ProtectedPost.astro";
@@ -74,21 +75,21 @@ let ogImageUrl: string | undefined;
 
 // Determine OG image source
 if (typeof initOgImage === "string") {
-  ogImageUrl = initOgImage; // Remote OG image (absolute URL)
+  if (/^https?:\/\//i.test(initOgImage)) {
+    ogImageUrl = initOgImage; // Remote OG image
+  } else {
+    // Support both "attachment/..." (vault-root relative) and "../attachment/..." (post-relative)
+    const optimized = await optimizeImage(initOgImage, { thumbnailSize: 1200 });
+    ogImageUrl = optimized.thumbnail;
+  }
 } else if (initOgImage?.src) {
   ogImageUrl = initOgImage.src; // Local asset
-}
-
-// Use dynamic OG image if enabled and no remote|local ogImage
-if (!ogImageUrl && SITE.dynamicOgImage) {
-  ogImageUrl = `${getPath(post.id, post.filePath)}/index.png`;
 }
 
 // Resolve OG image URL (or fallback to SITE.ogImage / default `og.png`)
 const ogImage = ogImageUrl
   ? new URL(ogImageUrl, Astro.url.origin).href
   : undefined;
-const postCoverImage = ogImage;
 
 const layoutProps = {
   title: `${title} | ${SITE.title}`,
@@ -128,20 +129,6 @@ const nextPost =
     data-pagefind-body
     data-pagefind-weight="5"
   >
-    {
-      postCoverImage && (
-        <figure class="post-header-cover" aria-label="post cover">
-          <img
-            src={postCoverImage}
-            alt={`${title} cover`}
-            class="post-header-cover__image"
-            loading="eager"
-            decoding="async"
-          />
-        </figure>
-      )
-    }
-
     <h1
       transition:name={slugifyStr(title)}
       class="inline-block text-2xl font-bold text-accent sm:text-3xl"

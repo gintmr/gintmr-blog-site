@@ -3,7 +3,7 @@ import { slugifyStr } from "@/utils/slugify";
 import type { CollectionEntry } from "astro:content";
 import { getPath } from "@/utils/getPath";
 import Datetime from "./Datetime.astro";
-import { Image } from "astro:assets";
+import { optimizeImage } from "@/utils/optimizeImages";
 
 export interface Props extends CollectionEntry<"blog"> {
   variant?: "h2" | "h3";
@@ -12,6 +12,19 @@ export interface Props extends CollectionEntry<"blog"> {
 const { variant = "h2", data, id, filePath } = Astro.props;
 
 const { title, description, pubDatetime, modDatetime, timezone } = data;
+let cardImageSrc: string | undefined;
+
+if (typeof data.ogImage === "string" && data.ogImage.trim()) {
+  const optimized = await optimizeImage(data.ogImage, { thumbnailSize: 300 });
+  cardImageSrc = optimized.thumbnail;
+} else if (
+  data.ogImage &&
+  typeof data.ogImage === "object" &&
+  "src" in data.ogImage &&
+  typeof data.ogImage.src === "string"
+) {
+  cardImageSrc = data.ogImage.src;
+}
 
 const headerProps = {
   style: { viewTransitionName: slugifyStr(title) },
@@ -22,27 +35,17 @@ const headerProps = {
 <li class="my-6">
   <div class="flex flex-col gap-3 md:flex-row md:gap-4">
     {
-      data.ogImage && (
+      cardImageSrc && (
         <div class="h-44 w-full overflow-hidden rounded-lg md:mb-0 md:h-[100px] md:w-[100px] md:flex-shrink-0">
-          {typeof data.ogImage === "string" ? (
-            <Image
-              src={data.ogImage}
-              alt={title}
-              width={720}
-              height={480}
-              class="h-full w-full object-cover"
-            />
-          ) : (
-            <Image
-              src={data.ogImage}
-              alt={title}
-              width={720}
-              height={480}
-              format="webp"
-              quality={80}
-              class="h-full w-full object-cover"
-            />
-          )}
+          <img
+            src={cardImageSrc}
+            alt={title}
+            width={720}
+            height={480}
+            class="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
       )
     }

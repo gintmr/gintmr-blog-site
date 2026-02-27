@@ -54,8 +54,14 @@ const diary = defineCollection({
 const links = defineCollection({
   loader: glob({ pattern: "links/**/[^_]*.{md,mdx}", base: "./src/data" }),
   schema: z.object({
-    title: z.string().default("Links"),
-    description: z.string().optional(),
+    title: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
+    description: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
     draft: z.boolean().optional(),
     order: z.number().optional(),
   }),

@@ -7,17 +7,40 @@ import Footer from "@/components/Footer.astro";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
 import { parseLinkCards } from "@/utils/parseLinkCards";
+import { optimizeImage } from "@/utils/optimizeImages";
 
 const linkDocs = await getCollection("links", ({ data }) => !data.draft);
 
-const sections = linkDocs
-  .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0))
-  .map(doc => ({
-    title: doc.data.title,
-    description: doc.data.description,
-    cards: parseLinkCards(doc.body ?? ""),
-  }))
-  .filter(section => section.cards.length > 0);
+const normalizeText = (value?: string) => value?.trim().toLowerCase() ?? "";
+const pageTitleNormalized = normalizeText(UI.pages.linksTitle);
+const pageDescNormalized = normalizeText(UI.pages.linksDesc);
+
+const sortedDocs = [...linkDocs].sort(
+  (a, b) => (a.data.order ?? 0) - (b.data.order ?? 0)
+);
+
+const sections = (
+  await Promise.all(
+    sortedDocs.map(async doc => {
+      const parsedCards = parseLinkCards(doc.body ?? "");
+      const cards = await Promise.all(
+        parsedCards.map(async card => {
+          if (!card.image) return card;
+          const optimized = await optimizeImage(card.image, { thumbnailSize: 600 });
+          return { ...card, image: optimized.thumbnail };
+        })
+      );
+
+      return {
+        title: doc.data.title,
+        description: doc.data.description,
+        cards,
+      };
+    })
+  )
+).filter(section => section.cards.length > 0);
+
+const hasMultipleSections = sections.length > 1;
 ---
 
 <Layout title={`${UI.pages.linksTitle} | ${SITE.title}`}>
@@ -31,14 +54,31 @@ const sections = linkDocs
           {
             sections.map(section => (
               <section>
-                <header class="mb-4">
-                  <h2 class="text-2xl font-semibold">{section.title}</h2>
-                  {section.description && (
-                    <p class="text-skin-base/70 mt-1 text-sm">
-                      {section.description}
-                    </p>
-                  )}
-                </header>
+                {(() => {
+                  const sectionTitle = section.title?.trim();
+                  const sectionDesc = section.description?.trim();
+                  const isDuplicateWithPageHeader =
+                    normalizeText(sectionTitle) === pageTitleNormalized &&
+                    normalizeText(sectionDesc) === pageDescNormalized;
+                  const showSectionHeader =
+                    hasMultipleSections ||
+                    (!isDuplicateWithPageHeader && Boolean(sectionTitle || sectionDesc));
+
+                  return (
+                    showSectionHeader && (
+                      <header class="mb-4">
+                        {sectionTitle && (
+                          <h2 class="text-2xl font-semibold">{sectionTitle}</h2>
+                        )}
+                        {sectionDesc && (
+                          <p class="text-skin-base/70 mt-1 text-sm">
+                            {sectionDesc}
+                          </p>
+                        )}
+                      </header>
+                    )
+                  );
+                })()}
 
                 <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {section.cards.map(card => (
