@@ -48,6 +48,14 @@ const diary = defineCollection({
   schema: z.object({
     tags: z.array(z.string()).default(["Diary"]),
     draft: z.boolean().optional(),
+    locationName: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
+    locationUrl: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
   }),
 });
 

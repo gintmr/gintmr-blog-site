@@ -6,6 +6,8 @@ export interface ParsedEntry {
   date: string;
   dateEnd?: string;
   isDateRange?: boolean;
+  locationName?: string;
+  locationUrl?: string;
   timeBlocks: TimeBlock[];
 }
 
@@ -156,6 +158,8 @@ const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
               date={entry.date}
               dateEnd={entry.dateEnd}
               isDateRange={entry.isDateRange}
+              locationName={entry.locationName}
+              locationUrl={entry.locationUrl}
               hideYear={hideYear}
               timeBlocks={entry.timeBlocks}
             />

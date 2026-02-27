@@ -1,7 +1,7 @@
 import React from "react";
 import TimelineItemReact from "./TimelineItemReact";
 import { SITE } from "../config";
-import { UI_LOCALE } from "@/i18n/ui";
+import { UI, UI_LOCALE } from "@/i18n/ui";
 
 // 本地电影数据接口
 interface LocalMovieData {
@@ -89,6 +89,8 @@ export interface DiaryEntryProps {
   date: string;
   dateEnd?: string;
   isDateRange?: boolean;
+  locationName?: string;
+  locationUrl?: string;
   hideYear?: boolean;
   timeBlocks: TimeBlock[];
 }
@@ -116,6 +118,8 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
   date,
   dateEnd,
   isDateRange = false,
+  locationName,
+  locationUrl,
   hideYear = false,
   timeBlocks,
 }) => {
@@ -156,6 +160,7 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
 
   // 2) 客户端再计算"今天/昨天/前天"，并替换显示
   const [relativeLabel, setRelativeLabel] = React.useState<string | null>(null);
+  const hasLocation = Boolean(locationName && locationUrl);
 
   React.useLayoutEffect(() => {
     if (isDateRange) {
@@ -210,6 +215,20 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
             )}
           </div>
         </div>
+        {hasLocation && (
+          <div className="mt-2">
+            <a
+              href={locationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-skin-base/80 underline decoration-dashed underline-offset-4 transition-colors hover:text-accent"
+              aria-label={`${UI.diary.location}: ${locationName}`}
+            >
+              <span aria-hidden="true">📍</span>
+              <span>{locationName}</span>
+            </a>
+          </div>
+        )}
         <div className="sr-only">
           {UI_LOCALE === "zh-CN"
             ? `${date} 共有 ${timeBlocks.length} 个时间段的记录`

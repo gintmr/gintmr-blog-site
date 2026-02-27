@@ -49,6 +49,7 @@ const EN = {
     next: "Next",
   },
   diary: {
+    location: "Location",
     noEntryInQuarter: "No diary entries in this quarter.",
     empty: "No diary entries yet...",
     loading: "Loading...",
@@ -107,6 +108,7 @@ const ZH = {
     next: "下一篇",
   },
   diary: {
+    location: "地点",
     noEntryInQuarter: "这个季度还没有日记",
     empty: "还没有任何日记...",
     loading: "加载中...",

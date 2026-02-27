@@ -696,6 +696,8 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     date,
     dateEnd: diaryMeta.endDate,
     isDateRange: diaryMeta.isRange,
+    locationName: entry.data.locationName,
+    locationUrl: entry.data.locationUrl,
     timeBlocks,
   };
 }
