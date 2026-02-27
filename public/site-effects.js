@@ -195,49 +195,50 @@
       "#diary-content .images-grid img",
       "#diary-content .html-content img",
     ];
-
-    const images = Array.from(
-      document.querySelectorAll(targetSelectors.join(","))
-    ).filter(node => node instanceof HTMLImageElement);
-
-    if (images.length === 0) return;
-
     const slides = [];
+    const selectorQuery = targetSelectors.join(",");
 
-    images.forEach(img => {
-      const link = img.closest("a[href]");
-      const source =
-        (link && link.getAttribute("href")) ||
-        img.getAttribute("data-src") ||
-        img.currentSrc ||
-        img.src;
+    const rebuildSlides = () => {
+      slides.length = 0;
+      const images = Array.from(document.querySelectorAll(selectorQuery)).filter(
+        node => node instanceof HTMLImageElement
+      );
 
-      if (!source) return;
+      images.forEach(img => {
+        const link = img.closest("a[href]");
+        const source =
+          (link && link.getAttribute("href")) ||
+          img.getAttribute("data-src") ||
+          img.currentSrc ||
+          img.src;
 
-      const title = (img.getAttribute("title") || "").trim();
-      const alt = (img.getAttribute("alt") || "").trim();
-      const figureCaption = (
-        img
-          .closest("figure")
-          ?.querySelector("figcaption:not(.sr-only)")
-          ?.textContent || ""
-      ).trim();
+        if (!source) return;
 
-      const caption = title || figureCaption || alt;
+        const title = (img.getAttribute("title") || "").trim();
+        const alt = (img.getAttribute("alt") || "").trim();
+        const figureCaption = (
+          img
+            .closest("figure")
+            ?.querySelector("figcaption:not(.sr-only)")
+            ?.textContent || ""
+        ).trim();
 
-      img.dataset.globalGalleryIndex = String(slides.length);
-      img.style.cursor = "zoom-in";
-      if (link) link.setAttribute("data-gallery-image", "true");
+        const caption = title || figureCaption || alt;
 
-      slides.push({
-        src: source,
-        alt: alt || "图片预览",
-        caption,
-        sourceNode: img,
+        img.dataset.globalGalleryIndex = String(slides.length);
+        img.style.cursor = "zoom-in";
+        if (link) link.setAttribute("data-gallery-image", "true");
+
+        slides.push({
+          src: source,
+          alt: alt || "图片预览",
+          caption,
+          sourceNode: img,
+        });
       });
-    });
+    };
 
-    if (slides.length === 0) return;
+    rebuildSlides();
 
     const viewer = document.createElement("div");
     viewer.id = "global-image-viewer";
@@ -281,11 +282,13 @@
       return;
     }
 
-    const total = slides.length;
     let currentIndex = 0;
     let isOpen = false;
 
     function renderSlide(index) {
+      const total = slides.length;
+      if (total === 0) return;
+
       const safeIndex = ((index % total) + total) % total;
       currentIndex = safeIndex;
       const slide = slides[safeIndex];
@@ -305,6 +308,8 @@
     }
 
     function openAt(index) {
+      rebuildSlides();
+      if (slides.length === 0) return;
       renderSlide(index);
       viewer.setAttribute("data-open", "true");
       document.body.style.overflow = "hidden";
@@ -318,12 +323,12 @@
     }
 
     function goPrev() {
-      if (!isOpen || total <= 1) return;
+      if (!isOpen || slides.length <= 1) return;
       renderSlide(currentIndex - 1);
     }
 
     function goNext() {
-      if (!isOpen || total <= 1) return;
+      if (!isOpen || slides.length <= 1) return;
       renderSlide(currentIndex + 1);
     }
 
@@ -351,15 +356,16 @@
         return;
       }
 
-      let image = target.closest(targetSelectors.join(","));
+      let image = target.closest(selectorQuery);
       if (!(image instanceof HTMLImageElement)) {
         const anchor = target.closest("a[data-gallery-image='true']");
         if (anchor instanceof HTMLAnchorElement) {
-          image = anchor.querySelector("img[data-global-gallery-index]");
+          image = anchor.querySelector("img");
         }
       }
       if (!(image instanceof HTMLImageElement)) return;
 
+      rebuildSlides();
       const index = Number.parseInt(image.dataset.globalGalleryIndex || "", 10);
       if (Number.isNaN(index)) return;
 
