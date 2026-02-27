@@ -66,6 +66,7 @@ const structuredData = {
   class={`${scrollSmooth && "scroll-smooth"}`}
   data-force-dark={UI_THEME.forceDarkMode ? "true" : "false"}
   data-theme={UI_THEME.forceDarkMode ? "dark" : undefined}
+  data-effect-page-transition={UI_EFFECTS.pageTransition ? "on" : "off"}
 >
   <head>
     <meta charset="UTF-8" />
@@ -175,6 +176,10 @@ const structuredData = {
     data-effect-cursor={UI_EFFECTS.cursorGlow ? "on" : "off"}
     data-effect-reveal={UI_EFFECTS.revealOnScroll ? "on" : "off"}
     data-effect-card-glow={UI_EFFECTS.cardHoverGlow ? "on" : "off"}
+    data-effect-nav-glass={UI_EFFECTS.navGlass ? "on" : "off"}
+    data-effect-heading-beam={UI_EFFECTS.headingBeam ? "on" : "off"}
+    data-effect-image-neon={UI_EFFECTS.imageNeonBorder ? "on" : "off"}
+    data-effect-image-lift={UI_EFFECTS.imageLift ? "on" : "off"}
   >
     <slot />
     <Analytics />

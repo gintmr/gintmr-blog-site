@@ -6,7 +6,7 @@ export const SITE = {
   author: "Gintmr",
   profile: "https://gintmr.20250130.xyz/",
   desc: "一个时间长河中的个人档案馆。",
-  title: "Gintmr's Home 🏡",
+  title: "Gintmr's Home 🤗",
   favicon: "favicon.png",
   faviconVersion: "20260226",
   ogImage: "og.jpg",
