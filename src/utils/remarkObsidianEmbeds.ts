@@ -121,6 +121,19 @@ export const remarkObsidianEmbeds: Plugin<
   return (tree, file) => {
     const currentFilePath = String(file.path || file.history?.[0] || "");
 
+    visit(tree, "image", (node: Image) => {
+      if (!node.url) return;
+      const originalUrl = node.url;
+      const resolvedUrl = resolveObsidianImageUrl(originalUrl, currentFilePath);
+      node.url = resolvedUrl;
+
+      if (enableDebug && originalUrl !== resolvedUrl) {
+        console.log(
+          `[remark-obsidian-embeds:image] ${originalUrl} -> ${resolvedUrl} (${currentFilePath})`
+        );
+      }
+    });
+
     visit(tree, "paragraph", (node: Paragraph) => {
       const transformedChildren: Paragraph["children"] = [];
 
