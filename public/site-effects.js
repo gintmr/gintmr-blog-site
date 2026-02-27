@@ -132,6 +132,60 @@
     if (document.body) document.body.style.overflow = "";
   }
 
+  function setupStandaloneImageLayout() {
+    const images = Array.from(
+      document.querySelectorAll("#article img, #diary-content img")
+    ).filter(node => node instanceof HTMLImageElement);
+
+    images.forEach(img => {
+      img.classList.remove("single-standalone-image");
+
+      const figure = img.closest("figure");
+      if (figure) figure.classList.remove("single-standalone-figure");
+
+      const anchor = img.closest("a");
+      if (anchor) anchor.classList.remove("single-standalone-anchor");
+
+      if (
+        img.closest(".media-card") ||
+        img.closest(".media-card-static") ||
+        img.closest(".images-grid:not(.images-grid-single)")
+      ) {
+        return;
+      }
+
+      let standalone = Boolean(img.closest(".images-grid-single"));
+
+      if (!standalone && figure) {
+        standalone = figure.querySelectorAll("img").length === 1;
+      }
+
+      if (!standalone) {
+        const paragraph = img.closest("p");
+        if (paragraph) {
+          standalone = paragraph.querySelectorAll("img").length === 1;
+        }
+      }
+
+      if (!standalone) {
+        const parent = img.parentElement;
+        if (parent) {
+          standalone =
+            parent.children.length === 1 &&
+            parent.querySelectorAll("img").length === 1;
+        }
+      }
+
+      if (!standalone) return;
+
+      img.classList.add("single-standalone-image");
+      if (figure) figure.classList.add("single-standalone-figure");
+      if (anchor && anchor.querySelectorAll("img").length === 1) {
+        anchor.classList.add("single-standalone-anchor");
+      }
+    });
+  }
+
   function setupImageViewer() {
     cleanupImageViewer();
 
@@ -341,6 +395,7 @@
   function initSiteEffects() {
     setupRevealEffects();
     setupCursorGlow();
+    setupStandaloneImageLayout();
     setupImageViewer();
   }
 

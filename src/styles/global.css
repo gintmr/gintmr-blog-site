@@ -335,8 +335,34 @@ body[data-effect-image-neon="on"] :is(
     .app-prose > .rehype-figure > img,
     .app-prose > .rehype-figure > a,
     .app-prose > p > img:only-child,
-    .images-grid-single .gallery-item
+    .images-grid-single .gallery-item,
+    .single-standalone-image,
+    .single-standalone-anchor
   ) {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* 结构无关的单图兜底规则：宽度为正文上限(48rem)的一半，即 24rem */
+.single-standalone-figure,
+.single-standalone-anchor {
+  display: block !important;
+  width: min(100%, 24rem) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.single-standalone-image {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: 70vh !important;
+  object-fit: contain !important;
+  aspect-ratio: auto !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
   border: none !important;
   background: none !important;
   box-shadow: none !important;
