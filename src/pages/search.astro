@@ -5,11 +5,12 @@ import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import PagefindSearch from "astro-pagefind/components/Search";
 import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
 ---
 
 <Layout title={`Search | ${SITE.title}`}>
   <Header />
-  <Main pageTitle="搜索" pageDesc="搜索你想了解的内容...">
+  <Main pageTitle={UI.pages.searchTitle} pageDesc={UI.pages.searchDesc}>
     <PagefindSearch
       id="search"
       className="pagefind-ui"

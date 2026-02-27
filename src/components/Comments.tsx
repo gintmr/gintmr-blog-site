@@ -8,6 +8,7 @@ import {
   PUBLIC_GISCUS_CATEGORY_ID,
   PUBLIC_GISCUS_LANG,
 } from "astro:env/client";
+import { UI_LOCALE } from "@/i18n/ui";
 
 function detectTheme(): "light" | "dark" | "preferred_color_scheme" {
   if (typeof window === "undefined") return "preferred_color_scheme";
@@ -58,7 +59,7 @@ export default function Comments() {
         inputPosition="bottom"
         theme={theme}
         loading="lazy"
-        lang={PUBLIC_GISCUS_LANG || "zh-CN"}
+        lang={PUBLIC_GISCUS_LANG || (UI_LOCALE === "zh-CN" ? "zh-CN" : "en")}
       />
     );
   }
@@ -66,7 +67,7 @@ export default function Comments() {
   return (
     <div className="mt-8 rounded-lg border border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800">
       <p className="text-center text-gray-600 dark:text-gray-400">
-        评论功能需要配置 Giscus 参数。请在环境变量中设置：
+        Comments require Giscus configuration. Set these environment variables:
         <br />
         <code className="rounded bg-gray-200 px-1 text-sm dark:bg-gray-700">
           PUBLIC_GISCUS_REPO, PUBLIC_GISCUS_REPO_ID

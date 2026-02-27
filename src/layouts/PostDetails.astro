@@ -14,6 +14,7 @@ import { slugifyStr } from "@/utils/slugify";
 import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
 import IconChevronRight from "@/assets/icons/IconChevronRight.svg";
 import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
 import MediaCard from "../components/MediaCard.astro";
 import Comments from "@/components/Comments.tsx";
 import ProtectedPost from "@/components/ProtectedPost.astro";
@@ -129,10 +130,10 @@ const nextPost =
   >
     {
       postCoverImage && (
-        <figure class="post-header-cover" aria-label="文章封面">
+        <figure class="post-header-cover" aria-label="post cover">
           <img
             src={postCoverImage}
-            alt={`${title} 封面图`}
+            alt={`${title} cover`}
             class="post-header-cover__image"
             loading="eager"
             decoding="async"
@@ -240,7 +241,7 @@ const nextPost =
           >
             <IconChevronLeft class="inline-block flex-none rtl:rotate-180" />
             <div>
-              <span>上一篇</span>
+              <span>{UI.post.previous}</span>
               <div class="text-sm text-accent/85">{prevPost.title}</div>
             </div>
           </a>
@@ -253,7 +254,7 @@ const nextPost =
             class="flex w-full justify-end gap-1 text-end hover:opacity-75 sm:col-start-2"
           >
             <div>
-              <span>下一篇</span>
+              <span>{UI.post.next}</span>
               <div class="text-sm text-accent/85">{nextPost.title}</div>
             </div>
             <IconChevronRight class="inline-block flex-none rtl:rotate-180" />

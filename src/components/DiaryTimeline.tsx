@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import DiaryEntryReact, { type TimeBlock } from "./DiaryEntryReact";
+import { UI } from "@/i18n/ui";
 
 export interface ParsedEntry {
   date: string;
@@ -165,7 +166,7 @@ const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
       {displayedEntries.length === 0 && (
         <article role="article" className="py-12 text-center">
           <div role="status" aria-live="polite">
-            <p className="text-skin-base opacity-60">还没有任何日记...</p>
+            <p className="text-skin-base opacity-60">{UI.diary.empty}</p>
           </div>
         </article>
       )}
@@ -175,10 +176,10 @@ const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
           <div
             role="status"
             aria-live="assertive"
-            aria-label="正在加载更多日记条目"
+            aria-label={UI.diary.loadingAria}
           >
-            <p className="text-skin-base opacity-60">加载中...</p>
-            <div className="sr-only">正在为您加载更多日记内容，请稍候</div>
+            <p className="text-skin-base opacity-60">{UI.diary.loading}</p>
+            <div className="sr-only">{UI.diary.loadingHint}</div>
           </div>
         </article>
       )}
@@ -186,10 +187,8 @@ const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
       {!hasMore && displayedEntries.length > 0 && (
         <article role="article" className="no-more py-8 text-center">
           <div role="status" aria-live="polite">
-            <p className="text-skin-base opacity-60">没有更多内容了</p>
-            <div className="sr-only">
-              已显示全部 {displayedEntries.length} 条日记记录
-            </div>
+            <p className="text-skin-base opacity-60">{UI.diary.noMore}</p>
+            <div className="sr-only">{UI.diary.noMoreHint(displayedEntries.length)}</div>
           </div>
         </article>
       )}
@@ -202,10 +201,10 @@ const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
             className="bg-skin-accent text-skin-inverted hover:bg-skin-accent/90 focus:ring-skin-accent focus:ring-offset-skin-fill rounded-lg px-6 py-3 transition-colors focus:outline-none"
             aria-describedby="load-more-description"
           >
-            加载更多日记
+            {UI.diary.loadMore}
           </button>
           <div id="load-more-description" className="sr-only">
-            点击此按钮加载更多日记条目，或继续向下滚动自动加载
+            {UI.diary.loadMoreHint}
           </div>
         </article>
       )}

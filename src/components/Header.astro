@@ -4,9 +4,9 @@ import IconX from "@/assets/icons/IconX.svg";
 import IconSearch from "@/assets/icons/IconSearch.svg";
 import IconArchive from "@/assets/icons/IconArchive.svg";
 import IconMenuDeep from "@/assets/icons/IconMenuDeep.svg";
-import IconRss from "@/assets/icons/IconRss.svg";
 import LinkButton from "./LinkButton.astro";
 import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
 
 const { pathname } = Astro.url;
 const faviconURL = `/${SITE.favicon}?v=${SITE.faviconVersion}`;
@@ -63,7 +63,7 @@ const isActive = (path: string) => {
                 { "active-nav": isActive("/posts") },
               ]}
             >
-              文章
+              {UI.nav.blog}
             </a>
           </li>
           <li>
@@ -74,7 +74,18 @@ const isActive = (path: string) => {
                 { "active-nav": isActive("/about") },
               ]}
             >
-              关于
+              {UI.nav.about}
+            </a>
+          </li>
+          <li>
+            <a
+              href="/links"
+              class:list={[
+                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                { "active-nav": isActive("/links") },
+              ]}
+            >
+              {UI.nav.links}
             </a>
           </li>
         </ul>
@@ -114,20 +125,6 @@ const isActive = (path: string) => {
         >
           <IconSearch class="h-4 w-4" />
         </LinkButton>
-
-        <!-- 分隔线 -->
-        <div class="h-4 w-px bg-border"></div>
-
-        <!-- RSS 链接 -->
-        <a
-          href="/rss.xml"
-          target="_blank"
-          class="focus-outline flex p-3 hover:text-accent"
-          aria-label="RSS Feed"
-          title="RSS Feed"
-        >
-          <IconRss class="h-4 w-4" />
-        </a>
       </div>
 
       <!-- 移动端菜单按钮 -->
@@ -155,12 +152,17 @@ const isActive = (path: string) => {
       >
         <li class="col-span-6">
           <a href="/posts" class:list={{ "active-nav": isActive("/posts") }}>
-            文章
+            {UI.nav.blog}
           </a>
         </li>
         <li class="col-span-6">
           <a href="/about" class:list={{ "active-nav": isActive("/about") }}>
-            关于
+            {UI.nav.about}
+          </a>
+        </li>
+        <li class="col-span-6">
+          <a href="/links" class:list={{ "active-nav": isActive("/links") }}>
+            {UI.nav.links}
           </a>
         </li>
         {
@@ -178,7 +180,7 @@ const isActive = (path: string) => {
                 title="Archives"
               >
                 <IconArchive class="hidden w-8 sm:inline-block" />
-                <span class="sm:sr-only">收集箱</span>
+                <span class="sm:sr-only">{UI.nav.archives}</span>
               </LinkButton>
             </li>
           )
@@ -197,17 +199,6 @@ const isActive = (path: string) => {
           >
             <IconSearch class="w-6" />
           </LinkButton>
-        </li>
-        <li class="col-span-2 flex items-center justify-center">
-          <a
-            href="/rss.xml"
-            target="_blank"
-            class="focus-outline flex p-3 hover:text-accent"
-            aria-label="RSS Feed"
-            title="RSS Feed"
-          >
-            <IconRss class="w-6" />
-          </a>
         </li>
       </ul>
     </nav>

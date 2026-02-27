@@ -7,15 +7,16 @@ import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import getUniqueTags from "@/utils/getUniqueTags";
 import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
 
 const posts = await getCollection("blog");
 
 let tags = getUniqueTags(posts);
 ---
 
-<Layout title={`标签 | ${SITE.title}`}>
+<Layout title={`${UI.pages.tags} | ${SITE.title}`}>
   <Header />
-  <Main pageTitle="标签" pageDesc="">
+  <Main pageTitle={UI.pages.tags} pageDesc="">
     <ul>
       {tags.map(({ tag, tagName }) => <Tag {tag} {tagName} size="lg" />)}
     </ul>

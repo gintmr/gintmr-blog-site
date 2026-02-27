@@ -9,6 +9,7 @@ import { getCollection } from "astro:content";
 import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
+import { UI, UI_LOCALE } from "@/i18n/ui";
 
 export async function getStaticPaths() {
   const diaryEntries = await getCollection("diary");
@@ -65,9 +66,11 @@ const parsedEntries = await Promise.all(quarterEntries.map(parseEntry));
 
 // 生成季度标题
 const [year, quarter] = quarterKey.split("-Q");
-const quarterNames = ["春", "夏", "秋", "冬"];
+const quarterNames =
+  UI_LOCALE === "zh-CN" ? ["春", "夏", "秋", "冬"] : ["Q1", "Q2", "Q3", "Q4"];
 const quarterName = quarterNames[parseInt(quarter) - 1];
-const pageTitle = `${year}年(${quarterName})`;
+const pageTitle =
+  UI_LOCALE === "zh-CN" ? `${year}年(${quarterName})` : `${year} (${quarterName})`;
 
 // 创建简化的分页信息（用于兼容现有组件）
 const paginationInfo = {
@@ -106,7 +109,7 @@ const paginationInfo = {
             />
           ) : (
             <div class="py-8 text-center">
-              <p class="text-skin-base">这个季度还没有日记</p>
+              <p class="text-skin-base">{UI.diary.noEntryInQuarter}</p>
             </div>
           )
         }

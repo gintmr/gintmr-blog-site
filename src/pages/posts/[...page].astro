@@ -9,6 +9,7 @@ import Card from "@/components/Card.astro";
 import Pagination from "@/components/Pagination.astro";
 import getSortedPosts from "@/utils/getSortedPosts";
 import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
 
 // tag
 import Tag from "@/components/Tag.astro";
@@ -25,9 +26,9 @@ export const getStaticPaths = (async ({ paginate }) => {
 const { page } = Astro.props;
 ---
 
-<Layout title={`文章 | ${SITE.title}`}>
+<Layout title={`${UI.pages.blogTitle} | ${SITE.title}`}>
   <Header />
-  <Main pageTitle="全部文章" pageDesc="">
+  <Main pageTitle={UI.pages.allPosts} pageDesc="">
     <ul>
       {tags.map(({ tag, tagName }) => <Tag {tag} {tagName} size="lg" />)}
     </ul>

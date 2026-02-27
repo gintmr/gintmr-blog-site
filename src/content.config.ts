@@ -51,4 +51,14 @@ const diary = defineCollection({
   }),
 });
 
-export const collections = { blog, diary };
+const links = defineCollection({
+  loader: glob({ pattern: "links/**/[^_]*.{md,mdx}", base: "./src/data" }),
+  schema: z.object({
+    title: z.string().default("Links"),
+    description: z.string().optional(),
+    draft: z.boolean().optional(),
+    order: z.number().optional(),
+  }),
+});
+
+export const collections = { blog, diary, links };

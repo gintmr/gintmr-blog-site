@@ -1,0 +1,83 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Main from "@/layouts/Main.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
+import { parseLinkCards } from "@/utils/parseLinkCards";
+
+const linkDocs = await getCollection("links", ({ data }) => !data.draft);
+
+const sections = linkDocs
+  .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0))
+  .map(doc => ({
+    title: doc.data.title,
+    description: doc.data.description,
+    cards: parseLinkCards(doc.body ?? ""),
+  }))
+  .filter(section => section.cards.length > 0);
+---
+
+<Layout title={`${UI.pages.linksTitle} | ${SITE.title}`}>
+  <Header />
+  <Main pageTitle={UI.pages.linksTitle} pageDesc={UI.pages.linksDesc}>
+    {
+      sections.length === 0 ? (
+        <p class="text-skin-base/70">{UI.pages.linksEmpty}</p>
+      ) : (
+        <div class="space-y-10">
+          {
+            sections.map(section => (
+              <section>
+                <header class="mb-4">
+                  <h2 class="text-2xl font-semibold">{section.title}</h2>
+                  {section.description && (
+                    <p class="text-skin-base/70 mt-1 text-sm">
+                      {section.description}
+                    </p>
+                  )}
+                </header>
+
+                <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {section.cards.map(card => (
+                    <li>
+                      <a
+                        href={card.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="group border-skin-line/60 bg-skin-card/30 block h-full overflow-hidden rounded-2xl border transition hover:-translate-y-0.5 hover:border-accent/60"
+                      >
+                        {card.image && (
+                          <img
+                            src={card.image}
+                            alt={card.title}
+                            class="h-36 w-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        <div class="p-4">
+                          <h3 class="text-lg font-semibold">{card.title}</h3>
+                          {card.description && (
+                            <p class="text-skin-base/75 mt-2 text-sm leading-relaxed">
+                              {card.description}
+                            </p>
+                          )}
+                          <p class="text-accent mt-3 text-xs font-medium">
+                            {UI.pages.linksVisit} →
+                          </p>
+                        </div>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          }
+        </div>
+      )
+    }
+  </Main>
+  <Footer />
+</Layout>

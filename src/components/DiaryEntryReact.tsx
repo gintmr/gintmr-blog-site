@@ -1,6 +1,7 @@
 import React from "react";
 import TimelineItemReact from "./TimelineItemReact";
 import { SITE } from "../config";
+import { UI_LOCALE } from "@/i18n/ui";
 
 // 本地电影数据接口
 interface LocalMovieData {
@@ -93,6 +94,7 @@ export interface DiaryEntryProps {
 }
 
 const TZ = SITE.timezone;
+const DATE_LOCALE = UI_LOCALE === "zh-CN" ? "zh-CN" : "en-US";
 
 // 将 Date -> "YYYY-MM-DD"（按指定时区），便于比较"今天/昨天/前天"
 function toYMD(d: Date, timeZone = TZ) {
@@ -122,15 +124,15 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
   // 1) 先准备稳定的 SSR 文案：绝对日期 (MM/DD) + 固定时区的星期/年份
   const entryDateUTC = ymdToUTC(date);
 
-  const absoluteStartLabel = new Intl.DateTimeFormat("zh-CN", {
+  const absoluteStartLabel = new Intl.DateTimeFormat(DATE_LOCALE, {
     timeZone: TZ,
     month: "2-digit",
     day: "2-digit",
-  }).format(entryDateUTC); // 如 "08/17"
+  }).format(entryDateUTC);
 
   const entryEndDateUTC = dateEnd ? ymdToUTC(dateEnd) : null;
   const absoluteEndLabel = entryEndDateUTC
-    ? new Intl.DateTimeFormat("zh-CN", {
+    ? new Intl.DateTimeFormat(DATE_LOCALE, {
         timeZone: TZ,
         month: "2-digit",
         day: "2-digit",
@@ -142,15 +144,15 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
       ? `${absoluteStartLabel}-${absoluteEndLabel}`
       : absoluteStartLabel;
 
-  const weekdayLabel = new Intl.DateTimeFormat("zh-CN", {
+  const weekdayLabel = new Intl.DateTimeFormat(DATE_LOCALE, {
     timeZone: TZ,
     weekday: "short",
-  }).format(entryDateUTC); // 如 "周日"
+  }).format(entryDateUTC);
 
-  const yearLabel = new Intl.DateTimeFormat("zh-CN", {
+  const yearLabel = new Intl.DateTimeFormat(DATE_LOCALE, {
     timeZone: TZ,
     year: "numeric",
-  }).format(entryDateUTC); // 如 "2025"
+  }).format(entryDateUTC);
 
   // 2) 客户端再计算"今天/昨天/前天"，并替换显示
   const [relativeLabel, setRelativeLabel] = React.useState<string | null>(null);
@@ -174,9 +176,11 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
       (todayUTC.getTime() - entryUTC.getTime()) / 86400000
     );
 
-    if (diffDays === 0) setRelativeLabel("今天");
-    else if (diffDays === 1) setRelativeLabel("昨天");
-    else if (diffDays === 2) setRelativeLabel("前天");
+    if (diffDays === 0) setRelativeLabel(UI_LOCALE === "zh-CN" ? "今天" : "Today");
+    else if (diffDays === 1)
+      setRelativeLabel(UI_LOCALE === "zh-CN" ? "昨天" : "Yesterday");
+    else if (diffDays === 2)
+      setRelativeLabel(UI_LOCALE === "zh-CN" ? "前天" : "2 days ago");
     else setRelativeLabel(null); // 超过范围就用 SSR 的 absoluteLabel
   }, [date, isDateRange]);
 
@@ -187,7 +191,7 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
           <h2
             id={`date-${entryId}`}
             className="text-skin-accent m-0 text-3xl leading-none font-bold"
-            aria-label={`${relativeLabel ?? absoluteLabel} ${weekdayLabel} ${!hideYear ? yearLabel : ""} 的日记`}
+            aria-label={`${relativeLabel ?? absoluteLabel} ${weekdayLabel} ${!hideYear ? yearLabel : ""} ${UI_LOCALE === "zh-CN" ? "日记" : "diary entry"}`}
           >
             {/* SSR 时渲染 absoluteLabel；CSR 完成后若有相对文案则替换。
                suppressHydrationWarning 防止首帧文本差异触发水合警告 */}
@@ -207,7 +211,9 @@ const DiaryEntryReact: React.FC<DiaryEntryProps> = ({
           </div>
         </div>
         <div className="sr-only">
-          {date} 共有 {timeBlocks.length} 个时间段的记录
+          {UI_LOCALE === "zh-CN"
+            ? `${date} 共有 ${timeBlocks.length} 个时间段的记录`
+            : `${date} contains ${timeBlocks.length} timeline blocks`}
         </div>
       </header>
 
