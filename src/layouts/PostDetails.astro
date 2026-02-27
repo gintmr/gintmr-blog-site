@@ -87,6 +87,7 @@ if (!ogImageUrl && SITE.dynamicOgImage) {
 const ogImage = ogImageUrl
   ? new URL(ogImageUrl, Astro.url.origin).href
   : undefined;
+const postCoverImage = ogImage;
 
 const layoutProps = {
   title: `${title} | ${SITE.title}`,
@@ -120,12 +121,27 @@ const nextPost =
   <main
     id="main-content"
     class:list={[
-      "mx-auto mt-4 w-full max-w-app px-4 pb-12",
+      "relative isolate mx-auto mt-4 w-full max-w-app px-4 pb-12",
       { "mt-8": !SITE.showBackButton },
     ]}
     data-pagefind-body
     data-pagefind-weight="5"
   >
+    {
+      postCoverImage && (
+        <div class="post-cover-backdrop" aria-hidden="true">
+          <img
+            src={postCoverImage}
+            alt=""
+            class="post-cover-backdrop__image"
+            loading="eager"
+            decoding="async"
+          />
+          <div class="post-cover-backdrop__overlay"></div>
+        </div>
+      )
+    }
+
     <h1
       transition:name={slugifyStr(title)}
       class="inline-block text-2xl font-bold text-accent sm:text-3xl"
@@ -259,6 +275,91 @@ const nextPost =
 
 <script>
   document.addEventListener("astro:page-load", () => {
+    function initPostImageViewer() {
+      const state = window as Window & {
+        __postImageViewerCleanup?: () => void;
+      };
+      state.__postImageViewerCleanup?.();
+
+      let viewer = document.getElementById("post-image-viewer");
+      if (!viewer) {
+        viewer = document.createElement("div");
+        viewer.id = "post-image-viewer";
+        viewer.innerHTML = `
+          <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
+            <img alt="" />
+            <figcaption></figcaption>
+          </figure>
+        `;
+        document.body.appendChild(viewer);
+      }
+
+      const viewerImage = viewer.querySelector("img");
+      const viewerCaption = viewer.querySelector("figcaption");
+      if (!(viewerImage instanceof HTMLImageElement) || !(viewerCaption instanceof HTMLElement)) {
+        return;
+      }
+
+      function closeViewer() {
+        viewer?.setAttribute("data-open", "false");
+        document.body.style.overflow = "";
+      }
+
+      const clickHandler = (event: MouseEvent) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        if (target.closest("#post-image-viewer")) {
+          if (target !== viewerImage) closeViewer();
+          return;
+        }
+
+        const image = target.closest(
+          "#article img, [data-role='decrypted-content'] img"
+        );
+        if (!(image instanceof HTMLImageElement)) return;
+
+        const linkedHref = image.closest("a[href]")?.getAttribute("href")?.trim();
+        const source = linkedHref || image.dataset.src || image.currentSrc || image.src;
+        if (!source) return;
+
+        const title = image.getAttribute("title")?.trim();
+        const figureCaption = image
+          .closest("figure")
+          ?.querySelector("figcaption")
+          ?.textContent?.trim();
+        const altText = image.getAttribute("alt")?.trim();
+        const caption = title || figureCaption || altText || "";
+
+        viewerImage.src = source;
+        viewerImage.alt = altText || title || "文章图片";
+        viewerCaption.textContent = caption;
+        viewerCaption.style.display = caption ? "block" : "none";
+        viewer.setAttribute("data-open", "true");
+        document.body.style.overflow = "hidden";
+      };
+
+      const keydownHandler = (event: KeyboardEvent) => {
+        if (event.key === "Escape") closeViewer();
+      };
+
+      document.addEventListener("click", clickHandler);
+      document.addEventListener("keydown", keydownHandler);
+
+      document
+        .querySelectorAll("#article img, [data-role='decrypted-content'] img")
+        .forEach(node => {
+          if (node instanceof HTMLImageElement) {
+            node.style.cursor = "zoom-in";
+          }
+        });
+
+      state.__postImageViewerCleanup = () => {
+        document.removeEventListener("click", clickHandler);
+        document.removeEventListener("keydown", keydownHandler);
+      };
+    }
+
     /** Create a progress indicator
      *  at the top */
     function createProgressBar() {
@@ -393,6 +494,7 @@ const nextPost =
     createProgressBar();
     updateScrollProgress();
     addCopyButtons();
+    initPostImageViewer();
 
     const tocLinks: (HTMLAnchorElement & { urlHash: string })[] = Array.from(
       document.querySelectorAll(".article-toc-nav a")
