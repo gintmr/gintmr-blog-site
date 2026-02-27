@@ -7,7 +7,7 @@ import remarkToc from "remark-toc";
 import rehypeFigure from "rehype-figure";
 import rehypeSlug from "rehype-slug";
 import remarkWrap from "./remarkWrap";
-import { remarkRssMediaCard } from "./remarkRssMediaCard";
+import { remarkMediaCard } from "./remarkMediaCard";
 import { remarkLinkProcessor } from "./remarkLinkProcessor";
 import { optimizeImage } from "./optimizeImages";
 
@@ -49,7 +49,7 @@ export async function renderProtectedPostHtml(
     const processed = await unified()
       .use(remarkParse)
       .use(remarkLinkProcessor, { enableDebug: false })
-      .use(remarkRssMediaCard)
+      .use(remarkMediaCard, { enableDebug: false })
       .use(remarkToc, { heading: "目录" })
       .use(remarkWrap, { className: "article-toc-nav" })
       .use(remarkRehype)

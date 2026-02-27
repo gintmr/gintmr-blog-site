@@ -2,7 +2,6 @@
 @import "./typography.css";
 @import "tw-animate-css";
 
-/* 加载字体
 @import "@fontsource-variable/noto-sans-sc/index.css";
 @import "@fontsource-variable/noto-serif-sc/index.css";
 @import "@fontsource/ma-shan-zheng/400.css";
@@ -12,7 +11,6 @@
   --font-family-serif: 'Noto Serif SC Variable', serif;
   --font-family-hand: 'Ma Shan Zheng', cursive;
 }
-*/
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
@@ -58,7 +56,21 @@ html[data-theme="dark"] {
   }
   body {
     @apply flex min-h-svh flex-col bg-background font-serif text-foreground selection:bg-accent/75 selection:text-background;
+    font-family: var(--site-font-serif);
   }
+
+  .font-sans {
+    font-family: var(--site-font-sans) !important;
+  }
+
+  .font-serif {
+    font-family: var(--site-font-serif) !important;
+  }
+
+  .font-mono {
+    font-family: var(--site-font-mono) !important;
+  }
+
   a,
   button {
     @apply outline-offset-1 outline-accent focus-visible:no-underline focus-visible:outline-2 focus-visible:outline-dashed;
@@ -103,6 +115,103 @@ html[data-theme="dark"] {
 
 ::-webkit-scrollbar-track {
   @apply bg-background;
+}
+
+/* ===== 全局可开关视觉特效 ===== */
+body[data-effect-ambient="on"]::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: -22vh -14vw auto -14vw;
+  height: 48vh;
+  z-index: -1;
+  background:
+    radial-gradient(42% 52% at 14% 30%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%),
+    radial-gradient(32% 48% at 88% 18%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 75%);
+  opacity: 0.85;
+  filter: blur(32px);
+}
+
+body[data-effect-grid="on"]::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 45%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.14;
+  mask-image: radial-gradient(circle at center, black 25%, transparent 85%);
+}
+
+.fx-cursor-glow {
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 200px;
+  height: 200px;
+  border-radius: 9999px;
+  z-index: 60;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 260ms ease-out;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%);
+  mix-blend-mode: screen;
+}
+
+body[data-effect-card-glow="on"] .media-card,
+body[data-effect-card-glow="on"] .media-card-static {
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+}
+
+body[data-effect-card-glow="on"] .media-card:hover,
+body[data-effect-card-glow="on"] .media-card-static:hover {
+  box-shadow:
+    0 12px 30px -18px color-mix(in srgb, var(--accent) 42%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+[data-fx-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 420ms ease,
+    transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+[data-fx-reveal].fx-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fx-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .fx-cursor-glow {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  body[data-effect-ambient="on"]::before {
+    inset: -12vh -20vw auto -20vw;
+    height: 34vh;
+    filter: blur(22px);
+    opacity: 0.62;
+  }
+
+  body[data-effect-grid="on"]::after {
+    background-size: 22px 22px;
+    opacity: 0.1;
+  }
 }
 
 /* DisintegrationImg component styles */

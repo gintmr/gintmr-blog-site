@@ -40,11 +40,23 @@ const storageKey = `post-password:${postId}`;
       />
       <button
         type="submit"
+        data-role="submit-btn"
         class="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-skin-inverted transition hover:opacity-90"
       >
         解锁
       </button>
     </form>
+
+    <label class="mt-2 inline-flex items-center gap-2 text-xs text-skin-base/70">
+      <input
+        type="checkbox"
+        name="remember"
+        data-role="remember"
+        class="h-4 w-4 rounded border-border bg-background accent-accent"
+        checked
+      />
+      记住密码（当前设备）
+    </label>
 
     <p
       data-role="error"
@@ -81,9 +93,12 @@ const storageKey = `post-password:${postId}`;
       const errorBox = container.querySelector('[data-role="error"]');
       const contentEl = container.querySelector('[data-role="decrypted-content"]');
       const payloadScript = container.querySelector('script[data-role="payload"]');
+      const submitButton = container.querySelector('[data-role="submit-btn"]');
+      const rememberInput = container.querySelector('[data-role="remember"]');
       const storageKey = container.getAttribute("data-storage-key") || "";
+      const persistentStorageKey = `${storageKey}:persistent`;
 
-      if (!root || !form || !errorBox || !contentEl || !payloadScript) {
+      if (!root || !form || !errorBox || !contentEl || !payloadScript || !submitButton) {
         console.warn("Protected post elements are missing");
         return;
       }
@@ -104,12 +119,57 @@ const storageKey = `post-password:${postId}`;
 
       const textEncoder = new TextEncoder();
       const textDecoder = new TextDecoder();
+      const payloadVersion = payload?.iv || "";
 
       function base64ToBytes(base64) {
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         return bytes;
+      }
+
+      function setSubmitting(isSubmitting) {
+        submitButton.disabled = isSubmitting;
+        submitButton.textContent = isSubmitting ? "解锁中..." : "解锁";
+        submitButton.style.opacity = isSubmitting ? "0.7" : "1";
+      }
+
+      function readCachedPassword() {
+        if (!storageKey) return null;
+
+        const sessionPassword = sessionStorage.getItem(storageKey);
+        if (sessionPassword) return sessionPassword;
+
+        try {
+          const persistentRaw = localStorage.getItem(persistentStorageKey);
+          if (!persistentRaw) return null;
+          const persistentData = JSON.parse(persistentRaw);
+          if (
+            persistentData &&
+            persistentData.v === payloadVersion &&
+            typeof persistentData.p === "string"
+          ) {
+            return persistentData.p;
+          }
+        } catch {
+          localStorage.removeItem(persistentStorageKey);
+        }
+
+        return null;
+      }
+
+      function persistPassword(password) {
+        if (!storageKey) return;
+        sessionStorage.setItem(storageKey, password);
+
+        if (rememberInput && rememberInput.checked) {
+          localStorage.setItem(
+            persistentStorageKey,
+            JSON.stringify({ p: password, v: payloadVersion })
+          );
+        } else {
+          localStorage.removeItem(persistentStorageKey);
+        }
       }
 
       async function decryptHtml(password) {
@@ -147,19 +207,20 @@ const storageKey = `post-password:${postId}`;
       }
 
       async function unlock(password, showError = true) {
+        setSubmitting(true);
         try {
           const html = await decryptHtml(password);
           contentEl.innerHTML = html;
           contentEl.classList.remove("hidden");
           root.classList.add("hidden");
           errorBox.classList.add("hidden");
-          if (storageKey) {
-            sessionStorage.setItem(storageKey, password);
-          }
+          persistPassword(password);
           return true;
         } catch {
           if (showError) errorBox.classList.remove("hidden");
           return false;
+        } finally {
+          setSubmitting(false);
         }
       }
 
@@ -171,9 +232,7 @@ const storageKey = `post-password:${postId}`;
         await unlock(password, true);
       });
 
-      const cachedPassword = storageKey
-        ? sessionStorage.getItem(storageKey)
-        : null;
+      const cachedPassword = readCachedPassword();
       if (cachedPassword) {
         unlock(cachedPassword, false);
       }

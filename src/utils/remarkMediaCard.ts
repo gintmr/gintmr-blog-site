@@ -1,21 +1,16 @@
 import { visit } from "unist-util-visit";
-import type { Root, Code } from "mdast";
+import type { Root, Code, Paragraph } from "mdast";
 import type { Node } from "unist";
-import type { MdxJsxFlowElement } from "mdast-util-mdx-jsx";
 import type {
   MediaCardData,
   MediaCardOptions,
   MediaCardType,
 } from "../types/media";
 
-// 定义基本的Node类型
 interface Parent extends Node {
   children: Node[];
 }
 
-/**
- * 解析卡片内容的通用函数
- */
 function parseCardContent(content: string): MediaCardData | null {
   const lines = content
     .trim()
@@ -32,7 +27,6 @@ function parseCardContent(content: string): MediaCardData | null {
 
     if (!key || !value) continue;
 
-    // 尝试转换数字类型
     if (/^\d+(\.\d+)?$/.test(value)) {
       data[key] = parseFloat(value);
     } else {
@@ -40,38 +34,141 @@ function parseCardContent(content: string): MediaCardData | null {
     }
   }
 
-  // 检查是否有必需的 title 字段
   if (!data.title || typeof data.title !== "string") {
     return null;
   }
 
-  // 先转换为 unknown 类型，再转换为 MediaCardData 类型，以确保类型安全
   return data as unknown as MediaCardData;
 }
 
-/**
- * Remark 插件：转换媒体卡片代码块为 HTML div 元素
- */
+function getCardUrl(cardType: MediaCardType, mediaData: MediaCardData): string {
+  if (cardType === "music" && mediaData.url) {
+    return mediaData.url;
+  }
+
+  if (mediaData.external_url) {
+    return mediaData.external_url;
+  }
+
+  if (!mediaData.id) {
+    return "#";
+  }
+
+  if (cardType === "tv") {
+    return mediaData.source === "douban"
+      ? `https://movie.douban.com/subject/${mediaData.id}`
+      : `https://www.themoviedb.org/tv/${mediaData.id}`;
+  }
+
+  if (cardType === "book") {
+    return `https://book.douban.com/subject/${mediaData.id}`;
+  }
+
+  return mediaData.source === "douban"
+    ? `https://movie.douban.com/subject/${mediaData.id}`
+    : `https://www.themoviedb.org/movie/${mediaData.id}`;
+}
+
+function buildMediaMeta(cardType: MediaCardType, mediaData: MediaCardData): string {
+  const parts: string[] = [];
+
+  if (mediaData.release_date) {
+    parts.push(String(mediaData.release_date));
+  }
+
+  if (cardType === "book" && mediaData.author) {
+    parts.push(String(mediaData.author));
+  }
+
+  if ((cardType === "movie" || cardType === "tv") && mediaData.region) {
+    parts.push(String(mediaData.region));
+  }
+
+  if (mediaData.rating) {
+    parts.push(`评分 ${Number(mediaData.rating).toFixed(1)}`);
+  }
+
+  return parts.join(" · ");
+}
+
+function buildMediaCardNodes(
+  cardType: MediaCardType,
+  mediaData: MediaCardData
+): Node[] {
+  const cardTypeLabelMap: Record<MediaCardType, string> = {
+    movie: "电影",
+    tv: "剧集",
+    book: "书籍",
+    music: "音乐",
+  };
+
+  const title = String(mediaData.title);
+  const meta = buildMediaMeta(cardType, mediaData);
+  const overview = mediaData.overview ? String(mediaData.overview) : "";
+  const genres = String(mediaData.genres || "")
+    .split(/[,，]/)
+    .map(genre => genre.trim())
+    .filter(Boolean);
+  const url = getCardUrl(cardType, mediaData);
+  const label = cardTypeLabelMap[cardType];
+  const details = [meta, overview, genres.join(" / ")].filter(Boolean).join(" ｜ ");
+
+  const titleParagraph: Paragraph = {
+    type: "paragraph",
+    children: [
+      {
+        type: "link",
+        url,
+        title: `${label}：《${title}》`,
+        data: {
+          hProperties: {
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        },
+        children: [
+          {
+            type: "text",
+            value: `${label}：《${title}》`,
+          },
+        ],
+      },
+    ],
+  };
+
+  if (!details) {
+    return [titleParagraph];
+  }
+
+  const detailsParagraph: Paragraph = {
+    type: "paragraph",
+    children: [
+      {
+        type: "text",
+        value: details,
+      },
+    ],
+  };
+
+  return [titleParagraph, detailsParagraph];
+}
+
 export function remarkMediaCard(options: MediaCardOptions = {}) {
   const { enableDebug = false } = options;
 
   return function transformer(tree: Root) {
-    // 两阶段处理：首先收集所有需要处理的节点
     const nodesToProcess: Array<{
-      node: Code;
       index: number;
       parent: Parent;
       cardType: MediaCardType;
       mediaData: MediaCardData;
     }> = [];
 
-    // 第一阶段：收集符合条件的节点
     visit(tree, "code", (node: Code, index?: number, parent?: Parent) => {
       if (!parent || index === undefined || !parent.children) {
         return;
       }
 
-      // 检查是否是媒体卡片代码块
       const cardTypeMatch = node.lang?.match(/^card-(movie|tv|book|music)$/);
       if (!cardTypeMatch) {
         return;
@@ -90,12 +187,7 @@ export function remarkMediaCard(options: MediaCardOptions = {}) {
         return;
       }
 
-      if (enableDebug) {
-        console.log(`Found ${cardType} card:`, mediaData.title);
-      }
-
       nodesToProcess.push({
-        node,
         index,
         parent,
         cardType: cardType as MediaCardType,
@@ -103,40 +195,12 @@ export function remarkMediaCard(options: MediaCardOptions = {}) {
       });
     });
 
-    // 第二阶段：处理收集到的节点（从后往前处理以避免索引问题）
     for (let i = nodesToProcess.length - 1; i >= 0; i--) {
       const { index, parent, cardType, mediaData } = nodesToProcess[i];
 
       try {
-        // 创建 MDX JSX 节点
-        const jsxNode: MdxJsxFlowElement = {
-          type: "mdxJsxFlowElement",
-          name: "MediaCard",
-          attributes: [
-            {
-              type: "mdxJsxAttribute",
-              name: "cardType",
-              value: cardType,
-            },
-            {
-              type: "mdxJsxAttribute",
-              name: "mediaData",
-              value: JSON.stringify(mediaData),
-            },
-          ],
-          children: [],
-        };
-
-        // 替换原始代码块节点
-        parent.children[index] = jsxNode;
-
-        if (enableDebug) {
-          console.log(
-            `Replaced ${cardType} card with JSX node:`,
-            mediaData.title,
-            jsxNode
-          );
-        }
+        const nodes = buildMediaCardNodes(cardType, mediaData);
+        parent.children.splice(index, 1, ...nodes);
       } catch (error) {
         if (enableDebug) {
           console.error(`Error processing ${cardType} card:`, error);

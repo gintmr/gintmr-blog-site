@@ -10,7 +10,7 @@ export const SITE = {
   favicon: "favicon.png",
   faviconVersion: "20260226",
   ogImage: "og.jpg",
-  lightAndDarkMode: true,
+  lightAndDarkMode: false,
   postPerIndex: 5,
   postPerPage: 4,
   scheduledPostMargin: 15 * 60 * 1000, // 15 minutes

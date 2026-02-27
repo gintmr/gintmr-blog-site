@@ -3,17 +3,18 @@
   "use strict";
 
   // ===== 主题切换功能 =====
-  const primaryColorScheme = ""; // "light" | "dark"
+  const forceDarkMode = document.documentElement.dataset.forceDark === "true";
+  const primaryColorScheme = forceDarkMode ? "dark" : ""; // "light" | "dark"
 
   // Get theme data from local storage
   const currentTheme = localStorage.getItem("theme");
 
   function getPreferTheme() {
+    // 站点强制深色时，始终返回 dark
+    if (primaryColorScheme) return primaryColorScheme;
+
     // return theme value in local storage if it is set
     if (currentTheme) return currentTheme;
-
-    // return primary color scheme if it is set
-    if (primaryColorScheme) return primaryColorScheme;
 
     // return user device's prefer color scheme
     return window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -112,12 +113,14 @@
   });
 
   // sync with system changes
-  window
-    .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", ({ matches: isDark }) => {
-      themeValue = isDark ? "dark" : "light";
-      setPreference();
-    });
+  if (!primaryColorScheme) {
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", ({ matches: isDark }) => {
+        themeValue = isDark ? "dark" : "light";
+        setPreference();
+      });
+  }
 
   // ===== 视频控制功能 =====
 

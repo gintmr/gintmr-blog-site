@@ -2,6 +2,7 @@
 import { ClientRouter } from "astro:transitions";
 import { PUBLIC_GOOGLE_SITE_VERIFICATION, PUBLIC_GOOGLE_ANALYTICS_ID } from "astro:env/client";
 import { SITE } from "@/config";
+import { UI_EFFECTS, UI_FONTS, UI_THEME } from "@/ui.config";
 import "@/styles/global.css";
 
 import Analytics from "@vercel/analytics/astro";
@@ -33,6 +34,13 @@ const {
 
 const socialImageURL = new URL(ogImage, Astro.url);
 const faviconURL = `/${SITE.favicon}?v=${SITE.faviconVersion}`;
+const fontVarCss = `
+  :root {
+    --site-font-sans: ${UI_FONTS.sans};
+    --site-font-serif: ${UI_FONTS.serif};
+    --site-font-mono: ${UI_FONTS.mono};
+  }
+`;
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -56,6 +64,8 @@ const structuredData = {
   dir={SITE.dir}
   lang=`${SITE.lang ?? "en"}`
   class={`${scrollSmooth && "scroll-smooth"}`}
+  data-force-dark={UI_THEME.forceDarkMode ? "true" : "false"}
+  data-theme={UI_THEME.forceDarkMode ? "dark" : undefined}
 >
   <head>
     <meta charset="UTF-8" />
@@ -156,8 +166,16 @@ const structuredData = {
     <ClientRouter />
 
     <script is:inline src="/app-controls.js"></script>
+    <script is:inline src="/site-effects.js"></script>
+    <style is:inline set:html={fontVarCss}></style>
   </head>
-  <body>
+  <body
+    data-effect-ambient={UI_EFFECTS.ambientGlow ? "on" : "off"}
+    data-effect-grid={UI_EFFECTS.gridOverlay ? "on" : "off"}
+    data-effect-cursor={UI_EFFECTS.cursorGlow ? "on" : "off"}
+    data-effect-reveal={UI_EFFECTS.revealOnScroll ? "on" : "off"}
+    data-effect-card-glow={UI_EFFECTS.cardHoverGlow ? "on" : "off"}
+  >
     <slot />
     <Analytics />
     <SpeedInsights />

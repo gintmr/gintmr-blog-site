@@ -19,7 +19,6 @@ import Comments from "@/components/Comments.tsx";
 import ProtectedPost from "@/components/ProtectedPost.astro";
 import { encryptPostContent, type EncryptedPostPayload } from "@/utils/protectedPostCrypto";
 import {
-  processProtectedPostHtml,
   renderProtectedPostHtml,
 } from "@/utils/renderProtectedPostHtml";
 
@@ -60,9 +59,11 @@ if (!hasPasswordProtection) {
 
 let protectedPayload: EncryptedPostPayload | null = null;
 if (hasPasswordProtection && password) {
-  const renderedHtml = post.rendered?.html
-    ? await processProtectedPostHtml(post.rendered.html)
-    : await renderProtectedPostHtml(post.body || "", post.filePath ?? undefined);
+  // 对加密文章统一走 markdown -> html 渲染链路，避免 Astro 组件岛在解密后变成空节点。
+  const renderedHtml = await renderProtectedPostHtml(
+    post.body || "",
+    post.filePath ?? undefined
+  );
   protectedPayload = await encryptPostContent(renderedHtml, password);
 }
 
