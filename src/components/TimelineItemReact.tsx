@@ -1,12 +1,8 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import MediaCard from "./MediaCard";
 import EmojiReactions from "./EmojiReactions";
 import type { MediaCardData } from "../types/media";
 import { SUPABASE_URL, SUPABASE_KEY } from "astro:env/client";
-
-// 导入 lightgallery 样式
-import "lightgallery/css/lightgallery.css";
-import "lightgallery/css/lg-zoom.css";
 
 export interface TimelineItemProps {
   time: string;
@@ -53,15 +49,6 @@ function normalizeTimelineImage(image: TimelineImage): NormalizedTimelineImage {
   };
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 const TimelineItemReact: React.FC<TimelineItemProps> = ({
   time,
   showTime = true,
@@ -75,8 +62,6 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
   bookData,
   musicData,
 }) => {
-  const galleryRef = useRef<HTMLDivElement>(null);
-  const lightGalleryRef = useRef<{ destroy: () => void } | null>(null);
   const normalizedInlineImageGroups = useMemo(
     () =>
       (imageGroups || [])
@@ -90,59 +75,9 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
     [images]
   );
 
-  const allGalleryGroups = useMemo(
-    () => [
-      ...normalizedInlineImageGroups,
-      ...(normalizedLegacyImages.length > 0 ? [normalizedLegacyImages] : []),
-    ],
-    [normalizedInlineImageGroups, normalizedLegacyImages]
-  );
-
   const hasInlineImageMarkers = Boolean(
     text && text.includes("++DIARY_IMAGE_GROUP_")
   );
-  const hasAnyGalleryImages = allGalleryGroups.length > 0;
-
-  // 初始化 lightgallery（依赖于图片优化完成）
-  useEffect(() => {
-    if (hasAnyGalleryImages && galleryRef.current) {
-      // 使用动态导入来避免 ES 模块问题
-      const initLightGallery = async () => {
-        try {
-          const { default: lightGallery } = await import("lightgallery");
-          const { default: lgZoom } = await import("lightgallery/plugins/zoom");
-
-          // 初始化 lightgallery
-          lightGalleryRef.current = lightGallery(galleryRef.current!, {
-            plugins: [lgZoom],
-            speed: 400,
-            selector: "a.lg-item",
-            download: false,
-            counter: false,
-            getCaptionFromTitleOrAlt: false,
-            mode: "lg-fade",
-            hideBarsDelay: 2000,
-            showZoomInOutIcons: true,
-            actualSize: false,
-            enableDrag: true,
-            enableSwipe: true,
-            zoomFromOrigin: true,
-            allowMediaOverlap: false,
-          });
-        } catch {
-          // Failed to load lightGallery - silently handle the error
-        }
-      };
-
-      initLightGallery();
-    }
-
-    return () => {
-      if (lightGalleryRef.current) {
-        lightGalleryRef.current.destroy();
-      }
-    };
-  }, [hasAnyGalleryImages, allGalleryGroups]);
 
   const renderImageGroup = (
     groupImages: NormalizedTimelineImage[],
@@ -162,18 +97,24 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
             htmlContent
               ? "w-full grid-cols-1"
               : groupImages.length === 1
-                ? "max-w-80 grid-cols-1"
+                ? "w-full grid-cols-1"
                 : groupImages.length === 2
                   ? "max-w-83 grid-cols-2"
                   : groupImages.length === 4
                     ? "max-w-83 grid-cols-2"
                     : "max-w-126 grid-cols-3"
           }`}
+          style={
+            groupImages.length === 1
+              ? ({
+                  width: "min(50vw, 40rem)",
+                  marginInline: "auto",
+                } as React.CSSProperties)
+              : undefined
+          }
         >
           {groupImages.map((image, imageIndex) => {
             const hasCaption = Boolean(image.title);
-            const captionForLightbox =
-              image.title || `${image.width}x${image.height}`;
 
             return (
               <div
@@ -181,7 +122,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
                 className={hasCaption ? "space-y-1" : ""}
               >
                 <a
-                  className={`lg-item group focus:ring-skin-accent block overflow-hidden rounded-xl focus:outline-none ${
+                  className={`gallery-item group focus:ring-skin-accent block overflow-hidden rounded-xl focus:outline-none ${
                     groupImages.length === 1
                       ? "relative"
                       : "image-item relative aspect-square"
@@ -194,9 +135,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
                           WebkitAspectRatio: "1 / 1",
                         } as React.CSSProperties)
                   }
-                  data-src={image.original}
-                  data-lg-size={`${image.width}-${image.height}`}
-                  data-sub-html={`<h4>${escapeHtml(image.alt)}</h4><p>${escapeHtml(captionForLightbox)}</p>`}
+                  data-gallery-image="true"
                   href={image.original}
                   aria-label={`查看大图：${image.alt}${image.title ? ` - ${image.title}` : ""}`}
                   role="button"
@@ -211,10 +150,18 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
                   <img
                     src={image.thumbnail}
                     alt={image.alt || `图片 ${imageIndex + 1}`}
-                    className="h-full w-full cursor-pointer object-cover transition-transform duration-300 hover:scale-105"
+                    className={`w-full cursor-pointer transition-transform duration-300 hover:scale-105 ${
+                      groupImages.length === 1
+                        ? "h-auto object-contain"
+                        : "h-full object-cover"
+                    }`}
                     style={
                       groupImages.length === 1
-                        ? {}
+                        ? ({
+                            width: "100%",
+                            height: "auto",
+                            objectFit: "contain",
+                          } as React.CSSProperties)
                         : {
                             width: "100%",
                             height: "100%",
@@ -326,7 +273,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
             </h3>
           )}
           {/* 内容区域 */}
-          <div className="min-w-0 flex-1" ref={galleryRef}>
+          <div className="min-w-0 flex-1">
             {/* 帖子内容 */}
             <div className="text-skin-base">
               {renderTextWithInlineImageGroups()}

@@ -426,72 +426,146 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
   }
 }
 
-/* ===== Blog 文章封面氛围背景 ===== */
-.post-cover-backdrop {
-  pointer-events: none;
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 100vw;
-  height: min(52vh, 32rem);
-  transform: translateX(-50%);
-  z-index: -10;
-  overflow: hidden;
+/* ===== Post 封面图（标题上方） ===== */
+.post-header-cover {
+  margin: 0 auto 1.25rem;
+  width: min(80vw, 72rem);
 }
 
-.post-cover-backdrop__image {
+.post-header-cover__image {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(38px) saturate(1.18);
-  transform: scale(1.12);
-  opacity: 0.58;
+  height: auto;
+  object-fit: contain;
+  border-radius: 1rem;
+  display: block;
 }
 
-.post-cover-backdrop__overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--background) 18%, transparent) 0%,
-      color-mix(in srgb, var(--background) 40%, transparent) 38%,
-      var(--background) 100%
-    );
-}
-
-/* ===== Blog 图片轻量预览器 ===== */
-#post-image-viewer {
+/* ===== Blog/Diary 通用图片预览器 ===== */
+#global-image-viewer {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 120;
   display: none;
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, #06070b 82%, transparent);
-  padding: 1rem;
+  padding: 1rem 1rem 1.75rem;
   backdrop-filter: blur(6px);
 }
 
-#post-image-viewer[data-open="true"] {
+#global-image-viewer[data-open="true"] {
   display: flex;
 }
 
-#post-image-viewer img {
+#global-image-viewer__stage {
+  position: relative;
+  width: min(96vw, 88rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#global-image-viewer__top {
+  position: absolute;
+  top: -0.75rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+#global-image-viewer__counter {
+  align-self: center;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--foreground) 92%, white 8%);
+  background: color-mix(in srgb, #090b12 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+#global-image-viewer__progress {
+  width: 100%;
+  height: 0.25rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+
+#global-image-viewer__progress-value {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 72%, white 8%),
+    color-mix(in srgb, var(--accent) 42%, white 6%)
+  );
+  transition: width 180ms ease;
+}
+
+#global-image-viewer__img {
   max-width: min(96vw, 84rem);
-  max-height: min(84vh, 52rem);
+  max-height: min(82vh, 52rem);
   border-radius: 0.85rem;
   object-fit: contain;
   box-shadow: 0 26px 60px -30px color-mix(in srgb, #000 78%, transparent);
 }
 
-#post-image-viewer figcaption {
+#global-image-viewer__caption {
   margin-top: 0.75rem;
   max-width: min(96vw, 84rem);
   text-align: center;
   color: color-mix(in srgb, var(--foreground) 90%, white 10%);
   font-size: 0.9rem;
   line-height: 1.45;
+}
+
+.global-image-viewer__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  background: color-mix(in srgb, #111522 68%, transparent);
+  color: color-mix(in srgb, var(--foreground) 95%, white 5%);
+  font-size: 1.2rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 180ms ease;
+}
+
+.global-image-viewer__nav[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#global-image-viewer__prev {
+  left: 0.4rem;
+}
+
+#global-image-viewer__next {
+  right: 0.4rem;
+}
+
+#global-image-viewer__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  background: color-mix(in srgb, #111522 72%, transparent);
+  color: color-mix(in srgb, var(--foreground) 92%, white 8%);
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 /* DisintegrationImg component styles */

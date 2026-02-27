@@ -40,9 +40,21 @@
       aspect-ratio: 4 / 3;
     }
 
+    .rehype-figure-container .rehype-figure:only-child {
+      width: min(50vw, 40rem);
+      justify-self: center;
+    }
+
     .rehype-figure-container .rehype-figure:only-child img {
-      @apply max-h-[65vh] object-contain!;
+      @apply max-h-[70vh] object-contain!;
       aspect-ratio: auto;
+    }
+
+    p > img:only-child {
+      width: min(50vw, 40rem);
+      max-height: 70vh;
+      height: auto;
+      object-fit: contain !important;
     }
 
     .rehype-figure figcaption {
