@@ -25,7 +25,10 @@ const blog = defineCollection({
       canonicalURL: z.string().optional(),
       hideEditPost: z.boolean().optional(),
       timezone: z.string().optional(),
-      summary: z.string().optional(),
+      summary: z.preprocess(
+        normalizeOptionalString,
+        z.string().optional()
+      ),
       enableAISummary: z.boolean().default(false),
       keywords: z.array(z.string()).optional(),
       mainPoints: z.array(z.string()).optional(),

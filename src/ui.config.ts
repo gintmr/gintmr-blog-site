@@ -26,14 +26,14 @@ export const UI_COLORS = {
   },
   // 全站主色板（深色）
   dark: {
-    background: "#1b1728",
+    background: "#191919",
     foreground: "#f4ecff",
     accent: "#d7a2ff",
     muted: "#67557f",
     border: "#8b74ad4d",
   },
   // 图片霓虹特效颜色（建议高亮色）
-  imageNeonGlow: "#ffe35a",
+  imageNeonGlow: "#4de688",
   // AI 总结卡片的视觉色板
   aiSummary: {
     border: "#d7b6ff66",
@@ -52,7 +52,7 @@ export const UI_EFFECTS = {
   // 页面背景环境光
   ambientGlow: true,
   // 轻量网格纹理
-  gridOverlay: false,
+  gridOverlay: true,
   // 鼠标跟随辉光（移动端自动关闭）
   cursorGlow: false,
   // 内容滚动显现动画
