@@ -11,7 +11,12 @@ const { payload, postId, passwordHint } = Astro.props;
 const storageKey = `post-password:${postId}`;
 ---
 
-<div data-protected-post data-storage-key={storageKey} data-pagefind-ignore>
+<div
+  data-protected-post
+  data-storage-key={storageKey}
+  data-post-id={postId}
+  data-pagefind-ignore
+>
   <section
     data-role="unlock-panel"
     class="mt-8 rounded-xl border border-border/40 bg-card/60 p-5"
@@ -96,6 +101,7 @@ const storageKey = `post-password:${postId}`;
       const submitButton = container.querySelector('[data-role="submit-btn"]');
       const rememberInput = container.querySelector('[data-role="remember"]');
       const storageKey = container.getAttribute("data-storage-key") || "";
+      const currentPostId = container.getAttribute("data-post-id") || "";
       const persistentStorageKey = `${storageKey}:persistent`;
 
       if (!root || !form || !errorBox || !contentEl || !payloadScript || !submitButton) {
@@ -214,6 +220,11 @@ const storageKey = `post-password:${postId}`;
           contentEl.classList.remove("hidden");
           root.classList.add("hidden");
           errorBox.classList.add("hidden");
+          document.dispatchEvent(
+            new CustomEvent("post:decrypted", {
+              detail: { postId: currentPostId },
+            })
+          );
           persistPassword(password);
           return true;
         } catch {

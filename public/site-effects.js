@@ -134,7 +134,9 @@
 
   function setupStandaloneImageLayout() {
     const images = Array.from(
-      document.querySelectorAll("#article img, #diary-content img")
+      document.querySelectorAll(
+        "#article img, [data-role='decrypted-content'] img, #diary-content img"
+      )
     ).filter(node => node instanceof HTMLImageElement);
 
     images.forEach(img => {
@@ -152,6 +154,14 @@
         img.closest(".images-grid:not(.images-grid-single)")
       ) {
         return;
+      }
+
+      const figureContainer = img.closest(".rehype-figure-container");
+      if (figureContainer) {
+        const siblingFigures = figureContainer.querySelectorAll(
+          ":scope > .rehype-figure, :scope > figure"
+        ).length;
+        if (siblingFigures > 1) return;
       }
 
       let standalone = Boolean(img.closest(".images-grid-single"));
@@ -406,6 +416,7 @@
   }
 
   document.addEventListener("astro:page-load", initSiteEffects);
+  document.addEventListener("post:decrypted", initSiteEffects);
   window.addEventListener("beforeunload", () => {
     cleanupReveal();
     cleanupCursorGlow();

@@ -27,6 +27,50 @@ function stripQuotes(value: string): string {
   return value.replace(/^['"]|['"]$/g, "");
 }
 
+function toBaseName(value: string): string {
+  const normalized = normalizeSlashes(value);
+  return normalized.split("/").pop() || normalized;
+}
+
+function toBaseNameWithoutExt(value: string): string {
+  const base = toBaseName(value);
+  return base.replace(/\.[^.]+$/, "");
+}
+
+function isLikelyAutoFilename(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return true;
+
+  if (/^image(?:\s*\d+)?(?:\.[a-z0-9]+)?$/i.test(normalized)) return true;
+  if (/^pasted image(?:\s*\d+)?(?:\.[a-z0-9]+)?$/i.test(normalized)) return true;
+
+  if (/^[a-f0-9]{24,}(?:_[a-z0-9]+)*(?:\.[a-z0-9]+)?$/i.test(normalized)) {
+    return true;
+  }
+
+  return false;
+}
+
+function sanitizeImageCaption(rawCaption: string, imageUrl: string): string {
+  const caption = rawCaption.trim();
+  if (!caption) return "";
+
+  const decodedUrl = decodeURIComponentSafe(imageUrl);
+  const baseName = toBaseName(decodedUrl).toLowerCase();
+  const baseNameNoExt = toBaseNameWithoutExt(decodedUrl).toLowerCase();
+  const normalizedCaption = caption.toLowerCase();
+
+  if (
+    normalizedCaption === baseName ||
+    normalizedCaption === baseNameNoExt ||
+    isLikelyAutoFilename(caption)
+  ) {
+    return "";
+  }
+
+  return caption;
+}
+
 function resolveObsidianImageUrl(
   rawTarget: string,
   currentFilePath?: string
@@ -99,10 +143,11 @@ function parseEmbedValue(embedValue: string): {
   const target = parts[0].split("#")[0]?.trim() || "";
   if (!target || !IMAGE_EXT_REGEX.test(target)) return null;
 
-  const descriptor =
+  const rawDescriptor =
     parts
       .slice(1)
       .find(part => !/^\d+(?:x\d+)?$/i.test(part.replace(/\s+/g, ""))) || "";
+  const descriptor = sanitizeImageCaption(rawDescriptor, target);
 
   return {
     url: target,
@@ -125,7 +170,15 @@ export const remarkObsidianEmbeds: Plugin<
       if (!node.url) return;
       const originalUrl = node.url;
       const resolvedUrl = resolveObsidianImageUrl(originalUrl, currentFilePath);
+      const sanitizedAlt = sanitizeImageCaption(node.alt || "", resolvedUrl);
+
       node.url = resolvedUrl;
+      node.alt = sanitizedAlt;
+
+      if (node.title) {
+        const sanitizedTitle = sanitizeImageCaption(node.title, resolvedUrl);
+        node.title = sanitizedTitle || undefined;
+      }
 
       if (enableDebug && originalUrl !== resolvedUrl) {
         console.log(
