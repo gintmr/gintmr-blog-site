@@ -34,6 +34,13 @@ export const UI_COLORS = {
   },
   // 图片霓虹特效颜色（建议高亮色）
   imageNeonGlow: "#4de688",
+  // 图片霓虹渐变边框色板（按四边渐变）
+  imageNeonGradient: {
+    c1: "#ffe45f",
+    c2: "#7af9ff",
+    c3: "#ff8ad8",
+    c4: "#b8ff7d",
+  },
   // AI 总结卡片的视觉色板
   aiSummary: {
     border: "#d7b6ff66",

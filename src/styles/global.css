@@ -303,16 +303,28 @@ body[data-effect-heading-beam="on"] main :is(h1, h2, h3):hover::after {
 }
 
 body[data-effect-image-neon="on"] :is(
-    .app-prose img,
+    .app-prose .rehype-figure,
+    .app-prose > p > img,
     .images-grid .lg-item,
     .media-card img,
     .media-card-static img
   ) {
-  border: 1px solid color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 58%, transparent);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(transparent, transparent) padding-box,
+    conic-gradient(
+      from 180deg,
+      var(--site-image-neon-c1, #ffe45f),
+      var(--site-image-neon-c2, #7af9ff),
+      var(--site-image-neon-c3, #ff8ad8),
+      var(--site-image-neon-c4, #b8ff7d),
+      var(--site-image-neon-c1, #ffe45f)
+    )
+    border-box;
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 20%, transparent),
-    0 14px 28px -22px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 72%, transparent),
-    0 0 30px -18px color-mix(in srgb, var(--site-image-neon-glow, #ffe35a) 95%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--site-image-neon-glow, #4de688) 20%, transparent),
+    0 14px 28px -22px color-mix(in srgb, var(--site-image-neon-glow, #4de688) 72%, transparent),
+    0 0 30px -18px color-mix(in srgb, var(--site-image-neon-glow, #4de688) 95%, transparent);
 }
 
 body[data-effect-image-neon="on"] .images-grid .lg-item {
@@ -324,7 +336,8 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
 
 @media (hover: hover) and (pointer: fine) {
   body[data-effect-image-lift="on"] :is(
-      .app-prose img,
+      .app-prose .rehype-figure,
+      .app-prose > p > img,
       .images-grid .lg-item,
       .media-card img,
       .media-card-static img
@@ -337,7 +350,8 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
   }
 
   body[data-effect-image-lift="on"] :is(
-      .app-prose img,
+      .app-prose .rehype-figure,
+      .app-prose > p > img,
       .images-grid .lg-item,
       .media-card img,
       .media-card-static img
@@ -385,7 +399,8 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
 
   body[data-effect-heading-beam="on"] main :is(h1, h2, h3)::after,
   body[data-effect-image-lift="on"] :is(
-      .app-prose img,
+      .app-prose .rehype-figure,
+      .app-prose > p > img,
       .images-grid .lg-item,
       .media-card img,
       .media-card-static img

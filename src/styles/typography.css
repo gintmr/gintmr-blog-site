@@ -28,19 +28,26 @@
     }
 
     .rehype-figure-container {
-      @apply sm:my-8 sm:flex sm:gap-4;
+      @apply my-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4;
     }
 
     .rehype-figure-container .rehype-figure {
-      @apply sm:my-0 sm:flex-1;
-    }
-
-    .rehype-figure figcaption {
-      @apply text-center;
+      @apply my-0 flex flex-col overflow-hidden rounded-xl;
     }
 
     .rehype-figure img {
-      @apply max-h-[60vh] object-cover!;
+      @apply h-auto w-full rounded-md object-cover!;
+      aspect-ratio: 4 / 3;
+    }
+
+    .rehype-figure-container .rehype-figure:only-child img {
+      @apply max-h-[65vh] object-contain!;
+      aspect-ratio: auto;
+    }
+
+    .rehype-figure figcaption {
+      @apply mt-2 text-center text-xs leading-snug text-foreground/80;
+      text-wrap: balance;
     }
 
     .media-card-static-wrap {

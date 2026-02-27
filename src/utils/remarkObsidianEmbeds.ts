@@ -11,8 +11,6 @@ interface RemarkObsidianEmbedsOptions {
 const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
 const OBSIDIAN_EMBED_REGEX = /!\[\[([^\]]+)\]\]/g;
 
-const attachmentIndexCache = new Map<string, string[]>();
-
 function decodeURIComponentSafe(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -27,41 +25,6 @@ function normalizeSlashes(value: string): string {
 
 function stripQuotes(value: string): string {
   return value.replace(/^['"]|['"]$/g, "");
-}
-
-function getAttachmentCandidates(projectRoot: string): string[] {
-  if (attachmentIndexCache.has(projectRoot)) {
-    return attachmentIndexCache.get(projectRoot)!;
-  }
-
-  const attachmentRoot = path.resolve(projectRoot, "src/data/attachment");
-  const result: string[] = [];
-
-  const walk = (dir: string) => {
-    let entries: fs.Dirent[] = [];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const abs = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(abs);
-        continue;
-      }
-      if (!entry.isFile()) continue;
-
-      const rel = normalizeSlashes(path.relative(attachmentRoot, abs));
-      if (!rel || rel.startsWith("..")) continue;
-      result.push(rel);
-    }
-  };
-
-  walk(attachmentRoot);
-  attachmentIndexCache.set(projectRoot, result);
-  return result;
 }
 
 function resolveObsidianImageUrl(
@@ -118,18 +81,6 @@ function resolveObsidianImageUrl(
     return `../attachment/inbox/${baseName}`;
   }
 
-  const candidates = getAttachmentCandidates(projectRoot).filter(rel =>
-    rel.toLowerCase().endsWith(`/${baseName.toLowerCase()}`)
-  );
-
-  if (candidates.length > 0) {
-    const preferred =
-      candidates.find(rel => rel.startsWith("blog/")) ||
-      candidates.find(rel => rel.startsWith("inbox/")) ||
-      candidates[0];
-    return `../attachment/${preferred}`;
-  }
-
   return baseName;
 }
 
@@ -152,13 +103,11 @@ function parseEmbedValue(embedValue: string): {
     parts
       .slice(1)
       .find(part => !/^\d+(?:x\d+)?$/i.test(part.replace(/\s+/g, ""))) || "";
-  const fallbackAlt =
-    decodeURIComponentSafe(target).split("/").pop()?.replace(/\.[^/.]+$/, "") ||
-    "image";
 
   return {
     url: target,
-    alt: descriptor || fallbackAlt,
+    // 无描述时不自动生成文件名 caption，避免 "Pasted image xxx" 污染排版。
+    alt: descriptor || "",
     title: descriptor || undefined,
   };
 }
