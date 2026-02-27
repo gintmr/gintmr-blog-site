@@ -428,8 +428,12 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
 
 /* ===== Post 封面图（标题上方） ===== */
 .post-header-cover {
-  margin: 0 auto 1.25rem;
-  width: min(80vw, 72rem);
+  margin: 0 0 1.25rem;
+  width: 80vw;
+  max-width: none;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .post-header-cover__image {
@@ -467,12 +471,14 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
 
 #global-image-viewer__top {
   position: absolute;
-  top: -0.75rem;
+  top: auto;
+  bottom: -2.3rem;
   left: 0;
   right: 0;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  align-items: center;
   pointer-events: none;
 }
 
@@ -488,7 +494,7 @@ body[data-effect-image-neon="on"] .images-grid .lg-item {
 }
 
 #global-image-viewer__progress {
-  width: 100%;
+  width: min(96vw, 32rem);
   height: 0.25rem;
   border-radius: 999px;
   overflow: hidden;

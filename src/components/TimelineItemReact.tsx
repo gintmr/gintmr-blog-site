@@ -107,7 +107,7 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
           style={
             groupImages.length === 1
               ? ({
-                  width: "min(50vw, 40rem)",
+                  width: "50vw",
                   marginInline: "auto",
                 } as React.CSSProperties)
               : undefined
