@@ -2,13 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { visit } from "unist-util-visit";
 import type { Plugin } from "unified";
-import type { Root, Paragraph, Text, Image } from "mdast";
+import type { Root, Paragraph, Text, Image, Html } from "mdast";
+import { getVideoPath } from "./videoUtils";
 
 interface RemarkObsidianEmbedsOptions {
   enableDebug?: boolean;
 }
 
 const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
+const VIDEO_EXT_REGEX = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i;
 const OBSIDIAN_EMBED_REGEX = /!\[\[([^\]]+)\]\]/g;
 
 function decodeURIComponentSafe(value: string): string {
@@ -71,6 +73,52 @@ function sanitizeImageCaption(rawCaption: string, imageUrl: string): string {
   return caption;
 }
 
+function sanitizeVideoCaption(rawCaption: string, videoUrl: string): string {
+  const caption = rawCaption.trim();
+  if (!caption) return "";
+
+  const decodedUrl = decodeURIComponentSafe(videoUrl);
+  const baseName = toBaseName(decodedUrl).toLowerCase();
+  const baseNameNoExt = toBaseNameWithoutExt(decodedUrl).toLowerCase();
+  const normalizedCaption = caption.toLowerCase();
+
+  if (
+    normalizedCaption === baseName ||
+    normalizedCaption === baseNameNoExt ||
+    isLikelyAutoFilename(caption)
+  ) {
+    return "";
+  }
+
+  return caption;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function escapeHtmlAttr(value: string): string {
+  return escapeHtml(value).replaceAll('"', "&quot;");
+}
+
+function buildVideoFigureHtml(
+  src: string,
+  caption = "",
+  ariaLabel = "Video"
+): string {
+  const safeSrc = escapeHtmlAttr(src);
+  const safeCaption = caption.trim();
+  const safeAriaLabel = escapeHtmlAttr((ariaLabel || "Video").trim() || "Video");
+  const captionHtml = safeCaption
+    ? `<figcaption>${escapeHtml(safeCaption)}</figcaption>`
+    : "";
+
+  return `<figure class="rehype-figure"><video controls playsinline preload="metadata" src="${safeSrc}" aria-label="${safeAriaLabel}"></video>${captionHtml}</figure>`;
+}
+
 function resolveObsidianImageUrl(
   rawTarget: string,
   currentFilePath?: string
@@ -128,11 +176,29 @@ function resolveObsidianImageUrl(
   return baseName;
 }
 
-function parseEmbedValue(embedValue: string): {
-  url: string;
-  alt: string;
-  title?: string;
-} | null {
+function resolveObsidianVideoUrl(
+  rawTarget: string,
+  currentFilePath?: string
+): string {
+  const normalized = resolveObsidianImageUrl(rawTarget, currentFilePath);
+  return getVideoPath(normalized);
+}
+
+type ParsedEmbed =
+  | {
+      type: "image";
+      url: string;
+      alt: string;
+      title?: string;
+    }
+  | {
+      type: "video";
+      url: string;
+      caption: string;
+      label: string;
+    };
+
+function parseEmbedValue(embedValue: string): ParsedEmbed | null {
   const parts = embedValue
     .split("|")
     .map(part => part.trim())
@@ -141,20 +207,36 @@ function parseEmbedValue(embedValue: string): {
   if (parts.length === 0) return null;
 
   const target = parts[0].split("#")[0]?.trim() || "";
-  if (!target || !IMAGE_EXT_REGEX.test(target)) return null;
+  if (!target) return null;
 
   const rawDescriptor =
     parts
       .slice(1)
       .find(part => !/^\d+(?:x\d+)?$/i.test(part.replace(/\s+/g, ""))) || "";
-  const descriptor = sanitizeImageCaption(rawDescriptor, target);
 
-  return {
-    url: target,
-    // 无描述时不自动生成文件名 caption，避免 "Pasted image xxx" 污染排版。
-    alt: descriptor || "",
-    title: descriptor || undefined,
-  };
+  if (IMAGE_EXT_REGEX.test(target)) {
+    const descriptor = sanitizeImageCaption(rawDescriptor, target);
+    return {
+      type: "image",
+      url: target,
+      // 无描述时不自动生成文件名 caption，避免 "Pasted image xxx" 污染排版。
+      alt: descriptor || "",
+      title: descriptor || undefined,
+    };
+  }
+
+  if (VIDEO_EXT_REGEX.test(target)) {
+    const descriptor = sanitizeVideoCaption(rawDescriptor, target);
+    const fallbackLabel = toBaseNameWithoutExt(target).trim() || "Video";
+    return {
+      type: "video",
+      url: target,
+      caption: descriptor,
+      label: descriptor || fallbackLabel,
+    };
+  }
+
+  return null;
 }
 
 export const remarkObsidianEmbeds: Plugin<
@@ -166,9 +248,37 @@ export const remarkObsidianEmbeds: Plugin<
   return (tree, file) => {
     const currentFilePath = String(file.path || file.history?.[0] || "");
 
-    visit(tree, "image", (node: Image) => {
+    visit(tree, "image", (node: Image, index, parent) => {
       if (!node.url) return;
       const originalUrl = node.url;
+      const isVideo = VIDEO_EXT_REGEX.test(originalUrl);
+
+      if (isVideo && typeof index === "number" && parent && "children" in parent) {
+        const resolvedVideoUrl = resolveObsidianVideoUrl(
+          originalUrl,
+          currentFilePath
+        );
+        const caption = sanitizeVideoCaption(
+          node.title || node.alt || "",
+          resolvedVideoUrl
+        );
+        const label = caption || node.alt || toBaseNameWithoutExt(originalUrl);
+
+        const videoNode: Html = {
+          type: "html",
+          value: buildVideoFigureHtml(resolvedVideoUrl, caption, label),
+        };
+
+        parent.children[index] = videoNode;
+
+        if (enableDebug) {
+          console.log(
+            `[remark-obsidian-embeds:video] ${originalUrl} -> ${resolvedVideoUrl} (${currentFilePath})`
+          );
+        }
+        return;
+      }
+
       const resolvedUrl = resolveObsidianImageUrl(originalUrl, currentFilePath);
       const sanitizedAlt = sanitizeImageCaption(node.alt || "", resolvedUrl);
 
@@ -224,21 +334,48 @@ export const remarkObsidianEmbeds: Plugin<
           }
 
           hasEmbed = true;
-          const resolvedUrl = resolveObsidianImageUrl(parsed.url, currentFilePath);
-
-          if (enableDebug) {
-            console.log(
-              `[remark-obsidian-embeds] ${parsed.url} -> ${resolvedUrl} (${currentFilePath})`
+          if (parsed.type === "image") {
+            const resolvedUrl = resolveObsidianImageUrl(
+              parsed.url,
+              currentFilePath
             );
+
+            if (enableDebug) {
+              console.log(
+                `[remark-obsidian-embeds:image] ${parsed.url} -> ${resolvedUrl} (${currentFilePath})`
+              );
+            }
+
+            const imageNode: Image = {
+              type: "image",
+              url: resolvedUrl,
+              alt: parsed.alt,
+              title: parsed.title,
+            };
+            transformedChildren.push(imageNode);
+          } else {
+            const resolvedVideoUrl = resolveObsidianVideoUrl(
+              parsed.url,
+              currentFilePath
+            );
+
+            if (enableDebug) {
+              console.log(
+                `[remark-obsidian-embeds:video] ${parsed.url} -> ${resolvedVideoUrl} (${currentFilePath})`
+              );
+            }
+
+            const videoNode: Html = {
+              type: "html",
+              value: buildVideoFigureHtml(
+                resolvedVideoUrl,
+                parsed.caption,
+                parsed.label
+              ),
+            };
+            transformedChildren.push(videoNode);
           }
 
-          const imageNode: Image = {
-            type: "image",
-            url: resolvedUrl,
-            alt: parsed.alt,
-            title: parsed.title,
-          };
-          transformedChildren.push(imageNode);
           cursor = end;
         }
 

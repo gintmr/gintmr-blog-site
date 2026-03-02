@@ -92,9 +92,15 @@ interface ParsedDiaryImage {
 }
 
 const OBSIDIAN_IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
+const OBSIDIAN_VIDEO_EXT_REGEX = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i;
 const OBSIDIAN_IMAGE_TOKEN_REGEX = /!\[\[[^\]]+\]\]/g;
+const OBSIDIAN_VIDEO_TOKEN_REGEX =
+  /!\[\[[^\]]+\.(?:mp4|webm|ogg|mov|avi|mkv|m4v)(?:#[^\]|]+)?(?:\|[^\]]*)?\]\]/gi;
 const MARKDOWN_IMAGE_TOKEN_REGEX = /!\[[^\]]*\]\([^\)]*\)/g;
+const MARKDOWN_VIDEO_TOKEN_REGEX =
+  /!\[[^\]]*\]\([^\)]+\.(?:mp4|webm|ogg|mov|avi|mkv|m4v)(?:\s+["'][^"']*["'])?\)/gi;
 const IMAGE_GROUP_PLACEHOLDER_PREFIX = "++DIARY_IMAGE_GROUP_";
+const INLINE_HTML_BLOCK_PLACEHOLDER_PREFIX = "++INLINE_HTML_BLOCK_";
 
 function decodeURIComponentSafe(value: string): string {
   try {
@@ -164,6 +170,46 @@ function parseObsidianImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
   return embeds;
 }
 
+function parseObsidianVideoEmbeds(content: string): ParsedObsidianImageEmbed[] {
+  const embeds: ParsedObsidianImageEmbed[] = [];
+  const embedRegex = /!\[\[([^\]]+)\]\]/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = embedRegex.exec(content)) !== null) {
+    const embedRaw = match[1].trim();
+    if (!embedRaw) continue;
+
+    const segments = embedRaw
+      .split("|")
+      .map(segment => segment.trim())
+      .filter(Boolean);
+    if (segments.length === 0) continue;
+
+    const targetRaw = segments[0].split("#")[0]?.trim();
+    if (!targetRaw || !OBSIDIAN_VIDEO_EXT_REGEX.test(targetRaw)) {
+      continue;
+    }
+
+    const title =
+      segments
+        .slice(1)
+        .find(segment => !/^\d+(?:x\d+)?$/i.test(segment.replace(/\s+/g, ""))) ||
+      "";
+
+    const decodedTarget = decodeURIComponentSafe(targetRaw);
+    const fallbackAlt =
+      decodedTarget.split("/").pop()?.replace(/\.[^/.]+$/, "").trim() || "video";
+
+    embeds.push({
+      alt: title || fallbackAlt,
+      src: getVideoPath(normalizeObsidianImageSource(targetRaw)),
+      title,
+    });
+  }
+
+  return embeds;
+}
+
 function parseMarkdownImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
   const embeds: ParsedObsidianImageEmbed[] = [];
   const markdownImageRegex =
@@ -192,6 +238,34 @@ function parseMarkdownImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
   return embeds;
 }
 
+function parseMarkdownVideoEmbeds(content: string): ParsedObsidianImageEmbed[] {
+  const embeds: ParsedObsidianImageEmbed[] = [];
+  const markdownVideoRegex =
+    /!\[([^\]]*)\]\(([^\s)]+)(?:\s+"([^"]*)"|\s+\'([^\']*)\')?\)/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = markdownVideoRegex.exec(content)) !== null) {
+    const alt = match[1]?.trim() || "";
+    const srcRaw = match[2]?.trim() || "";
+    if (!srcRaw || !OBSIDIAN_VIDEO_EXT_REGEX.test(srcRaw)) {
+      continue;
+    }
+
+    const title = (match[3] || match[4] || "").trim();
+    const decodedTarget = decodeURIComponentSafe(srcRaw);
+    const fallbackAlt =
+      decodedTarget.split("/").pop()?.replace(/\.[^/.]+$/, "").trim() || "video";
+
+    embeds.push({
+      alt: alt || title || fallbackAlt,
+      src: getVideoPath(normalizeObsidianImageSource(srcRaw)),
+      title,
+    });
+  }
+
+  return embeds;
+}
+
 function isImageOnlyLine(line: string): boolean {
   const strippedLine = line
     .replace(OBSIDIAN_IMAGE_TOKEN_REGEX, "")
@@ -207,6 +281,45 @@ function stripImageTokensFromLine(line: string): string {
     .replace(MARKDOWN_IMAGE_TOKEN_REGEX, "")
     .replace(/\s{2,}/g, " ")
     .trimEnd();
+}
+
+function isVideoOnlyLine(line: string): boolean {
+  const strippedLine = line
+    .replace(OBSIDIAN_VIDEO_TOKEN_REGEX, "")
+    .replace(MARKDOWN_VIDEO_TOKEN_REGEX, "")
+    .replace(/\s+/g, "")
+    .trim();
+  return strippedLine.length === 0 || /^[-*]+$/.test(strippedLine);
+}
+
+function stripVideoTokensFromLine(line: string): string {
+  return line
+    .replace(OBSIDIAN_VIDEO_TOKEN_REGEX, "")
+    .replace(MARKDOWN_VIDEO_TOKEN_REGEX, "")
+    .replace(/\s{2,}/g, " ")
+    .trimEnd();
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function escapeHtmlAttr(value: string): string {
+  return escapeHtml(value).replaceAll('"', "&quot;");
+}
+
+function buildDiaryVideoEmbedHtml(video: ParsedObsidianImageEmbed): string {
+  const src = escapeHtmlAttr(video.src);
+  const caption = (video.title || "").trim();
+  const label = escapeHtmlAttr((video.alt || "video").trim() || "video");
+  const captionHtml = caption
+    ? `<figcaption>${escapeHtml(caption)}</figcaption>`
+    : "";
+
+  return `<figure class="rehype-figure"><video controls playsinline preload="metadata" src="${src}" aria-label="${label}"></video>${captionHtml}</figure>`;
 }
 
 // 解析日记条目的函数
@@ -250,6 +363,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
 
     const images: ParsedDiaryImage[] = [];
     const imageGroups: ParsedDiaryImage[][] = [];
+    const inlineHtmlBlocks: string[] = [];
 
     const optimizeDiaryImage = async (
       alt: string,
@@ -292,6 +406,8 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
 
     const buildImageGroupPlaceholder = (groupIndex: number) =>
       `${IMAGE_GROUP_PLACEHOLDER_PREFIX}${groupIndex}++`;
+    const buildInlineHtmlBlockPlaceholder = (blockIndex: number) =>
+      `${INLINE_HTML_BLOCK_PLACEHOLDER_PREFIX}${blockIndex}++`;
 
     const textLines = text.split("\n");
     const processedTextLines: string[] = [];
@@ -310,6 +426,29 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     };
 
     for (const rawLine of textLines) {
+      const lineVideoEmbeds = [
+        ...parseObsidianVideoEmbeds(rawLine),
+        ...parseMarkdownVideoEmbeds(rawLine),
+      ];
+
+      if (lineVideoEmbeds.length > 0) {
+        await flushPendingImageEmbeds();
+
+        if (!isVideoOnlyLine(rawLine)) {
+          const strippedLine = stripVideoTokensFromLine(rawLine);
+          if (strippedLine.trim()) {
+            processedTextLines.push(strippedLine);
+          }
+        }
+
+        for (const videoEmbed of lineVideoEmbeds) {
+          const html = buildDiaryVideoEmbedHtml(videoEmbed);
+          const blockIndex = inlineHtmlBlocks.push(html) - 1;
+          processedTextLines.push(buildInlineHtmlBlockPlaceholder(blockIndex));
+        }
+        continue;
+      }
+
       const lineEmbeds = [
         ...parseObsidianImageEmbeds(rawLine),
         ...parseMarkdownImageEmbeds(rawLine),
@@ -631,6 +770,7 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
         if (
           trimmedLine.includes("++HTML_BLOCK_") ||
           trimmedLine.includes("++PROTECTED_CODE_BLOCK_") ||
+          trimmedLine.includes(INLINE_HTML_BLOCK_PLACEHOLDER_PREFIX) ||
           trimmedLine.includes(IMAGE_GROUP_PLACEHOLDER_PREFIX)
         ) {
           return trimmedLine;
@@ -654,6 +794,14 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
       const html = `<pre class="mb-2" data-language="${lang}"><code>${escapedCode}</code></pre>`;
       text = text.replace(`++PROTECTED_CODE_BLOCK_${i}_PROTECTED++`, html);
     }
+
+    // 恢复行内HTML块（例如 Obsidian 视频 embed）
+    inlineHtmlBlocks.forEach((block, index) => {
+      text = text.replace(
+        `${INLINE_HTML_BLOCK_PLACEHOLDER_PREFIX}${index}++`,
+        block
+      );
+    });
 
     // 恢复HTML块
     htmlBlocks.forEach((block, index) => {

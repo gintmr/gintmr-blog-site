@@ -1,5 +1,7 @@
-// 导入所有 MP4 视频文件
-const videos = import.meta.glob("../data/attachment/**/*.mp4", { eager: true });
+// 导入所有常见视频文件
+const videos = import.meta.glob("../data/attachment/**/*.{mp4,webm,ogg,mov,avi,mkv,m4v}", {
+  eager: true,
+});
 
 /**
  * 获取视频路径
@@ -60,7 +62,7 @@ export function getAllVideoKeys(): string[] {
  * @returns 是否为视频文件
  */
 export function isVideoFile(filePath: string): boolean {
-  const videoExtensions = [".mp4", ".webm", ".ogg", ".mov", ".avi"];
+  const videoExtensions = [".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv", ".m4v"];
   return videoExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
 }
 
@@ -90,6 +92,10 @@ export function getVideoInfo(videoPath: string): VideoInfo {
     type = "video/quicktime";
   } else if (processedPath.endsWith(".avi")) {
     type = "video/x-msvideo";
+  } else if (processedPath.endsWith(".mkv")) {
+    type = "video/x-matroska";
+  } else if (processedPath.endsWith(".m4v")) {
+    type = "video/x-m4v";
   }
 
   return {
