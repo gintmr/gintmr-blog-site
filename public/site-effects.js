@@ -226,14 +226,24 @@
 
         const title = (img.getAttribute("title") || "").trim();
         const alt = (img.getAttribute("alt") || "").trim();
-        const figureCaption = (
-          img
-            .closest("figure")
-            ?.querySelector("figcaption:not(.sr-only)")
-            ?.textContent || ""
-        ).trim();
 
-        const caption = title || figureCaption || alt;
+        // 仅取“当前图片容器”的直接 figcaption，避免 diary 多图组被套用同一 caption。
+        const mediaWrapper =
+          img.closest("a[data-gallery-image='true']")?.parentElement ||
+          img.parentElement;
+        let scopedCaption = "";
+        if (mediaWrapper) {
+          const directCaption = Array.from(mediaWrapper.children).find(
+            child =>
+              child.tagName === "FIGCAPTION" &&
+              !child.classList.contains("sr-only")
+          );
+          if (directCaption) {
+            scopedCaption = (directCaption.textContent || "").trim();
+          }
+        }
+
+        const caption = title || scopedCaption || alt;
 
         img.dataset.globalGalleryIndex = String(slides.length);
         img.style.cursor = "zoom-in";

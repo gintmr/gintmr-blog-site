@@ -1,4 +1,4 @@
-// 应用控制器管理脚本 - 主题切换和视频控制
+// 应用控制器管理脚本 - 主题切换 / 视频控制 / 音频歌词同步
 (function () {
   "use strict";
 
@@ -266,6 +266,150 @@
     return playButton;
   }
 
+  // ===== 音频播放器（card-audio） =====
+
+  function escapeHtml(input) {
+    return input
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  function parseLrc(rawLrc) {
+    const lines = [];
+    const rows = String(rawLrc || "").split(/\r?\n/);
+
+    rows.forEach(row => {
+      if (!row || !row.includes("[")) return;
+
+      const timeMatches = [...row.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
+      if (timeMatches.length === 0) return;
+
+      const lyricText = row.replace(/\[[^\]]+\]/g, "").trim() || "♪";
+      timeMatches.forEach(match => {
+        const minute = Number.parseInt(match[1], 10);
+        const second = Number.parseInt(match[2], 10);
+        const milliText = (match[3] || "0").padEnd(3, "0").slice(0, 3);
+        const millisecond = Number.parseInt(milliText, 10);
+        const time = minute * 60 + second + millisecond / 1000;
+        lines.push({ time, text: lyricText });
+      });
+    });
+
+    lines.sort((a, b) => a.time - b.time);
+    return lines;
+  }
+
+  function findActiveLyricIndex(lyrics, currentTime) {
+    if (!Array.isArray(lyrics) || lyrics.length === 0) return -1;
+
+    for (let i = lyrics.length - 1; i >= 0; i--) {
+      if (currentTime >= lyrics[i].time) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function setupAudioCard(card) {
+    if (!card || card.dataset.audioInitialized === "true") {
+      return;
+    }
+
+    const audio = card.querySelector("audio[data-audio-source]");
+    const lyricsContainer = card.querySelector("[data-audio-lyrics]");
+    const lrcSrc = card.dataset.lrcSrc || "";
+
+    if (!audio || !lyricsContainer || !lrcSrc) {
+      if (lyricsContainer) {
+        lyricsContainer.hidden = true;
+      }
+      card.dataset.audioInitialized = "true";
+      return;
+    }
+
+    fetch(lrcSrc)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch LRC: ${response.status}`);
+        }
+        return response.text();
+      })
+      .then(rawLrc => {
+        const parsedLyrics = parseLrc(rawLrc);
+        if (parsedLyrics.length === 0) {
+          lyricsContainer.innerHTML =
+            '<p class="audio-card__lyrics-empty">未解析到可用歌词</p>';
+          lyricsContainer.hidden = false;
+          return;
+        }
+
+        lyricsContainer.innerHTML = parsedLyrics
+          .map(
+            (line, index) =>
+              `<button type="button" class="audio-card__lyric-line" data-lyric-index="${index}" data-lyric-time="${line.time.toFixed(3)}">${escapeHtml(line.text)}</button>`
+          )
+          .join("");
+        lyricsContainer.hidden = false;
+
+        const lyricButtons = [...lyricsContainer.querySelectorAll(".audio-card__lyric-line")];
+        let activeIndex = -1;
+        let pendingFrame = null;
+
+        const syncLyrics = () => {
+          pendingFrame = null;
+          const nextIndex = findActiveLyricIndex(parsedLyrics, audio.currentTime);
+          if (nextIndex === activeIndex) return;
+
+          if (activeIndex >= 0 && lyricButtons[activeIndex]) {
+            lyricButtons[activeIndex].classList.remove("is-active");
+          }
+
+          activeIndex = nextIndex;
+          if (activeIndex >= 0 && lyricButtons[activeIndex]) {
+            const target = lyricButtons[activeIndex];
+            target.classList.add("is-active");
+            target.scrollIntoView({
+              block: "center",
+              behavior: audio.paused ? "auto" : "smooth",
+            });
+          }
+        };
+
+        audio.addEventListener("timeupdate", () => {
+          if (pendingFrame) return;
+          pendingFrame = requestAnimationFrame(syncLyrics);
+        });
+
+        lyricButtons.forEach(button => {
+          button.addEventListener("click", () => {
+            const targetTime = Number.parseFloat(button.dataset.lyricTime || "0");
+            if (!Number.isNaN(targetTime)) {
+              audio.currentTime = Math.max(targetTime, 0);
+            }
+            audio.play();
+          });
+        });
+
+        syncLyrics();
+      })
+      .catch(() => {
+        lyricsContainer.innerHTML =
+          '<p class="audio-card__lyrics-empty">歌词加载失败</p>';
+        lyricsContainer.hidden = false;
+      })
+      .finally(() => {
+        card.dataset.audioInitialized = "true";
+      });
+  }
+
+  function initAudioCards() {
+    const audioCards = document.querySelectorAll("[data-audio-card]");
+    audioCards.forEach(card => {
+      setupAudioCard(card);
+    });
+  }
+
   // 监听动态添加的视频元素
   const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
@@ -273,10 +417,20 @@
         if (node.nodeType === Node.ELEMENT_NODE) {
           if (node.tagName === "VIDEO") {
             setupVideoControls(node);
+          } else if (
+            node.matches &&
+            node.matches("[data-audio-card]")
+          ) {
+            setupAudioCard(node);
           } else if (node.querySelector && node.querySelector("video")) {
             const videos = node.querySelectorAll("video");
             videos.forEach(video => {
               setupVideoControls(video);
+            });
+          } else if (node.querySelector && node.querySelector("[data-audio-card]")) {
+            const cards = node.querySelectorAll("[data-audio-card]");
+            cards.forEach(card => {
+              setupAudioCard(card);
             });
           }
         }
@@ -309,6 +463,7 @@
   // 监听Astro页面导航事件，重新初始化所有控制器
   document.addEventListener("astro:page-load", () => {
     initVideoControls();
+    initAudioCards();
     initVideoObserver();
     initThemeControls();
 

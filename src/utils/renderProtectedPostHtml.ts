@@ -10,6 +10,7 @@ import remarkWrap from "./remarkWrap";
 import { remarkMediaCard } from "./remarkMediaCard";
 import { remarkLinkProcessor } from "./remarkLinkProcessor";
 import { remarkObsidianEmbeds } from "./remarkObsidianEmbeds";
+import { remarkAudioCard } from "./remarkAudioCard";
 import { optimizeImage } from "./optimizeImages";
 
 function escapeHtml(input: string): string {
@@ -51,13 +52,14 @@ export async function renderProtectedPostHtml(
       .use(remarkParse)
       .use(remarkObsidianEmbeds, { enableDebug: false })
       .use(remarkLinkProcessor, { enableDebug: false })
+      .use(remarkAudioCard, { enableDebug: false })
       .use(remarkMediaCard, { enableDebug: false })
       .use(remarkToc, { heading: "目录" })
       .use(remarkWrap, { className: "article-toc-nav" })
-      .use(remarkRehype)
+      .use(remarkRehype, { allowDangerousHtml: true })
       .use(rehypeSlug)
       .use(rehypeFigure)
-      .use(rehypeStringify)
+      .use(rehypeStringify, { allowDangerousHtml: true })
       .process({ value: markdown, path: filePath });
 
     return processProtectedPostHtml(processed.toString());

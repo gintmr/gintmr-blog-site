@@ -21,6 +21,7 @@ import rehypeHeadingLinks from "./src/utils/rehypeHeadingLinks";
 import { remarkMediaCard } from "./src/utils/remarkMediaCard";
 import { remarkLinkProcessor } from "./src/utils/remarkLinkProcessor";
 import { remarkObsidianEmbeds } from "./src/utils/remarkObsidianEmbeds";
+import { remarkAudioCard } from "./src/utils/remarkAudioCard";
 import pagefind from "astro-pagefind";
 
 import compress from "astro-compress";
@@ -64,6 +65,7 @@ export default defineConfig({
     remarkPlugins: [
       [remarkObsidianEmbeds, { enableDebug: false }],
       [remarkLinkProcessor, { enableDebug: false }],
+      [remarkAudioCard, { enableDebug: false }],
       [remarkMediaCard, { enableDebug: false }],
       [remarkToc, { heading: "目录" }],
       remarkMark,
@@ -81,6 +83,7 @@ export default defineConfig({
         "card-tv": "yaml",
         "card-book": "yaml",
         "card-music": "yaml",
+        "card-audio": "yaml",
         imgs: "markdown",
       },
       transformers: [

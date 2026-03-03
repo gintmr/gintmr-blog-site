@@ -4,6 +4,7 @@ import { visit } from "unist-util-visit";
 import type { Plugin } from "unified";
 import type { Root, Paragraph, Text, Image, Html } from "mdast";
 import { getVideoPath } from "./videoUtils";
+import { getAudioPath, isAudioFile } from "./audioUtils";
 
 interface RemarkObsidianEmbedsOptions {
   enableDebug?: boolean;
@@ -11,6 +12,7 @@ interface RemarkObsidianEmbedsOptions {
 
 const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
 const VIDEO_EXT_REGEX = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i;
+const AUDIO_EXT_REGEX = /\.(mp3|wav|ogg|m4a|aac|flac)$/i;
 const OBSIDIAN_EMBED_REGEX = /!\[\[([^\]]+)\]\]/g;
 
 function decodeURIComponentSafe(value: string): string {
@@ -93,6 +95,26 @@ function sanitizeVideoCaption(rawCaption: string, videoUrl: string): string {
   return caption;
 }
 
+function sanitizeAudioCaption(rawCaption: string, audioUrl: string): string {
+  const caption = rawCaption.trim();
+  if (!caption) return "";
+
+  const decodedUrl = decodeURIComponentSafe(audioUrl);
+  const baseName = toBaseName(decodedUrl).toLowerCase();
+  const baseNameNoExt = toBaseNameWithoutExt(decodedUrl).toLowerCase();
+  const normalizedCaption = caption.toLowerCase();
+
+  if (
+    normalizedCaption === baseName ||
+    normalizedCaption === baseNameNoExt ||
+    isLikelyAutoFilename(caption)
+  ) {
+    return "";
+  }
+
+  return caption;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -117,6 +139,21 @@ function buildVideoFigureHtml(
     : "";
 
   return `<figure class="rehype-figure"><video controls playsinline preload="metadata" src="${safeSrc}" aria-label="${safeAriaLabel}"></video>${captionHtml}</figure>`;
+}
+
+function buildAudioFigureHtml(
+  src: string,
+  caption = "",
+  ariaLabel = "Audio"
+): string {
+  const safeSrc = escapeHtmlAttr(src);
+  const safeCaption = caption.trim();
+  const safeAriaLabel = escapeHtmlAttr((ariaLabel || "Audio").trim() || "Audio");
+  const captionHtml = safeCaption
+    ? `<figcaption>${escapeHtml(safeCaption)}</figcaption>`
+    : "";
+
+  return `<figure class="rehype-figure audio-inline-figure"><audio controls preload="metadata" src="${safeSrc}" aria-label="${safeAriaLabel}"></audio>${captionHtml}</figure>`;
 }
 
 function resolveObsidianImageUrl(
@@ -184,6 +221,14 @@ function resolveObsidianVideoUrl(
   return getVideoPath(normalized);
 }
 
+function resolveObsidianAudioUrl(
+  rawTarget: string,
+  currentFilePath?: string
+): string {
+  const normalized = resolveObsidianImageUrl(rawTarget, currentFilePath);
+  return getAudioPath(normalized);
+}
+
 type ParsedEmbed =
   | {
       type: "image";
@@ -193,6 +238,12 @@ type ParsedEmbed =
     }
   | {
       type: "video";
+      url: string;
+      caption: string;
+      label: string;
+    }
+  | {
+      type: "audio";
       url: string;
       caption: string;
       label: string;
@@ -236,6 +287,17 @@ function parseEmbedValue(embedValue: string): ParsedEmbed | null {
     };
   }
 
+  if (AUDIO_EXT_REGEX.test(target) || isAudioFile(target)) {
+    const descriptor = sanitizeAudioCaption(rawDescriptor, target);
+    const fallbackLabel = toBaseNameWithoutExt(target).trim() || "Audio";
+    return {
+      type: "audio",
+      url: target,
+      caption: descriptor,
+      label: descriptor || fallbackLabel,
+    };
+  }
+
   return null;
 }
 
@@ -252,6 +314,7 @@ export const remarkObsidianEmbeds: Plugin<
       if (!node.url) return;
       const originalUrl = node.url;
       const isVideo = VIDEO_EXT_REGEX.test(originalUrl);
+      const isAudio = AUDIO_EXT_REGEX.test(originalUrl) || isAudioFile(originalUrl);
 
       if (isVideo && typeof index === "number" && parent && "children" in parent) {
         const resolvedVideoUrl = resolveObsidianVideoUrl(
@@ -274,6 +337,32 @@ export const remarkObsidianEmbeds: Plugin<
         if (enableDebug) {
           console.log(
             `[remark-obsidian-embeds:video] ${originalUrl} -> ${resolvedVideoUrl} (${currentFilePath})`
+          );
+        }
+        return;
+      }
+
+      if (isAudio && typeof index === "number" && parent && "children" in parent) {
+        const resolvedAudioUrl = resolveObsidianAudioUrl(
+          originalUrl,
+          currentFilePath
+        );
+        const caption = sanitizeAudioCaption(
+          node.title || node.alt || "",
+          resolvedAudioUrl
+        );
+        const label = caption || node.alt || toBaseNameWithoutExt(originalUrl);
+
+        const audioNode: Html = {
+          type: "html",
+          value: buildAudioFigureHtml(resolvedAudioUrl, caption, label),
+        };
+
+        parent.children[index] = audioNode;
+
+        if (enableDebug) {
+          console.log(
+            `[remark-obsidian-embeds:audio] ${originalUrl} -> ${resolvedAudioUrl} (${currentFilePath})`
           );
         }
         return;
@@ -354,26 +443,49 @@ export const remarkObsidianEmbeds: Plugin<
             };
             transformedChildren.push(imageNode);
           } else {
-            const resolvedVideoUrl = resolveObsidianVideoUrl(
-              parsed.url,
-              currentFilePath
-            );
-
-            if (enableDebug) {
-              console.log(
-                `[remark-obsidian-embeds:video] ${parsed.url} -> ${resolvedVideoUrl} (${currentFilePath})`
+            if (parsed.type === "video") {
+              const resolvedVideoUrl = resolveObsidianVideoUrl(
+                parsed.url,
+                currentFilePath
               );
-            }
 
-            const videoNode: Html = {
-              type: "html",
-              value: buildVideoFigureHtml(
-                resolvedVideoUrl,
-                parsed.caption,
-                parsed.label
-              ),
-            };
-            transformedChildren.push(videoNode);
+              if (enableDebug) {
+                console.log(
+                  `[remark-obsidian-embeds:video] ${parsed.url} -> ${resolvedVideoUrl} (${currentFilePath})`
+                );
+              }
+
+              const videoNode: Html = {
+                type: "html",
+                value: buildVideoFigureHtml(
+                  resolvedVideoUrl,
+                  parsed.caption,
+                  parsed.label
+                ),
+              };
+              transformedChildren.push(videoNode);
+            } else {
+              const resolvedAudioUrl = resolveObsidianAudioUrl(
+                parsed.url,
+                currentFilePath
+              );
+
+              if (enableDebug) {
+                console.log(
+                  `[remark-obsidian-embeds:audio] ${parsed.url} -> ${resolvedAudioUrl} (${currentFilePath})`
+                );
+              }
+
+              const audioNode: Html = {
+                type: "html",
+                value: buildAudioFigureHtml(
+                  resolvedAudioUrl,
+                  parsed.caption,
+                  parsed.label
+                ),
+              };
+              transformedChildren.push(audioNode);
+            }
           }
 
           cursor = end;
