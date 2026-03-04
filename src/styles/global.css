@@ -855,9 +855,9 @@ video {
 
 .audio-card__surface {
   display: grid;
-  grid-template-columns: minmax(4.8rem, 6.8rem) minmax(0, 1fr);
+  grid-template-columns: clamp(12rem, 32%, 18rem) minmax(0, 1fr);
   gap: 0.95rem;
-  align-items: start;
+  align-items: stretch;
   padding: 0.95rem;
   border-radius: 1rem;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
@@ -879,7 +879,7 @@ video {
 
 .audio-card__cover-wrap {
   position: relative;
-  aspect-ratio: 1;
+  height: 100%;
   width: 100%;
   border-radius: 0.8rem;
   overflow: hidden;
@@ -994,11 +994,13 @@ video {
 @media (max-width: 768px) {
   .audio-card__surface {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .audio-card__cover-wrap {
-    width: min(100%, 10.5rem);
-    margin-inline: auto;
+    width: 100%;
+    height: min(46vw, 16rem);
+    margin-inline: 0;
   }
 }
 
