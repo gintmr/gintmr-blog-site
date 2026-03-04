@@ -4,7 +4,6 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import remarkToc from "remark-toc";
-import rehypeFigure from "rehype-figure";
 import rehypeSlug from "rehype-slug";
 import remarkWrap from "./remarkWrap";
 import { remarkMediaCard } from "./remarkMediaCard";
@@ -12,6 +11,7 @@ import { remarkLinkProcessor } from "./remarkLinkProcessor";
 import { remarkObsidianEmbeds } from "./remarkObsidianEmbeds";
 import { remarkAudioCard } from "./remarkAudioCard";
 import { optimizeImage } from "./optimizeImages";
+import rehypeFigureEnhanced from "./rehypeFigureEnhanced";
 
 function escapeHtml(input: string): string {
   return input
@@ -58,7 +58,7 @@ export async function renderProtectedPostHtml(
       .use(remarkWrap, { className: "article-toc-nav" })
       .use(remarkRehype, { allowDangerousHtml: true })
       .use(rehypeSlug)
-      .use(rehypeFigure)
+      .use(rehypeFigureEnhanced)
       .use(rehypeStringify, { allowDangerousHtml: true })
       .process({ value: markdown, path: filePath });
 

@@ -4,7 +4,6 @@ import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import { remarkMark } from "remark-mark-highlight";
 import remarkToc from "remark-toc";
-import rehypeFigure from "rehype-figure";
 import rehypeSlug from "rehype-slug";
 
 import {
@@ -18,6 +17,7 @@ import { SITE } from "./src/config";
 import react from "@astrojs/react";
 import remarkWrap from "./src/utils/remarkWrap";
 import rehypeHeadingLinks from "./src/utils/rehypeHeadingLinks";
+import rehypeFigureEnhanced from "./src/utils/rehypeFigureEnhanced";
 import { remarkMediaCard } from "./src/utils/remarkMediaCard";
 import { remarkLinkProcessor } from "./src/utils/remarkLinkProcessor";
 import { remarkObsidianEmbeds } from "./src/utils/remarkObsidianEmbeds";
@@ -71,7 +71,7 @@ export default defineConfig({
       remarkMark,
       [remarkWrap, { className: "article-toc-nav" }],
     ],
-    rehypePlugins: [rehypeSlug, rehypeFigure, rehypeHeadingLinks],
+    rehypePlugins: [rehypeSlug, rehypeFigureEnhanced, rehypeHeadingLinks],
     shikiConfig: {
       // For more themes, visit https://shiki.style/themes
       themes: { light: "min-light", dark: "night-owl" },
