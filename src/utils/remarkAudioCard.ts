@@ -112,6 +112,10 @@ function buildAudioCardHtml(audioData: AudioCardData): string {
     cardAttrs.push(`data-lrc-src="${escapeHtmlAttr(lyricSrc)}"`);
   }
 
+  const backdropStyle = coverSrc
+    ? ` style="--audio-cover-url: url('${escapeHtmlAttr(coverSrc)}');"`
+    : "";
+
   const coverHtml = coverSrc
     ? `<div class="audio-card__cover-wrap"><img src="${escapeHtmlAttr(coverSrc)}" alt="${escapeHtmlAttr(audioData.title)} cover" loading="lazy" class="audio-card__cover" /></div>`
     : `<div class="audio-card__cover-wrap audio-card__cover-wrap--empty" aria-hidden="true"><span class="audio-card__cover-fallback">♫</span></div>`;
@@ -126,15 +130,23 @@ function buildAudioCardHtml(audioData: AudioCardData): string {
 
   return `<figure ${cardAttrs.join(" ")}>
     <div class="audio-card__surface">
-      ${coverHtml}
+      <div class="audio-card__backdrop"${backdropStyle}></div>
+      <div class="audio-card__scrim" aria-hidden="true"></div>
       <div class="audio-card__body">
-        <header class="audio-card__head">
-          <p class="audio-card__title" title="${escapeHtmlAttr(audioData.title)}">${title}</p>
-          <p class="audio-card__artist" title="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}">${artist}</p>
-          ${albumHtml}
-        </header>
-        <audio data-audio-source class="audio-card__player" controls preload="metadata" src="${escapeHtmlAttr(audioSrc)}" aria-label="${escapeHtmlAttr(audioData.title)}"></audio>
-        ${lyricsHtml}
+        <div class="audio-card__top">
+          <header class="audio-card__head">
+            <p class="audio-card__title" title="${escapeHtmlAttr(audioData.title)}">${title}</p>
+            <p class="audio-card__artist" title="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}">${artist}</p>
+            ${albumHtml}
+          </header>
+          ${lyricsHtml}
+        </div>
+        <div class="audio-card__cover-stage">
+          ${coverHtml}
+        </div>
+        <div class="audio-card__controls">
+          <audio data-audio-source class="audio-card__player" controls preload="metadata" src="${escapeHtmlAttr(audioSrc)}" aria-label="${escapeHtmlAttr(audioData.title)}"></audio>
+        </div>
       </div>
     </div>
   </figure>`;
