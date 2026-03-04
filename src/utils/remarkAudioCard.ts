@@ -133,16 +133,18 @@ function buildAudioCardHtml(audioData: AudioCardData): string {
       <div class="audio-card__backdrop"${backdropStyle}></div>
       <div class="audio-card__scrim" aria-hidden="true"></div>
       <div class="audio-card__body">
-        <div class="audio-card__top">
-          <header class="audio-card__head">
-            <p class="audio-card__title" title="${escapeHtmlAttr(audioData.title)}">${title}</p>
-            <p class="audio-card__artist" title="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}">${artist}</p>
-            ${albumHtml}
-          </header>
-          ${lyricsHtml}
-        </div>
-        <div class="audio-card__cover-stage">
-          ${coverHtml}
+        <div class="audio-card__main">
+          <div class="audio-card__cover-stage">
+            ${coverHtml}
+          </div>
+          <div class="audio-card__top">
+            <header class="audio-card__head">
+              <p class="audio-card__title" title="${escapeHtmlAttr(audioData.title)}">${title}</p>
+              <p class="audio-card__artist" title="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}">${artist}</p>
+              ${albumHtml}
+            </header>
+            ${lyricsHtml}
+          </div>
         </div>
         <div class="audio-card__controls">
           <audio data-audio-source class="audio-card__player" controls preload="metadata" src="${escapeHtmlAttr(audioSrc)}" aria-label="${escapeHtmlAttr(audioData.title)}"></audio>

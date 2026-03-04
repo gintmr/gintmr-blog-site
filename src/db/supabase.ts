@@ -11,7 +11,9 @@ export const supabase = !!(supabaseUrl && supabaseKey)
 
 // 用于在未配置时提供友好的日志信息
 if (!supabase) {
-  console.info("Supabase not configured - emoji reactions will be disabled");
+  console.info(
+    "Supabase not configured - emoji reactions and page view counter will be disabled"
+  );
 }
 
 // 类型
@@ -32,6 +34,11 @@ export type ReactionRow = {
   is_active: boolean;
 };
 
+export interface PageViewCountRow {
+  page_path: string;
+  view_count: number;
+}
+
 // 环境判断 & 小工具
 const isBrowser =
   typeof window !== "undefined" && typeof document !== "undefined";
@@ -43,6 +50,17 @@ function checkSupabaseAvailable(): boolean {
     return false;
   }
   return true;
+}
+
+function normalizePagePath(path: string): string {
+  if (!path) return "/";
+
+  const trimmed = path.trim();
+  if (!trimmed || trimmed === "/") return "/";
+
+  const withoutQuery = trimmed.split("?")[0].split("#")[0];
+  const normalized = withoutQuery.replace(/\/+$/, "");
+  return normalized || "/";
 }
 
 // 将 rows 以 content_id 分组
@@ -238,6 +256,82 @@ export async function toggleEmojiReaction(
     (data?.[0] as { emoji: string; new_count: number; is_active: boolean }) ??
     null
   );
+}
+
+// 页面访问计数（按页面路径）
+export async function getPageViewCount(pagePath: string): Promise<number | null> {
+  if (!checkSupabaseAvailable()) {
+    return null;
+  }
+
+  const normalizedPath = normalizePagePath(pagePath);
+  const { data, error } = await supabase!.rpc("get_page_view_count", {
+    p_page_path: normalizedPath,
+  });
+
+  if (error) {
+    console.error("Error fetching page view count:", error);
+    return null;
+  }
+
+  const numericValue =
+    typeof data === "number"
+      ? data
+      : Number.parseInt(String(data ?? "0"), 10);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+export async function getPageViewCountsMany(
+  pagePaths: string[]
+): Promise<PageViewCountRow[]> {
+  if (!checkSupabaseAvailable()) {
+    return [];
+  }
+
+  const normalizedPaths = Array.from(
+    new Set(pagePaths.map(normalizePagePath).filter(Boolean))
+  );
+
+  if (normalizedPaths.length === 0) return [];
+
+  const { data, error } = await supabase!.rpc("get_page_view_counts_many", {
+    p_page_paths: normalizedPaths,
+  });
+
+  if (error) {
+    console.error("Error fetching page view counts:", error);
+    return [];
+  }
+
+  return (data as PageViewCountRow[]) ?? [];
+}
+
+export async function trackPageView(
+  pagePath: string,
+  visitorHash: string,
+  dedupeMinutes = 30
+): Promise<number | null> {
+  if (!checkSupabaseAvailable()) {
+    return null;
+  }
+
+  const normalizedPath = normalizePagePath(pagePath);
+  const { data, error } = await supabase!.rpc("track_page_view", {
+    p_page_path: normalizedPath,
+    p_visitor_hash: visitorHash,
+    p_dedupe_minutes: Math.max(0, Math.floor(dedupeMinutes)),
+  });
+
+  if (error) {
+    console.error("Error tracking page view:", error);
+    return null;
+  }
+
+  const numericValue =
+    typeof data === "number"
+      ? data
+      : Number.parseInt(String(data ?? "0"), 10);
+  return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
 // 生成用户哈希（基于强随机 + localStorage 持久化）

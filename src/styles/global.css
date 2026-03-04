@@ -852,29 +852,29 @@ video {
 .audio-card {
   width: 100%;
   max-width: 100%;
-  margin: 1.3rem auto;
+  margin: 1.2rem auto;
 }
 
 .audio-card__surface {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 1.2rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
-  background: color-mix(in srgb, var(--background) 90%, #0d1020 10%);
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: color-mix(in srgb, var(--background) 92%, #0d1020 8%);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent),
-    0 16px 28px -24px color-mix(in srgb, #000 72%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 10px 22px -20px color-mix(in srgb, #000 72%, transparent);
 }
 
 .audio-card__backdrop {
   position: absolute;
-  inset: -8%;
+  inset: -6%;
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--background) 70%, #171329 30%) 0%,
-      color-mix(in srgb, var(--background) 82%, #090d18 18%) 100%
+      color-mix(in srgb, var(--background) 74%, #171329 26%) 0%,
+      color-mix(in srgb, var(--background) 84%, #090d18 16%) 100%
     ),
     var(
       --audio-cover-url,
@@ -886,17 +886,17 @@ video {
     );
   background-size: cover;
   background-position: center;
-  transform: scale(1.03);
-  filter: blur(22px) saturate(116%) brightness(0.88);
-  opacity: 0.58;
+  transform: scale(1.02);
+  filter: blur(16px) saturate(110%) brightness(0.84);
+  opacity: 0.46;
   pointer-events: none;
 }
 
 .audio-card__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, #070911 34%, transparent);
-  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, #070911 44%, transparent);
+  backdrop-filter: blur(4px);
   pointer-events: none;
 }
 
@@ -904,44 +904,33 @@ video {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: auto auto auto;
-  gap: 0.7rem;
-  padding: clamp(0.85rem, 1.8vw, 1.05rem);
+  grid-template-rows: auto auto;
+  gap: 0.62rem;
+  padding: clamp(0.76rem, 1.6vw, 0.95rem);
   min-width: 0;
 }
 
-.audio-card__top {
-  width: min(100%, 30rem);
-  margin-inline: auto;
+.audio-card__main {
   display: grid;
-  gap: 0.45rem;
-  justify-items: center;
-}
-
-.audio-card__head {
-  text-align: center;
-  width: 100%;
+  grid-template-columns: minmax(6.8rem, 8.6rem) minmax(0, 1fr);
+  gap: 0.68rem;
+  align-items: stretch;
 }
 
 .audio-card__cover-stage {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  width: min(100%, 30rem);
-  margin-inline: auto;
+  align-items: stretch;
 }
 
 .audio-card__cover-wrap {
   position: relative;
   width: 100%;
-  max-width: 100%;
-  aspect-ratio: auto;
-  margin-inline: auto;
-  border-radius: 0.95rem;
+  aspect-ratio: 1 / 1;
+  margin: 0;
+  border-radius: 0.68rem;
   overflow: hidden;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .audio-card__cover-wrap::after {
@@ -951,92 +940,101 @@ video {
 .audio-card__cover-wrap--empty {
   display: grid;
   place-items: center;
-  min-height: 10rem;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--accent) 35%, transparent);
+  min-height: 100%;
 }
 
 .audio-card__cover-fallback {
-  font-size: 2rem;
+  font-size: 1.4rem;
   line-height: 1;
   color: color-mix(in srgb, var(--accent) 80%, white 20%);
 }
 
 .audio-card__cover {
   width: 100%;
-  height: auto;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
+.audio-card__top {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.38rem;
+  align-content: start;
+}
+
+.audio-card__head {
+  text-align: left;
+  width: 100%;
+}
+
 .audio-card__controls {
-  width: min(100%, 30rem);
-  margin-inline: auto;
+  width: 100%;
+  margin: 0;
   display: flex;
   justify-content: center;
 }
 
 .audio-card__title {
   margin: 0;
-  font-size: clamp(0.98rem, 1.8vw, 1.28rem);
-  line-height: 1.22;
+  font-size: clamp(0.92rem, 1.45vw, 1.08rem);
+  line-height: 1.2;
   font-weight: 700;
-  color: color-mix(in srgb, var(--foreground) 94%, white 6%);
+  color: color-mix(in srgb, var(--foreground) 92%, white 8%);
   letter-spacing: 0;
 }
 
 .audio-card__artist {
   margin: 0.12rem 0 0;
-  font-size: clamp(0.8rem, 1.5vw, 0.94rem);
-  line-height: 1.3;
-  color: color-mix(in srgb, var(--foreground) 76%, var(--accent) 24%);
+  font-size: clamp(0.74rem, 1.2vw, 0.86rem);
+  line-height: 1.28;
+  color: color-mix(in srgb, var(--foreground) 74%, var(--accent) 26%);
 }
 
 .audio-card__album {
   margin: 0.08rem 0 0;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   line-height: 1.3;
-  color: color-mix(in srgb, var(--foreground) 54%, transparent);
+  color: color-mix(in srgb, var(--foreground) 56%, transparent);
 }
 
 .audio-card__player {
   width: 100%;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
-  background: color-mix(in srgb, #111628 42%, var(--background) 58%);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, white 8%, transparent),
-    0 10px 18px -14px color-mix(in srgb, #000 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 38%, transparent);
+  background: color-mix(in srgb, #0f1322 40%, var(--background) 60%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 4%, transparent);
 }
 
 .audio-card__lyrics {
   width: 100%;
   margin: 0;
-  max-height: 6.5rem;
+  max-height: 5.2rem;
   overflow-y: auto;
-  padding: 0.45rem 0.65rem;
-  border-radius: 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  background: color-mix(in srgb, #0a0d16 62%, transparent);
-  backdrop-filter: blur(6px);
+  padding: 0.34rem 0.5rem;
+  border-radius: 0.56rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, #0b0f1a 66%, transparent);
+  backdrop-filter: blur(4px);
 }
 
 .audio-card__lyrics-empty {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   color: color-mix(in srgb, var(--foreground) 66%, transparent);
 }
 
 .audio-card__lyric-line {
   display: block;
   width: 100%;
-  text-align: center;
+  text-align: left;
   margin: 0;
   border: 0;
   background: transparent;
-  padding: 0.1rem 0;
-  font-size: 0.82rem;
-  line-height: 1.4;
+  padding: 0.06rem 0;
+  font-size: 0.74rem;
+  line-height: 1.34;
   color: color-mix(in srgb, var(--foreground) 72%, transparent);
   transition:
     color 160ms ease,
@@ -1051,29 +1049,50 @@ video {
 
 @media (max-width: 768px) {
   .audio-card {
-    margin: 1.15rem auto;
+    margin: 1rem auto;
   }
 
   .audio-card__body {
-    padding: 0.78rem;
-    gap: 0.6rem;
+    padding: 0.72rem;
+    gap: 0.55rem;
   }
 
-  .audio-card__top {
-    width: 100%;
+  .audio-card__main {
+    grid-template-columns: 6.2rem minmax(0, 1fr);
+    gap: 0.56rem;
   }
 
-  .audio-card__cover-stage {
-    width: 100%;
+  .audio-card__title {
+    font-size: 0.92rem;
   }
 
-  .audio-card__cover-wrap {
-    width: 100%;
+  .audio-card__artist {
+    font-size: 0.74rem;
   }
 
   .audio-card__lyrics {
-    max-height: 5.8rem;
+    max-height: 4.6rem;
   }
+}
+
+.page-view-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--foreground) 68%, transparent);
+}
+
+.page-view-counter__icon {
+  font-size: 0.8rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.page-view-counter__value {
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--foreground) 84%, transparent);
+  font-weight: 600;
 }
 
 .media-card {

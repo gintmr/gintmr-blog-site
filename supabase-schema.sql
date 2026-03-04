@@ -83,6 +83,21 @@ CREATE INDEX IF NOT EXISTS idx_rate_limit_key
 CREATE INDEX IF NOT EXISTS idx_rate_limit_expires
   ON public.rate_limit_records (expires_at);
 
+-- 页面访问记录表
+CREATE TABLE IF NOT EXISTS public.page_views (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_path    text NOT NULL,
+  visitor_hash text NOT NULL,
+  viewed_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_views_page_path
+  ON public.page_views (page_path);
+CREATE INDEX IF NOT EXISTS idx_page_views_path_viewed_at
+  ON public.page_views (page_path, viewed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_page_views_path_visitor
+  ON public.page_views (page_path, visitor_hash);
+
 -- =========================================================
 -- 2) 公共触发器：维护 updated_at
 -- =========================================================
@@ -266,6 +281,90 @@ AS $$
   ORDER BY esc.content_id, esc.count DESC, esc.emoji;
 $$;
 
+CREATE OR REPLACE FUNCTION public.get_page_view_count(
+  p_page_path text
+)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE((
+    SELECT COUNT(*)::integer
+    FROM public.page_views pv
+    WHERE pv.page_path = NULLIF(btrim(p_page_path), '')
+  ), 0);
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_page_view_counts_many(
+  p_page_paths text[]
+)
+RETURNS TABLE(
+  page_path text,
+  view_count integer
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT
+    pv.page_path,
+    COUNT(*)::integer AS view_count
+  FROM public.page_views pv
+  WHERE pv.page_path = ANY (p_page_paths)
+  GROUP BY pv.page_path;
+$$;
+
+CREATE OR REPLACE FUNCTION public.track_page_view(
+  p_page_path text,
+  p_visitor_hash text,
+  p_dedupe_minutes integer DEFAULT 30
+)
+RETURNS integer
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_path text := NULLIF(btrim(p_page_path), '');
+  v_hash text := NULLIF(btrim(p_visitor_hash), '');
+  v_last_seen timestamptz;
+  v_dedupe_minutes integer := GREATEST(COALESCE(p_dedupe_minutes, 30), 0);
+  v_ip text;
+BEGIN
+  IF v_path IS NULL OR v_hash IS NULL THEN
+    RAISE EXCEPTION 'page path and visitor hash are required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_ip := public.get_request_ip();
+  PERFORM public.enforce_rate_limit('pageview_ip', v_ip, 240);
+
+  SELECT pv.viewed_at
+    INTO v_last_seen
+  FROM public.page_views pv
+  WHERE pv.page_path = v_path
+    AND pv.visitor_hash = v_hash
+  ORDER BY pv.viewed_at DESC
+  LIMIT 1;
+
+  IF v_last_seen IS NULL
+     OR v_last_seen <= now() - make_interval(mins => v_dedupe_minutes) THEN
+    INSERT INTO public.page_views (page_path, visitor_hash, viewed_at)
+    VALUES (v_path, v_hash, now());
+  END IF;
+
+  RETURN (
+    SELECT COUNT(*)::integer
+    FROM public.page_views
+    WHERE page_path = v_path
+  );
+END;
+$$;
+
 -- =========================================================
 -- 6) 对外写接口（原子切换 + IP 限流）—— 受控访问
 -- =========================================================
@@ -354,6 +453,7 @@ $$;
 ALTER TABLE public.user_reactions     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.emoji_stats_cache  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limit_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_views         ENABLE ROW LEVEL SECURITY;
 
 -- 清理可能存在的旧策略（幂等）
 DO $$
@@ -379,6 +479,14 @@ BEGIN
   IF FOUND THEN
     EXECUTE 'DROP POLICY IF EXISTS "Restrict all access rate_limit_records" ON public.rate_limit_records';
   END IF;
+
+  PERFORM 1 FROM pg_policies WHERE schemaname='public' AND tablename='page_views';
+  IF FOUND THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Allow public read page_views" ON public.page_views';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct insert page_views" ON public.page_views';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct update page_views" ON public.page_views';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct delete page_views" ON public.page_views';
+  END IF;
 END $$;
 
 -- 现在三张表都**没有**任何允许策略 ⇒ anon/authenticated 直接查/改会被 RLS 拒绝
@@ -387,6 +495,7 @@ END $$;
 REVOKE ALL ON TABLE public.user_reactions     FROM anon, authenticated;
 REVOKE ALL ON TABLE public.emoji_stats_cache  FROM anon, authenticated;
 REVOKE ALL ON TABLE public.rate_limit_records FROM anon, authenticated;
+REVOKE ALL ON TABLE public.page_views         FROM anon, authenticated;
 
 -- =========================================================
 -- 9) 授权：只开放受控接口
@@ -394,6 +503,9 @@ REVOKE ALL ON TABLE public.rate_limit_records FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_content_reactions(text, text)            TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_content_reactions_many(text[], text)     TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.toggle_emoji_reaction(text, text, text)      TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_page_view_count(text)                    TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_page_view_counts_many(text[])            TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.track_page_view(text, text, integer)         TO anon, authenticated;
 
 -- 管理/内部函数仅 service_role
 REVOKE EXECUTE ON FUNCTION public.enforce_rate_limit(text, text, integer) FROM PUBLIC;
@@ -416,3 +528,6 @@ COMMIT;
 -- SELECT * FROM public.get_content_reactions('post-1', '7usqc8');
 -- 3) 点赞切换（IP 限流 60/min）：
 -- SELECT * FROM public.toggle_emoji_reaction('post-1','👍','7usqc8');
+-- 4) 页面浏览量：
+-- SELECT public.track_page_view('/posts/beyond_the_sirens', 'visitor-abc', 30);
+-- SELECT public.get_page_view_count('/posts/beyond_the_sirens');
