@@ -219,47 +219,38 @@
     .obsidian-callout {
       @apply relative my-6 overflow-hidden rounded-2xl px-4 py-3;
       border: 0;
-      background-image: linear-gradient(
-        110deg,
-        color-mix(in srgb, var(--accent) 10%, transparent) 0%,
-        color-mix(in srgb, var(--accent) 6%, transparent) 40%,
-        color-mix(in srgb, var(--accent) 3%, transparent) 70%,
-        transparent 100%
-      );
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
-      opacity: 1;
+      background: #050507;
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, #c79cff 20%, transparent) inset,
+        0 14px 30px color-mix(in srgb, black 40%, transparent);
+      isolation: isolate;
     }
 
     .obsidian-callout::before {
       content: "";
-      @apply pointer-events-none absolute inset-0 rounded-2xl;
-      background:
-        linear-gradient(
-          90deg,
-          color-mix(in srgb, var(--accent) 58%, #e6c4ff 42%) 0%,
-          color-mix(in srgb, var(--accent) 28%, transparent) 38%,
-          transparent 62%
-        )
-        left top / 100% 1px no-repeat,
-        linear-gradient(
-          90deg,
-          color-mix(in srgb, var(--accent) 58%, #e6c4ff 42%) 0%,
-          color-mix(in srgb, var(--accent) 28%, transparent) 38%,
-          transparent 62%
-        )
-        left bottom / 100% 1px no-repeat,
-        linear-gradient(
-          180deg,
-          color-mix(in srgb, var(--accent) 62%, #e6c4ff 38%) 0%,
-          color-mix(in srgb, var(--accent) 35%, transparent) 62%,
-          transparent 100%
-        )
-        left top / 1px 100% no-repeat;
-      opacity: 0.9;
+      @apply pointer-events-none absolute rounded-full;
+      left: -10%;
+      right: -10%;
+      bottom: -138%;
+      height: 210%;
+      background: radial-gradient(
+        62% 56% at 50% 0%,
+        color-mix(in srgb, #c886ff 56%, transparent) 0%,
+        color-mix(in srgb, #a75bff 32%, transparent) 35%,
+        transparent 74%
+      );
+      filter: blur(28px);
+      opacity: 0.58;
+      z-index: 0;
     }
 
     .obsidian-callout > :last-child {
       @apply mb-0;
+    }
+
+    .obsidian-callout > * {
+      position: relative;
+      z-index: 1;
     }
 
     .obsidian-callout > :not(.obsidian-callout__title):first-child {
@@ -269,7 +260,7 @@
     .obsidian-callout > :not(.obsidian-callout__title):first-child::before {
       content: "✦";
       @apply absolute left-0 top-0 text-sm leading-7;
-      color: color-mix(in srgb, var(--accent) 82%, #f1dcff 18%);
+      color: color-mix(in srgb, #cfa5ff 82%, transparent);
     }
 
     .obsidian-callout p,
