@@ -22,6 +22,7 @@ import { remarkMediaCard } from "./src/utils/remarkMediaCard";
 import { remarkLinkProcessor } from "./src/utils/remarkLinkProcessor";
 import { remarkObsidianEmbeds } from "./src/utils/remarkObsidianEmbeds";
 import { remarkAudioCard } from "./src/utils/remarkAudioCard";
+import { remarkObsidianCallout } from "./src/utils/remarkObsidianCallout";
 import pagefind from "astro-pagefind";
 
 import compress from "astro-compress";
@@ -63,6 +64,7 @@ export default defineConfig({
   ],
   markdown: {
     remarkPlugins: [
+      [remarkObsidianCallout, { enableDebug: false }],
       [remarkObsidianEmbeds, { enableDebug: false }],
       [remarkLinkProcessor, { enableDebug: false }],
       [remarkAudioCard, { enableDebug: false }],

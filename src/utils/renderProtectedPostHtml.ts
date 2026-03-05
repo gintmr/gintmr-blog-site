@@ -10,6 +10,7 @@ import { remarkMediaCard } from "./remarkMediaCard";
 import { remarkLinkProcessor } from "./remarkLinkProcessor";
 import { remarkObsidianEmbeds } from "./remarkObsidianEmbeds";
 import { remarkAudioCard } from "./remarkAudioCard";
+import { remarkObsidianCallout } from "./remarkObsidianCallout";
 import { optimizeImage } from "./optimizeImages";
 import rehypeFigureEnhanced from "./rehypeFigureEnhanced";
 
@@ -50,6 +51,7 @@ export async function renderProtectedPostHtml(
   try {
     const processed = await unified()
       .use(remarkParse)
+      .use(remarkObsidianCallout, { enableDebug: false })
       .use(remarkObsidianEmbeds, { enableDebug: false })
       .use(remarkLinkProcessor, { enableDebug: false })
       .use(remarkAudioCard, { enableDebug: false })
