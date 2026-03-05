@@ -665,11 +665,15 @@ h6 {
 
 .quick-jump-nav {
   position: fixed;
-  right: 0.5rem;
-  bottom: 0.75rem;
+  left: 0.5rem;
+  right: auto;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
   z-index: 45;
   width: min(14rem, calc(100vw - 1rem));
   max-height: min(60vh, 26rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   border-radius: 0.85rem;
   background:
@@ -687,7 +691,8 @@ h6 {
 
 @media (min-width: 1280px) {
   .quick-jump-nav {
-    right: max(1rem, calc((100vw - var(--container-3xl)) / 2 - 14rem));
+    left: max(1rem, calc((100vw - var(--container-3xl)) / 2 - 14rem));
+    right: auto;
     top: 5.75rem;
     bottom: auto;
     width: 12.5rem;
@@ -729,6 +734,8 @@ h6 {
 }
 
 .quick-jump-nav__body {
+  min-height: 0;
+  flex: 1;
   overflow: hidden;
 }
 
@@ -754,8 +761,10 @@ h6 {
   list-style: none;
   margin: 0;
   padding: 0.15rem 0.35rem 0.6rem;
-  max-height: min(58vh, 27rem);
+  height: 100%;
+  max-height: none;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
 }
 
@@ -779,9 +788,9 @@ h6 {
   border-radius: 0.5rem;
   color: color-mix(in srgb, var(--foreground) 85%, transparent);
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   overflow: hidden;
-  text-overflow: ellipsis;
   transition:
     color 0.2s ease,
     background-color 0.2s ease;

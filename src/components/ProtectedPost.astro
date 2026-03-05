@@ -85,168 +85,187 @@ const storageKey = `post-password:${postId}`;
 
   <script is:inline>
     (() => {
-      const currentScript = document.currentScript;
-      const container = currentScript?.closest("[data-protected-post]");
+      if (window.__protectedPostInitializerBound) return;
+      window.__protectedPostInitializerBound = true;
 
-      if (!container) {
-        console.warn("Protected post container not found");
-        return;
-      }
+      const setupProtectedPost = container => {
+        if (!container || container.dataset.bound === "true") return;
+        container.dataset.bound = "true";
 
-      const root = container.querySelector('[data-role="unlock-panel"]');
-      const form = container.querySelector('[data-role="unlock-form"]');
-      const errorBox = container.querySelector('[data-role="error"]');
-      const contentEl = container.querySelector('[data-role="decrypted-content"]');
-      const payloadScript = container.querySelector('script[data-role="payload"]');
-      const submitButton = container.querySelector('[data-role="submit-btn"]');
-      const rememberInput = container.querySelector('[data-role="remember"]');
-      const storageKey = container.getAttribute("data-storage-key") || "";
-      const currentPostId = container.getAttribute("data-post-id") || "";
-      const persistentStorageKey = `${storageKey}:persistent`;
+        const root = container.querySelector('[data-role="unlock-panel"]');
+        const form = container.querySelector('[data-role="unlock-form"]');
+        const errorBox = container.querySelector('[data-role="error"]');
+        const contentEl = container.querySelector('[data-role="decrypted-content"]');
+        const payloadScript = container.querySelector('script[data-role="payload"]');
+        const submitButton = container.querySelector('[data-role="submit-btn"]');
+        const rememberInput = container.querySelector('[data-role="remember"]');
+        const storageKey = container.getAttribute("data-storage-key") || "";
+        const currentPostId = container.getAttribute("data-post-id") || "";
+        const persistentStorageKey = `${storageKey}:persistent`;
 
-      if (!root || !form || !errorBox || !contentEl || !payloadScript || !submitButton) {
-        console.warn("Protected post elements are missing");
-        return;
-      }
+        if (
+          !root ||
+          !form ||
+          !errorBox ||
+          !contentEl ||
+          !payloadScript ||
+          !submitButton
+        ) {
+          return;
+        }
 
-      let payload;
-      try {
-        payload = JSON.parse(payloadScript.textContent || "{}");
-      } catch {
-        console.error("Invalid encrypted payload");
-        return;
-      }
-
-      if (!window.crypto || !window.crypto.subtle) {
-        errorBox.textContent = "当前浏览器不支持解密功能，请更换浏览器后重试。";
-        errorBox.classList.remove("hidden");
-        return;
-      }
-
-      const textEncoder = new TextEncoder();
-      const textDecoder = new TextDecoder();
-      const payloadVersion = payload?.iv || "";
-
-      function base64ToBytes(base64) {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return bytes;
-      }
-
-      function setSubmitting(isSubmitting) {
-        submitButton.disabled = isSubmitting;
-        submitButton.textContent = isSubmitting ? "解锁中..." : "解锁";
-        submitButton.style.opacity = isSubmitting ? "0.7" : "1";
-      }
-
-      function readCachedPassword() {
-        if (!storageKey) return null;
-
-        const sessionPassword = sessionStorage.getItem(storageKey);
-        if (sessionPassword) return sessionPassword;
-
+        let payload;
         try {
-          const persistentRaw = localStorage.getItem(persistentStorageKey);
-          if (!persistentRaw) return null;
-          const persistentData = JSON.parse(persistentRaw);
-          if (
-            persistentData &&
-            persistentData.v === payloadVersion &&
-            typeof persistentData.p === "string"
-          ) {
-            return persistentData.p;
+          payload = JSON.parse(payloadScript.textContent || "{}");
+        } catch {
+          return;
+        }
+
+        if (!window.crypto || !window.crypto.subtle) {
+          errorBox.textContent = "当前浏览器不支持解密功能，请更换浏览器后重试。";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+
+        const textEncoder = new TextEncoder();
+        const textDecoder = new TextDecoder();
+        const payloadVersion = payload?.iv || "";
+
+        function base64ToBytes(base64) {
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
           }
-        } catch {
-          localStorage.removeItem(persistentStorageKey);
+          return bytes;
         }
 
-        return null;
-      }
+        function setSubmitting(isSubmitting) {
+          submitButton.disabled = isSubmitting;
+          submitButton.textContent = isSubmitting ? "解锁中..." : "解锁";
+          submitButton.style.opacity = isSubmitting ? "0.7" : "1";
+        }
 
-      function persistPassword(password) {
-        if (!storageKey) return;
-        sessionStorage.setItem(storageKey, password);
+        function readCachedPassword() {
+          if (!storageKey) return null;
 
-        if (rememberInput && rememberInput.checked) {
-          localStorage.setItem(
-            persistentStorageKey,
-            JSON.stringify({ p: password, v: payloadVersion })
+          const sessionPassword = sessionStorage.getItem(storageKey);
+          if (sessionPassword) return sessionPassword;
+
+          try {
+            const persistentRaw = localStorage.getItem(persistentStorageKey);
+            if (!persistentRaw) return null;
+            const persistentData = JSON.parse(persistentRaw);
+            if (
+              persistentData &&
+              persistentData.v === payloadVersion &&
+              typeof persistentData.p === "string"
+            ) {
+              return persistentData.p;
+            }
+          } catch {
+            localStorage.removeItem(persistentStorageKey);
+          }
+
+          return null;
+        }
+
+        function persistPassword(password) {
+          if (!storageKey) return;
+          sessionStorage.setItem(storageKey, password);
+
+          if (rememberInput && rememberInput.checked) {
+            localStorage.setItem(
+              persistentStorageKey,
+              JSON.stringify({ p: password, v: payloadVersion })
+            );
+          } else {
+            localStorage.removeItem(persistentStorageKey);
+          }
+        }
+
+        async function decryptHtml(password) {
+          const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            textEncoder.encode(password),
+            { name: "PBKDF2" },
+            false,
+            ["deriveKey"]
           );
-        } else {
-          localStorage.removeItem(persistentStorageKey);
-        }
-      }
 
-      async function decryptHtml(password) {
-        const keyMaterial = await crypto.subtle.importKey(
-          "raw",
-          textEncoder.encode(password),
-          { name: "PBKDF2" },
-          false,
-          ["deriveKey"]
-        );
-
-        const key = await crypto.subtle.deriveKey(
-          {
-            name: "PBKDF2",
-            salt: base64ToBytes(payload.salt),
-            iterations: payload.iterations,
-            hash: "SHA-256",
-          },
-          keyMaterial,
-          { name: "AES-GCM", length: 256 },
-          false,
-          ["decrypt"]
-        );
-
-        const decrypted = await crypto.subtle.decrypt(
-          {
-            name: "AES-GCM",
-            iv: base64ToBytes(payload.iv),
-          },
-          key,
-          base64ToBytes(payload.data)
-        );
-
-        return textDecoder.decode(decrypted);
-      }
-
-      async function unlock(password, showError = true) {
-        setSubmitting(true);
-        try {
-          const html = await decryptHtml(password);
-          contentEl.innerHTML = html;
-          contentEl.classList.remove("hidden");
-          root.classList.add("hidden");
-          errorBox.classList.add("hidden");
-          document.dispatchEvent(
-            new CustomEvent("post:decrypted", {
-              detail: { postId: currentPostId },
-            })
+          const key = await crypto.subtle.deriveKey(
+            {
+              name: "PBKDF2",
+              salt: base64ToBytes(payload.salt),
+              iterations: payload.iterations,
+              hash: "SHA-256",
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["decrypt"]
           );
-          persistPassword(password);
-          return true;
-        } catch {
-          if (showError) errorBox.classList.remove("hidden");
-          return false;
-        } finally {
-          setSubmitting(false);
-        }
-      }
 
-      form.addEventListener("submit", async event => {
-        event.preventDefault();
-        const data = new FormData(form);
-        const password = String(data.get("password") || "");
-        if (!password) return;
-        await unlock(password, true);
+          const decrypted = await crypto.subtle.decrypt(
+            {
+              name: "AES-GCM",
+              iv: base64ToBytes(payload.iv),
+            },
+            key,
+            base64ToBytes(payload.data)
+          );
+
+          return textDecoder.decode(decrypted);
+        }
+
+        async function unlock(password, showError = true) {
+          setSubmitting(true);
+          try {
+            const html = await decryptHtml(password);
+            contentEl.innerHTML = html;
+            contentEl.classList.remove("hidden");
+            root.classList.add("hidden");
+            errorBox.classList.add("hidden");
+            document.dispatchEvent(
+              new CustomEvent("post:decrypted", {
+                detail: { postId: currentPostId },
+              })
+            );
+            persistPassword(password);
+            return true;
+          } catch {
+            if (showError) errorBox.classList.remove("hidden");
+            return false;
+          } finally {
+            setSubmitting(false);
+          }
+        }
+
+        form.addEventListener("submit", async event => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const password = String(data.get("password") || "").trim();
+          if (!password) return;
+          await unlock(password, true);
+        });
+
+        const cachedPassword = readCachedPassword();
+        if (cachedPassword) {
+          unlock(cachedPassword, false);
+        }
+      };
+
+      const initAllProtectedPosts = () => {
+        document
+          .querySelectorAll("[data-protected-post]")
+          .forEach(setupProtectedPost);
+      };
+
+      document.addEventListener("astro:page-load", initAllProtectedPosts);
+      if (document.readyState !== "loading") initAllProtectedPosts();
+      else document.addEventListener("DOMContentLoaded", initAllProtectedPosts, {
+        once: true,
       });
-
-      const cachedPassword = readCachedPassword();
-      if (cachedPassword) {
-        unlock(cachedPassword, false);
-      }
     })();
   </script>
 </div>
