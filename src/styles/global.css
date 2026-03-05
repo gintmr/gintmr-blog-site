@@ -665,11 +665,11 @@ h6 {
 
 .quick-jump-nav {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: 0.5rem;
+  bottom: 0.75rem;
   z-index: 45;
-  width: min(21rem, calc(100vw - 2rem));
-  max-height: min(68vh, 32rem);
+  width: min(14rem, calc(100vw - 1rem));
+  max-height: min(60vh, 26rem);
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   border-radius: 0.85rem;
   background:
@@ -682,6 +682,7 @@ h6 {
   box-shadow:
     0 14px 40px color-mix(in srgb, black 42%, transparent),
     0 0 0 1px color-mix(in srgb, var(--site-primary) 24%, transparent) inset;
+  touch-action: pan-y;
 }
 
 @media (min-width: 1280px) {
@@ -689,7 +690,7 @@ h6 {
     right: max(1rem, calc((100vw - var(--container-3xl)) / 2 - 14rem));
     top: 5.75rem;
     bottom: auto;
-    width: 13.5rem;
+    width: 12.5rem;
     max-height: calc(100vh - 8.5rem);
   }
 }
@@ -735,12 +736,27 @@ h6 {
   display: none;
 }
 
+.quick-jump-nav[data-collapsed="true"] {
+  width: auto;
+  max-width: 2.8rem;
+}
+
+.quick-jump-nav[data-collapsed="true"] .quick-jump-nav__head {
+  padding: 0.35rem;
+  justify-content: center;
+}
+
+.quick-jump-nav[data-collapsed="true"] .quick-jump-nav__title {
+  display: none;
+}
+
 .quick-jump-nav__list {
   list-style: none;
   margin: 0;
   padding: 0.15rem 0.35rem 0.6rem;
   max-height: min(58vh, 27rem);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .quick-jump-nav__empty {

@@ -5,9 +5,15 @@ interface Props {
   mode: "blog" | "diary";
   headingSelector: string;
   containerSelector?: string;
+  observeMutations?: boolean;
 }
 
-const { mode, headingSelector, containerSelector = "#main-content" } = Astro.props;
+const {
+  mode,
+  headingSelector,
+  containerSelector = "#main-content",
+  observeMutations = true,
+} = Astro.props;
 
 const title =
   mode === "blog"
@@ -31,6 +37,7 @@ const toggleText =
   data-mode={mode}
   data-heading-selector={headingSelector}
   data-container-selector={containerSelector}
+  data-observe-mutations={observeMutations ? "true" : "false"}
   data-empty-text={noItemsText}
 >
   <div class="quick-jump-nav__head">
@@ -63,6 +70,7 @@ const toggleText =
       const headingSelector = nav.dataset.headingSelector || "";
       const containerSelector = nav.dataset.containerSelector || "#main-content";
       const mode = nav.dataset.mode || "blog";
+      const observeMutations = nav.dataset.observeMutations !== "false";
       const emptyText = nav.dataset.emptyText || "No headings yet";
 
       const listEl = nav.querySelector('[data-role="list"]');
@@ -75,6 +83,7 @@ const toggleText =
       let io = null;
       let mo = null;
       let currentLinks = [];
+      let rebuildRaf = 0;
 
       const shouldCollapseByDefault = () =>
         window.matchMedia("(max-width: 1024px)").matches;
@@ -110,6 +119,14 @@ const toggleText =
           seenIds.add(id);
         }
         return result;
+      };
+
+      const formatDiaryLabel = (rawId, fallbackText) => {
+        const match = /^date-(\d{4}-\d{2}-\d{2})(?:_to_(\d{4}-\d{2}-\d{2}))?$/.exec(rawId);
+        if (!match) return fallbackText;
+        const start = match[1];
+        const end = match[2];
+        return end ? `${start} -> ${end}` : start;
       };
 
       const attachActiveObserver = items => {
@@ -160,8 +177,10 @@ const toggleText =
           const a = document.createElement("a");
           a.className = "quick-jump-nav__link";
           a.href = `#${encodeURIComponent(item.id)}`;
-          a.textContent = item.text;
-          a.title = item.text;
+          const displayText =
+            mode === "diary" ? formatDiaryLabel(item.id, item.text) : item.text;
+          a.textContent = displayText;
+          a.title = displayText;
           a.dataset.level = String(item.level);
 
           if (mode === "blog") {
@@ -187,6 +206,14 @@ const toggleText =
         attachActiveObserver(items);
       };
 
+      const scheduleRebuild = () => {
+        if (rebuildRaf) return;
+        rebuildRaf = window.requestAnimationFrame(() => {
+          rebuildRaf = 0;
+          rebuild();
+        });
+      };
+
       toggleEl.addEventListener("click", () => {
         setCollapsed(nav.dataset.collapsed !== "true");
       });
@@ -199,21 +226,27 @@ const toggleText =
       };
       window.addEventListener("resize", handleResize);
 
-      if (observedContainer) {
-        mo = new MutationObserver(() => rebuild());
+      if (observeMutations && observedContainer) {
+        mo = new MutationObserver(mutations => {
+          const hasExternalMutation = mutations.some(
+            mutation => mutation.target instanceof Node && !nav.contains(mutation.target)
+          );
+          if (hasExternalMutation) scheduleRebuild();
+        });
         mo.observe(observedContainer, {
           childList: true,
           subtree: true,
         });
       }
 
-      document.addEventListener("post:decrypted", rebuild);
+      document.addEventListener("post:decrypted", scheduleRebuild);
 
       nav.addEventListener("astro:unmount", () => {
+        if (rebuildRaf) cancelAnimationFrame(rebuildRaf);
         cleanupObserver();
         if (mo) mo.disconnect();
         window.removeEventListener("resize", handleResize);
-        document.removeEventListener("post:decrypted", rebuild);
+        document.removeEventListener("post:decrypted", scheduleRebuild);
       });
     };
 
