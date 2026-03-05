@@ -217,55 +217,38 @@
     }
 
     .obsidian-callout {
-      @apply relative my-6 overflow-hidden rounded-2xl px-4 py-3;
-      border: 0;
-      background: #050507;
-      box-shadow:
-        0 0 0 1px color-mix(in srgb, #c79cff 20%, transparent) inset,
-        0 14px 30px color-mix(in srgb, black 40%, transparent);
-      isolation: isolate;
+      @apply relative my-6 rounded-xl px-4 py-3;
+      border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+      border-left: 3px solid color-mix(in srgb, var(--accent) 52%, #dcc4ff 48%);
+      background: color-mix(in srgb, var(--background) 90%, var(--accent) 10%);
+      box-shadow: none;
     }
 
     .obsidian-callout::before {
-      content: "";
-      @apply pointer-events-none absolute rounded-full;
-      left: -10%;
-      right: -10%;
-      bottom: -138%;
-      height: 210%;
-      background: radial-gradient(
-        62% 56% at 50% 0%,
-        color-mix(in srgb, #c886ff 56%, transparent) 0%,
-        color-mix(in srgb, #a75bff 32%, transparent) 35%,
-        transparent 74%
-      );
-      filter: blur(28px);
-      opacity: 0.58;
-      z-index: 0;
+      content: none;
     }
 
     .obsidian-callout > :last-child {
       @apply mb-0;
     }
 
-    .obsidian-callout > * {
-      position: relative;
-      z-index: 1;
-    }
-
     .obsidian-callout > :not(.obsidian-callout__title):first-child {
-      @apply relative pl-5;
+      @apply relative pl-4;
     }
 
     .obsidian-callout > :not(.obsidian-callout__title):first-child::before {
       content: "✦";
-      @apply absolute left-0 top-0 text-sm leading-7;
-      color: color-mix(in srgb, #cfa5ff 82%, transparent);
+      @apply absolute left-0 top-[0.1rem] text-xs leading-7;
+      color: color-mix(in srgb, var(--accent) 68%, #ead8ff 32%);
     }
 
     .obsidian-callout p,
     .obsidian-callout li {
-      @apply text-foreground;
+      color: color-mix(in srgb, var(--foreground) 92%, transparent);
+    }
+
+    .obsidian-callout a {
+      color: color-mix(in srgb, var(--foreground) 94%, var(--accent) 6%);
     }
 
     .obsidian-callout__title {
