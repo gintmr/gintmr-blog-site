@@ -29,14 +29,6 @@ const TYPE_ALIASES: Record<string, SupportedCalloutType> = {
   done: "success",
 };
 
-const DEFAULT_TITLES: Record<SupportedCalloutType, string> = {
-  tip: "Tip",
-  note: "Note",
-  warning: "Warning",
-  danger: "Danger",
-  success: "Success",
-};
-
 function normalizeType(rawType: string): SupportedCalloutType {
   return TYPE_ALIASES[rawType.toLowerCase()] || "note";
 }
@@ -56,19 +48,6 @@ function getFirstTextChild(paragraph: Paragraph): Text | null {
     }
   }
   return null;
-}
-
-function createTitleNode(title: string): Paragraph {
-  return {
-    type: "paragraph",
-    data: {
-      hName: "div",
-      hProperties: {
-        className: ["obsidian-callout__title"],
-      },
-    },
-    children: [{ type: "text", value: title }],
-  };
 }
 
 function applyCalloutStyle(node: Blockquote, type: SupportedCalloutType): void {
@@ -105,22 +84,20 @@ export const remarkObsidianCallout: Plugin<
       if (!markerMatch) return;
 
       const calloutType = normalizeType(markerMatch[1] || "note");
-      const inlineTitle = (markerMatch[3] || "").trim();
-      const calloutTitle = inlineTitle || DEFAULT_TITLES[calloutType];
 
       applyCalloutStyle(node, calloutType);
-      node.children.unshift(createTitleNode(calloutTitle));
-
+      const inlineText = (markerMatch[3] || "").trim();
       const rest = fullText.slice(firstLine.length).replace(/^\n/, "");
-      firstText.value = rest.replace(/^\s+/, "");
+      const normalized = [inlineText, rest].filter(Boolean).join("\n");
+      firstText.value = normalized.replace(/^\s+/, "");
 
       if (!hasRenderableContent(firstParagraph)) {
-        node.children.splice(1, 1);
+        node.children.splice(0, 1);
       }
 
       if (enableDebug) {
         console.info(
-          `[remark-obsidian-callout] transformed ${calloutType} callout: ${calloutTitle}`
+          `[remark-obsidian-callout] transformed ${calloutType} callout`
         );
       }
     });
