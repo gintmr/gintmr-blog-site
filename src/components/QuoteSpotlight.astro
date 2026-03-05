@@ -7,34 +7,27 @@ import {
 
 interface Payload {
   quotes: SpotlightQuote[];
-  title: string;
-  subtitle: string;
+  ariaLabel: string;
+  badgeLabel: string;
   refreshLabel: string;
 }
 
 const payload: Payload = {
   quotes: SPOTLIGHT_QUOTES,
-  title: UI_LOCALE === "zh-CN" ? "好词佳句" : "Spotlight Quote",
-  subtitle:
-    UI_LOCALE === "zh-CN"
-      ? "每次进入首页，随机遇见一句值得记住的话"
-      : "A random line every time you enter this page",
+  ariaLabel: UI_LOCALE === "zh-CN" ? "好词佳句" : "Spotlight",
+  badgeLabel: "Spotlight",
   refreshLabel: UI_LOCALE === "zh-CN" ? "换一句" : "Shuffle",
 };
 ---
 
 <section
   class="quote-spotlight mb-8 rounded-2xl border border-border/55 p-5 sm:p-6"
-  aria-label={payload.title}
+  aria-label={payload.ariaLabel}
   data-quote-spotlight
 >
   <div class="quote-spotlight__glow" aria-hidden="true"></div>
   <div class="quote-spotlight__header relative z-10">
-    <div>
-      <p class="quote-spotlight__badge">Quote Spotlight</p>
-      <h2 class="quote-spotlight__title">{payload.title}</h2>
-      <p class="quote-spotlight__subtitle">{payload.subtitle}</p>
-    </div>
+    <p class="quote-spotlight__badge">{payload.badgeLabel}</p>
     <button
       type="button"
       class="quote-spotlight__shuffle"

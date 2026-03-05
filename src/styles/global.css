@@ -666,42 +666,64 @@ h6 {
 .quote-spotlight {
   position: relative;
   overflow: hidden;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, #efe7ff 14%, var(--card) 86%) 0%,
+    color-mix(in srgb, #e7dcff 12%, var(--card) 88%) 40%,
+    color-mix(in srgb, #f5e6ff 10%, var(--background) 90%) 100%
+  );
+  backdrop-filter: blur(18px) saturate(125%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #d7bfff 35%, transparent) inset,
+    0 18px 38px color-mix(in srgb, #190f28 46%, transparent);
+}
+
+.quote-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background:
     radial-gradient(
-      120% 200% at 100% 0%,
-      color-mix(in srgb, var(--site-primary) 22%, transparent) 0%,
-      transparent 60%
+      120% 160% at 0% 0%,
+      color-mix(in srgb, #dcb8ff 34%, transparent) 0%,
+      transparent 62%
     ),
     radial-gradient(
-      140% 180% at 0% 100%,
-      color-mix(in srgb, var(--site-secondary) 20%, transparent) 0%,
-      transparent 70%
-    ),
-    color-mix(in srgb, var(--card) 88%, var(--background) 12%);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--site-primary) 12%, transparent) inset,
-    0 18px 36px color-mix(in srgb, black 40%, transparent);
+      120% 160% at 100% 100%,
+      color-mix(in srgb, #f2b8ff 26%, transparent) 0%,
+      transparent 66%
+    );
+  pointer-events: none;
 }
 
 .quote-spotlight__glow {
   position: absolute;
-  inset: -40% -10% auto;
-  height: 170%;
-  background: conic-gradient(
-    from 120deg at 50% 50%,
-    color-mix(in srgb, var(--site-primary) 36%, transparent),
-    color-mix(in srgb, var(--site-secondary) 36%, transparent),
-    color-mix(in srgb, var(--accent) 35%, transparent),
-    color-mix(in srgb, var(--site-primary) 36%, transparent)
-  );
-  filter: blur(42px) saturate(120%);
-  opacity: 0.48;
+  inset: -45% -18% auto;
+  height: 190%;
+  background:
+    radial-gradient(
+      55% 60% at 20% 18%,
+      color-mix(in srgb, #e5c7ff 60%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      60% 70% at 86% 10%,
+      color-mix(in srgb, #d7b8ff 48%, transparent),
+      transparent 75%
+    ),
+    radial-gradient(
+      52% 65% at 65% 80%,
+      color-mix(in srgb, #f4c8ff 42%, transparent),
+      transparent 76%
+    );
+  filter: blur(52px) saturate(128%);
+  opacity: 0.6;
   pointer-events: none;
 }
 
 .quote-spotlight__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
@@ -720,19 +742,6 @@ h6 {
   color: color-mix(in srgb, white 90%, var(--accent) 10%);
   background: color-mix(in srgb, var(--accent) 24%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-.quote-spotlight__title {
-  margin: 0;
-  font-size: clamp(1.25rem, 2.8vw, 1.7rem);
-  line-height: 1.15;
-  color: color-mix(in srgb, white 92%, var(--accent) 8%);
-}
-
-.quote-spotlight__subtitle {
-  margin: 0.45rem 0 0;
-  font-size: 0.86rem;
-  color: color-mix(in srgb, var(--foreground) 74%, transparent);
 }
 
 .quote-spotlight__shuffle {
@@ -767,13 +776,14 @@ h6 {
   margin: 0;
   border-radius: 1rem;
   padding: 1rem 1.1rem;
-  border: 1px solid color-mix(in srgb, var(--site-secondary) 30%, transparent);
+  border: 1px solid color-mix(in srgb, #d8b9ff 48%, transparent);
   background:
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--card) 80%, transparent),
-      color-mix(in srgb, var(--background) 84%, transparent)
+      color-mix(in srgb, #f5ecff 8%, var(--card) 92%),
+      color-mix(in srgb, #f0dcff 12%, var(--background) 88%)
     );
+  backdrop-filter: blur(10px);
 }
 
 .quote-spotlight__text {
