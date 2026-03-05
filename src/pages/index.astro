@@ -9,6 +9,7 @@ import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 import QuickJumpNav from "@/components/QuickJumpNav.astro";
+import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
 import { UI } from "@/i18n/ui";
 
 const diaryEntries = await getCollection("diary");
@@ -76,6 +77,8 @@ const paginationInfo = {
 
         <!-- 主要内容区域 -->
         <div class="py-8">
+          <QuoteSpotlight />
+
           <div id="diary-description" class="sr-only">
             Entries are shown in reverse chronological order. {ITEMS_PER_PAGE}{" "}
             records per page, {sortedEntries.length} in total.

@@ -1,0 +1,126 @@
+---
+import { UI_LOCALE } from "@/i18n/ui";
+import {
+  SPOTLIGHT_QUOTES,
+  type SpotlightQuote,
+} from "@/content/quoteSpotlight";
+
+interface Payload {
+  quotes: SpotlightQuote[];
+  title: string;
+  subtitle: string;
+  refreshLabel: string;
+}
+
+const payload: Payload = {
+  quotes: SPOTLIGHT_QUOTES,
+  title: UI_LOCALE === "zh-CN" ? "好词佳句" : "Spotlight Quote",
+  subtitle:
+    UI_LOCALE === "zh-CN"
+      ? "每次进入首页，随机遇见一句值得记住的话"
+      : "A random line every time you enter this page",
+  refreshLabel: UI_LOCALE === "zh-CN" ? "换一句" : "Shuffle",
+};
+---
+
+<section
+  class="quote-spotlight mb-8 rounded-2xl border border-border/55 p-5 sm:p-6"
+  aria-label={payload.title}
+  data-quote-spotlight
+>
+  <div class="quote-spotlight__glow" aria-hidden="true"></div>
+  <div class="quote-spotlight__header relative z-10">
+    <div>
+      <p class="quote-spotlight__badge">Quote Spotlight</p>
+      <h2 class="quote-spotlight__title">{payload.title}</h2>
+      <p class="quote-spotlight__subtitle">{payload.subtitle}</p>
+    </div>
+    <button
+      type="button"
+      class="quote-spotlight__shuffle"
+      data-role="shuffle"
+      aria-label={payload.refreshLabel}
+    >
+      <span aria-hidden="true">✦</span>
+      <span>{payload.refreshLabel}</span>
+    </button>
+  </div>
+
+  <blockquote class="quote-spotlight__card relative z-10 mt-5 sm:mt-6">
+    <p class="quote-spotlight__text" data-role="text"></p>
+    <footer class="quote-spotlight__source" data-role="source"></footer>
+  </blockquote>
+
+  <script type="application/json" data-role="payload" set:html={JSON.stringify(payload)}></script>
+</section>
+
+<script is:inline>
+  (() => {
+    if (window.__quoteSpotlightBound) return;
+    window.__quoteSpotlightBound = true;
+
+    const STORAGE_KEY = "spotlight-quote-last-index";
+
+    const initialize = section => {
+      if (!section || section.dataset.bound === "true") return;
+      section.dataset.bound = "true";
+
+      const payloadScript = section.querySelector('[data-role="payload"]');
+      const textEl = section.querySelector('[data-role="text"]');
+      const sourceEl = section.querySelector('[data-role="source"]');
+      const shuffleBtn = section.querySelector('[data-role="shuffle"]');
+
+      if (!payloadScript || !textEl || !sourceEl || !shuffleBtn) return;
+
+      let payload;
+      try {
+        payload = JSON.parse(payloadScript.textContent || "{}");
+      } catch {
+        return;
+      }
+
+      const quotes = Array.isArray(payload.quotes) ? payload.quotes : [];
+      if (!quotes.length) return;
+
+      const clampIndex = raw => {
+        const index = Number(raw);
+        if (!Number.isInteger(index) || index < 0 || index >= quotes.length) {
+          return null;
+        }
+        return index;
+      };
+
+      const getRandomIndex = lastIndex => {
+        if (quotes.length === 1) return 0;
+        let next = Math.floor(Math.random() * quotes.length);
+        if (lastIndex !== null && next === lastIndex) {
+          next = (next + 1 + Math.floor(Math.random() * (quotes.length - 1))) % quotes.length;
+        }
+        return next;
+      };
+
+      const renderQuote = index => {
+        const quote = quotes[index];
+        textEl.textContent = quote?.text || "";
+        sourceEl.textContent = quote?.source ? `—— ${quote.source}` : "";
+        sessionStorage.setItem(STORAGE_KEY, String(index));
+      };
+
+      const lastIndex = clampIndex(sessionStorage.getItem(STORAGE_KEY));
+      renderQuote(getRandomIndex(lastIndex));
+
+      shuffleBtn.addEventListener("click", () => {
+        const currentIndex = clampIndex(sessionStorage.getItem(STORAGE_KEY));
+        renderQuote(getRandomIndex(currentIndex));
+      });
+    };
+
+    const initAll = () => {
+      document.querySelectorAll("[data-quote-spotlight]").forEach(initialize);
+    };
+
+    document.addEventListener("astro:page-load", initAll);
+    if (document.readyState !== "loading") initAll();
+    else document.addEventListener("DOMContentLoaded", initAll, { once: true });
+  })();
+</script>
