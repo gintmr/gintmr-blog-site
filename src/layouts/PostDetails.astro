@@ -9,6 +9,7 @@ import EditPost from "@/components/EditPost.astro";
 import ShareLinks from "@/components/ShareLinks.astro";
 import BackButton from "@/components/BackButton.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
+import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import { getPath } from "@/utils/getPath";
 import { slugifyStr } from "@/utils/slugify";
 import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
@@ -199,6 +200,12 @@ const nextPost =
         </article>
       )
     }
+
+    <QuickJumpNav
+      mode="blog"
+      headingSelector="#article :is(h1,h2,h3,h4,h5), [data-protected-post] [data-role='decrypted-content'] :is(h1,h2,h3,h4,h5)"
+      containerSelector="#main-content"
+    />
 
     <hr class="my-8 border-dashed" />
 

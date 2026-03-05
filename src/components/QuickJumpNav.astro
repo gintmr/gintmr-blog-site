@@ -1,0 +1,228 @@
+---
+import { UI_LOCALE } from "@/i18n/ui";
+
+interface Props {
+  mode: "blog" | "diary";
+  headingSelector: string;
+  containerSelector?: string;
+}
+
+const { mode, headingSelector, containerSelector = "#main-content" } = Astro.props;
+
+const title =
+  mode === "blog"
+    ? UI_LOCALE === "zh-CN"
+      ? "快速跳转"
+      : "Quick Jump"
+    : UI_LOCALE === "zh-CN"
+      ? "日期导航"
+      : "Date Index";
+
+const noItemsText =
+  UI_LOCALE === "zh-CN" ? "暂无可跳转内容" : "No headings yet";
+
+const toggleText =
+  UI_LOCALE === "zh-CN" ? "展开/收起目录" : "Toggle quick jump";
+---
+
+<aside
+  class="quick-jump-nav"
+  data-quick-jump-nav
+  data-mode={mode}
+  data-heading-selector={headingSelector}
+  data-container-selector={containerSelector}
+  data-empty-text={noItemsText}
+>
+  <div class="quick-jump-nav__head">
+    <p class="quick-jump-nav__title">{title}</p>
+    <button
+      type="button"
+      class="quick-jump-nav__toggle"
+      data-role="toggle"
+      aria-label={toggleText}
+      aria-expanded="false"
+      title={toggleText}
+    >
+      <span data-role="toggle-icon">▾</span>
+    </button>
+  </div>
+  <nav aria-label={title} class="quick-jump-nav__body">
+    <ul class="quick-jump-nav__list" data-role="list"></ul>
+  </nav>
+</aside>
+
+<script is:inline>
+  (() => {
+    if (window.__quickJumpNavInitialized) return;
+    window.__quickJumpNavInitialized = true;
+
+    const register = (nav) => {
+      if (!nav || nav.dataset.bound === "true") return;
+      nav.dataset.bound = "true";
+
+      const headingSelector = nav.dataset.headingSelector || "";
+      const containerSelector = nav.dataset.containerSelector || "#main-content";
+      const mode = nav.dataset.mode || "blog";
+      const emptyText = nav.dataset.emptyText || "No headings yet";
+
+      const listEl = nav.querySelector('[data-role="list"]');
+      const toggleEl = nav.querySelector('[data-role="toggle"]');
+      const toggleIconEl = nav.querySelector('[data-role="toggle-icon"]');
+      const observedContainer = document.querySelector(containerSelector);
+
+      if (!listEl || !toggleEl) return;
+
+      let io = null;
+      let mo = null;
+      let currentLinks = [];
+
+      const shouldCollapseByDefault = () =>
+        window.matchMedia("(max-width: 1024px)").matches;
+
+      const setCollapsed = collapsed => {
+        nav.dataset.collapsed = collapsed ? "true" : "false";
+        toggleEl.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        if (toggleIconEl) toggleIconEl.textContent = collapsed ? "▸" : "▾";
+      };
+
+      const cleanupObserver = () => {
+        if (io) {
+          io.disconnect();
+          io = null;
+        }
+      };
+
+      const getHeadingItems = () => {
+        const headingNodes = Array.from(document.querySelectorAll(headingSelector));
+        const result = [];
+        const seenIds = new Set();
+
+        for (const heading of headingNodes) {
+          const id = heading.id;
+          if (!id || seenIds.has(id)) continue;
+
+          const text = (heading.textContent || "").replace(/\s+#\s*$/, "").trim();
+          if (!text) continue;
+
+          const tagName = heading.tagName.toLowerCase();
+          const level = /^h[1-6]$/.test(tagName) ? Number(tagName.slice(1)) : 2;
+          result.push({ id, text, level, element: heading });
+          seenIds.add(id);
+        }
+        return result;
+      };
+
+      const attachActiveObserver = items => {
+        cleanupObserver();
+        if (!items.length) return;
+
+        io = new IntersectionObserver(
+          entries => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const id = entry.target.id;
+              currentLinks.forEach(link => link.classList.remove("active"));
+              const active = currentLinks.find(
+                link => link.getAttribute("href") === `#${encodeURIComponent(id)}`
+              );
+              if (active) active.classList.add("active");
+            }
+          },
+          {
+            rootMargin: "0px 0px -82% 0px",
+            threshold: 0,
+          }
+        );
+
+        items.forEach(item => io.observe(item.element));
+      };
+
+      const rebuild = () => {
+        const items = getHeadingItems();
+        listEl.innerHTML = "";
+        currentLinks = [];
+
+        if (!items.length) {
+          const emptyLi = document.createElement("li");
+          emptyLi.className = "quick-jump-nav__empty";
+          emptyLi.textContent = emptyText;
+          listEl.appendChild(emptyLi);
+          cleanupObserver();
+          return;
+        }
+
+        const minLevel = mode === "blog" ? Math.min(...items.map(item => item.level)) : 2;
+
+        items.forEach(item => {
+          const li = document.createElement("li");
+          li.className = "quick-jump-nav__item";
+
+          const a = document.createElement("a");
+          a.className = "quick-jump-nav__link";
+          a.href = `#${encodeURIComponent(item.id)}`;
+          a.textContent = item.text;
+          a.title = item.text;
+          a.dataset.level = String(item.level);
+
+          if (mode === "blog") {
+            const indentLevel = Math.max(item.level - minLevel, 0);
+            a.style.paddingInlineStart = `${0.5 + indentLevel * 0.75}rem`;
+          }
+
+          a.addEventListener("click", event => {
+            event.preventDefault();
+            const target = document.getElementById(item.id);
+            if (!target) return;
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+            history.replaceState(null, "", `#${encodeURIComponent(item.id)}`);
+            if (shouldCollapseByDefault()) setCollapsed(true);
+          });
+
+          li.appendChild(a);
+          listEl.appendChild(li);
+          currentLinks.push(a);
+        });
+
+        currentLinks[0]?.classList.add("active");
+        attachActiveObserver(items);
+      };
+
+      toggleEl.addEventListener("click", () => {
+        setCollapsed(nav.dataset.collapsed !== "true");
+      });
+
+      setCollapsed(shouldCollapseByDefault());
+      rebuild();
+
+      const handleResize = () => {
+        setCollapsed(shouldCollapseByDefault());
+      };
+      window.addEventListener("resize", handleResize);
+
+      if (observedContainer) {
+        mo = new MutationObserver(() => rebuild());
+        mo.observe(observedContainer, {
+          childList: true,
+          subtree: true,
+        });
+      }
+
+      document.addEventListener("post:decrypted", rebuild);
+
+      nav.addEventListener("astro:unmount", () => {
+        cleanupObserver();
+        if (mo) mo.disconnect();
+        window.removeEventListener("resize", handleResize);
+        document.removeEventListener("post:decrypted", rebuild);
+      });
+    };
+
+    const init = () => {
+      document.querySelectorAll("[data-quick-jump-nav]").forEach(register);
+    };
+
+    document.addEventListener("astro:page-load", init);
+    if (document.readyState !== "loading") init();
+    else document.addEventListener("DOMContentLoaded", init, { once: true });
+  })();
+</script>

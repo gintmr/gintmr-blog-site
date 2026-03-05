@@ -9,6 +9,7 @@ import { getCollection } from "astro:content";
 import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
+import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import { UI, UI_LOCALE } from "@/i18n/ui";
 
 export async function getStaticPaths() {
@@ -114,6 +115,11 @@ const paginationInfo = {
           )
         }
       </div>
+      <QuickJumpNav
+        mode="diary"
+        headingSelector="#diary-content h2[id^='date-']"
+        containerSelector="#diary-content"
+      />
     </div>
 
     <BackToTopButton />
