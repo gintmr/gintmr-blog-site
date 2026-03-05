@@ -8,14 +8,12 @@ import {
 interface Payload {
   quotes: SpotlightQuote[];
   ariaLabel: string;
-  badgeLabel: string;
   refreshLabel: string;
 }
 
 const payload: Payload = {
   quotes: SPOTLIGHT_QUOTES,
   ariaLabel: UI_LOCALE === "zh-CN" ? "好词佳句" : "Spotlight",
-  badgeLabel: "Spotlight",
   refreshLabel: UI_LOCALE === "zh-CN" ? "换一句" : "Shuffle",
 };
 ---
@@ -27,7 +25,6 @@ const payload: Payload = {
 >
   <div class="quote-spotlight__glow" aria-hidden="true"></div>
   <div class="quote-spotlight__header relative z-10">
-    <p class="quote-spotlight__badge">{payload.badgeLabel}</p>
     <button
       type="button"
       class="quote-spotlight__shuffle"
@@ -39,7 +36,7 @@ const payload: Payload = {
     </button>
   </div>
 
-  <blockquote class="quote-spotlight__card relative z-10 mt-5 sm:mt-6">
+  <blockquote class="quote-spotlight__card relative z-10 mt-2 sm:mt-3">
     <p class="quote-spotlight__text" data-role="text"></p>
     <footer class="quote-spotlight__source" data-role="source"></footer>
   </blockquote>

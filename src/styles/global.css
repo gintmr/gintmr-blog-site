@@ -666,97 +666,52 @@ h6 {
 .quote-spotlight {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, #efe7ff 14%, var(--card) 86%) 0%,
-    color-mix(in srgb, #e7dcff 12%, var(--card) 88%) 40%,
-    color-mix(in srgb, #f5e6ff 10%, var(--background) 90%) 100%
-  );
-  backdrop-filter: blur(18px) saturate(125%);
+  background: #050507;
   box-shadow:
-    0 0 0 1px color-mix(in srgb, #d7bfff 35%, transparent) inset,
-    0 18px 38px color-mix(in srgb, #190f28 46%, transparent);
-}
-
-.quote-spotlight::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(
-      120% 160% at 0% 0%,
-      color-mix(in srgb, #dcb8ff 34%, transparent) 0%,
-      transparent 62%
-    ),
-    radial-gradient(
-      120% 160% at 100% 100%,
-      color-mix(in srgb, #f2b8ff 26%, transparent) 0%,
-      transparent 66%
-    );
-  pointer-events: none;
+    0 0 0 1px color-mix(in srgb, #c79cff 22%, transparent) inset,
+    0 16px 36px color-mix(in srgb, black 46%, transparent);
 }
 
 .quote-spotlight__glow {
   position: absolute;
-  inset: -45% -18% auto;
-  height: 190%;
+  left: -8%;
+  right: -8%;
+  bottom: -115%;
+  height: 180%;
   background:
     radial-gradient(
-      55% 60% at 20% 18%,
-      color-mix(in srgb, #e5c7ff 60%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      60% 70% at 86% 10%,
-      color-mix(in srgb, #d7b8ff 48%, transparent),
-      transparent 75%
-    ),
-    radial-gradient(
-      52% 65% at 65% 80%,
-      color-mix(in srgb, #f4c8ff 42%, transparent),
-      transparent 76%
+      62% 55% at 50% 0%,
+      color-mix(in srgb, #c886ff 58%, transparent) 0%,
+      color-mix(in srgb, #a75bff 35%, transparent) 34%,
+      transparent 74%
     );
-  filter: blur(52px) saturate(128%);
-  opacity: 0.6;
+  filter: blur(34px);
+  opacity: 0.62;
   pointer-events: none;
 }
 
 .quote-spotlight__header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  justify-content: flex-end;
   gap: 1rem;
-}
-
-.quote-spotlight__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0 0 0.4rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, white 90%, var(--accent) 10%);
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .quote-spotlight__shuffle {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  height: 2.05rem;
-  padding: 0 0.75rem;
+  gap: 0.28rem;
+  height: 1.7rem;
+  padding: 0 0.5rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--site-primary) 48%, transparent);
-  background: color-mix(in srgb, var(--card) 68%, transparent);
-  color: color-mix(in srgb, var(--foreground) 90%, transparent);
-  font-size: 0.8rem;
-  font-weight: 600;
+  border: 1px solid color-mix(in srgb, #be86ff 25%, transparent);
+  background: color-mix(in srgb, #16121e 84%, transparent);
+  color: color-mix(in srgb, #efe7ff 72%, transparent);
+  font-size: 0.73rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.86;
   cursor: pointer;
   transition:
     transform 0.22s ease,
@@ -766,45 +721,40 @@ h6 {
 }
 
 .quote-spotlight__shuffle:hover {
-  transform: translateY(-1px);
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 66%, transparent);
-  background: color-mix(in srgb, var(--site-primary) 18%, transparent);
+  transform: translateY(-1px) scale(1.01);
+  color: color-mix(in srgb, #f4e6ff 90%, transparent);
+  border-color: color-mix(in srgb, #cb95ff 42%, transparent);
+  background: color-mix(in srgb, #20192a 92%, transparent);
+  opacity: 1;
 }
 
 .quote-spotlight__card {
   margin: 0;
-  border-radius: 1rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid color-mix(in srgb, #d8b9ff 48%, transparent);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, #f5ecff 8%, var(--card) 92%),
-      color-mix(in srgb, #f0dcff 12%, var(--background) 88%)
-    );
-  backdrop-filter: blur(10px);
+  border-radius: 0;
+  padding: 0.1rem 0.35rem 0.2rem;
+  border: none;
+  background: transparent;
 }
 
 .quote-spotlight__text {
   margin: 0;
-  font-size: clamp(1.02rem, 2.3vw, 1.2rem);
-  line-height: 1.75;
-  font-weight: 650;
-  color: color-mix(in srgb, var(--foreground) 96%, white 4%);
+  font-size: clamp(1.02rem, 2.2vw, 1.18rem);
+  line-height: 1.72;
+  font-weight: 620;
+  color: color-mix(in srgb, #faf8ff 92%, transparent);
   text-wrap: pretty;
 }
 
 .quote-spotlight__source {
-  margin-top: 0.75rem;
-  font-size: 0.85rem;
-  color: color-mix(in srgb, var(--accent) 78%, var(--foreground) 22%);
+  margin-top: 0.65rem;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, #ccadff 75%, transparent);
 }
 
 @media (max-width: 640px) {
   .quote-spotlight__header {
-    flex-direction: column;
-    gap: 0.7rem;
+    justify-content: flex-end;
+    margin-bottom: 0.2rem;
   }
 }
 
