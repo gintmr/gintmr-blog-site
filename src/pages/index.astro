@@ -10,7 +10,6 @@ import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
-import WelcomeOverlay from "@/components/WelcomeOverlay.astro";
 import { UI } from "@/i18n/ui";
 
 const diaryEntries = await getCollection("diary");
@@ -46,7 +45,6 @@ const paginationInfo = {
 
 <Layout title={`${UI.pages.timelineTitle} | ${SITE.title}`}>
   <Header />
-  <WelcomeOverlay />
 
   <main
     id="main-content"

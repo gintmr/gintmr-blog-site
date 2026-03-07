@@ -77,14 +77,3 @@ export const UI_EFFECTS = {
   // 图片轻微浮起（桌面端）
   imageLift: true,
 } as const;
-
-export const UI_WELCOME = {
-  // 首页欢迎覆盖层
-  enabledOnHome: true,
-  // true: 每个浏览器会话只显示一次；false: 每次访问首页都显示
-  showOncePerSession: false,
-  // 显示时长（毫秒）
-  durationMs: 2200,
-  // 欢迎语句（可任意修改）
-  lines: ["Have a nice day!", "Welcome to Gintmr's Home🤗!"],
-} as const;
