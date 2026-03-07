@@ -33,13 +33,13 @@ export const UI_COLORS = {
     border: "#8b74ad4d",
   },
   // 图片霓虹特效颜色（建议高亮色）
-  imageNeonGlow: "#4de688",
+  imageNeonGlow: "#e18af3",
   // 图片霓虹渐变边框色板（按四边渐变）
   imageNeonGradient: {
-    c1: "#ffe45f",
-    c2: "#7af9ff",
-    c3: "#ff8ad8",
-    c4: "#b8ff7d",
+    c1: "#c89dff66",
+    c2: "#f2c4ff",
+    c3: "#e18af3",
+    c4: "#b581ff",
   },
   // AI 总结卡片的视觉色板
   aiSummary: {
@@ -76,4 +76,15 @@ export const UI_EFFECTS = {
   imageNeonBorder: true,
   // 图片轻微浮起（桌面端）
   imageLift: true,
+} as const;
+
+export const UI_WELCOME = {
+  // 首页欢迎覆盖层
+  enabledOnHome: true,
+  // true: 每个浏览器会话只显示一次；false: 每次访问首页都显示
+  showOncePerSession: false,
+  // 显示时长（毫秒）
+  durationMs: 2200,
+  // 欢迎语句（可任意修改）
+  lines: ["Have a nice day!", "Welcome to Gintmr's Home🤗!"],
 } as const;

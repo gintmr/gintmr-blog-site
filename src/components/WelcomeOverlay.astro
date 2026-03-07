@@ -1,0 +1,185 @@
+---
+import { UI_WELCOME } from "@/ui.config";
+
+const {
+  enabledOnHome,
+  showOncePerSession,
+  durationMs,
+  lines,
+} = UI_WELCOME;
+
+const safeLines = (lines || []).filter(Boolean);
+---
+
+{
+  enabledOnHome && safeLines.length > 0 && (
+    <div
+      id="welcome-overlay"
+      class="welcome-overlay"
+      data-duration={durationMs}
+      data-once={showOncePerSession ? "true" : "false"}
+      data-key="gintmr-home-welcome-shown"
+      aria-live="polite"
+      aria-label="Welcome message"
+    >
+      <div class="welcome-overlay__glow welcome-overlay__glow--tl" aria-hidden="true"></div>
+      <div class="welcome-overlay__glow welcome-overlay__glow--tr" aria-hidden="true"></div>
+      <div class="welcome-overlay__glow welcome-overlay__glow--bl" aria-hidden="true"></div>
+      <div class="welcome-overlay__glow welcome-overlay__glow--br" aria-hidden="true"></div>
+      <div class="welcome-overlay__grid" aria-hidden="true"></div>
+      <div class="welcome-overlay__content">
+        {safeLines.map((line, index) => (
+          <p class={`welcome-overlay__line ${index === 0 ? "welcome-overlay__line--lead" : ""}`}>
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+<script is:inline>
+  (() => {
+    const overlay = document.getElementById("welcome-overlay");
+    if (!overlay) return;
+
+    const showOnce = overlay.dataset.once === "true";
+    const key = overlay.dataset.key || "gintmr-home-welcome-shown";
+
+    if (showOnce) {
+      try {
+        if (sessionStorage.getItem(key) === "1") {
+          overlay.remove();
+          return;
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+
+    const duration = Math.max(Number(overlay.dataset.duration || "2200"), 1000);
+
+    requestAnimationFrame(() => {
+      overlay.classList.add("is-visible");
+    });
+
+    window.setTimeout(() => {
+      overlay.classList.add("is-leaving");
+      window.setTimeout(() => {
+        overlay.remove();
+      }, 560);
+
+      if (showOnce) {
+        try {
+          sessionStorage.setItem(key, "1");
+        } catch {
+          // ignore storage errors
+        }
+      }
+    }, duration);
+  })();
+</script>
+
+<style>
+  .welcome-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(1.01);
+    transition:
+      opacity 460ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 640ms cubic-bezier(0.22, 1, 0.36, 1);
+    background: color-mix(in srgb, var(--background) 84%, transparent);
+  }
+
+  .welcome-overlay.is-visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .welcome-overlay.is-leaving {
+    opacity: 0;
+    transform: scale(0.996);
+  }
+
+  .welcome-overlay__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--border) 56%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--border) 56%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 28px 28px;
+    opacity: 0.68;
+  }
+
+  .welcome-overlay__glow {
+    position: absolute;
+    width: min(40vw, 26rem);
+    height: min(40vw, 26rem);
+    border-radius: 9999px;
+    filter: blur(48px);
+    opacity: 0.22;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--accent) 65%, #e9d2ff) 0%,
+      transparent 68%
+    );
+  }
+
+  .welcome-overlay__glow--tl {
+    top: -8rem;
+    left: -8rem;
+  }
+
+  .welcome-overlay__glow--tr {
+    top: -8rem;
+    right: -8rem;
+  }
+
+  .welcome-overlay__glow--bl {
+    bottom: -8rem;
+    left: -8rem;
+  }
+
+  .welcome-overlay__glow--br {
+    bottom: -8rem;
+    right: -8rem;
+  }
+
+  .welcome-overlay__content {
+    position: relative;
+    z-index: 1;
+    padding: 1rem 1.2rem;
+    text-align: center;
+    max-width: min(88vw, 48rem);
+  }
+
+  .welcome-overlay__line {
+    margin: 0.35rem 0;
+    color: color-mix(in srgb, var(--foreground) 96%, white 4%);
+    font-family: var(--site-font-serif);
+    font-size: clamp(1.15rem, 3.7vw, 2.05rem);
+    letter-spacing: 0.01em;
+    line-height: 1.35;
+    text-wrap: balance;
+  }
+
+  .welcome-overlay__line--lead {
+    font-size: clamp(1.4rem, 4.8vw, 2.7rem);
+    font-weight: 700;
+    color: color-mix(in srgb, var(--foreground) 92%, var(--accent) 8%);
+  }
+</style>

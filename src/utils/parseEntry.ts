@@ -491,6 +491,8 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
       /__([^_]+)__/g,
       "<mark class='bg-accent/20 text-foreground px-0.5'>$1</mark>"
     );
+    // 处理 ~~text~~ 删除线
+    text = text.replace(/~~([^~]+)~~/g, "<del>$1</del>");
 
     // 解析 Markdown 链接为 HTML 链接，并处理相对路径
     text = text.replace(
