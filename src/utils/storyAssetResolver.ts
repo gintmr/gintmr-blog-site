@@ -1,29 +1,8 @@
-const storyImageAssets = import.meta.glob(
-  "../data/story/**/*.{avif,bmp,gif,ico,jpg,jpeg,png,svg,tif,tiff,webp,heic,heif}",
-  {
-    eager: true,
-    import: "default",
-    query: "?url",
-  }
-) as Record<string, string>;
-
-const storyVideoAssets = import.meta.glob(
-  "../data/story/**/*.{mp4,webm,ogg,mov,avi,mkv,m4v}",
-  {
-    eager: true,
-    import: "default",
-    query: "?url",
-  }
-) as Record<string, string>;
-
-const storyAudioAssets = import.meta.glob(
-  "../data/story/**/*.{mp3,wav,ogg,m4a,aac,flac}",
-  {
-    eager: true,
-    import: "default",
-    query: "?url",
-  }
-) as Record<string, string>;
+const storyAssets = import.meta.glob("../data/story/**/*", {
+  eager: true,
+  import: "default",
+  query: "?url",
+}) as Record<string, string>;
 
 function decodeURIComponentSafe(value: string): string {
   try {
@@ -71,8 +50,55 @@ interface AssetIndexEntry {
   url: string;
 }
 
-function buildAssetIndex(assets: Record<string, string>): AssetIndexEntry[] {
-  return Object.entries(assets).map(([key, url]) => {
+const STORY_IMAGE_EXTENSIONS = new Set([
+  ".avif",
+  ".bmp",
+  ".gif",
+  ".ico",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".svg",
+  ".tif",
+  ".tiff",
+  ".webp",
+  ".heic",
+  ".heif",
+]);
+
+const STORY_VIDEO_EXTENSIONS = new Set([
+  ".mp4",
+  ".webm",
+  ".ogg",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".m4v",
+]);
+
+const STORY_AUDIO_EXTENSIONS = new Set([
+  ".mp3",
+  ".wav",
+  ".ogg",
+  ".m4a",
+  ".aac",
+  ".flac",
+]);
+
+function buildAssetIndex(
+  assets: Record<string, string>,
+  extensions?: Set<string>
+): AssetIndexEntry[] {
+  return Object.entries(assets)
+    .filter(([key]) => {
+      if (!extensions) return true;
+      const normalizedKey = normalizeSlashes(key);
+      const dotIndex = normalizedKey.lastIndexOf(".");
+      if (dotIndex < 0) return false;
+      const ext = normalizedKey.slice(dotIndex).toLowerCase();
+      return extensions.has(ext);
+    })
+    .map(([key, url]) => {
     const normalizedKey = normalizeSlashes(key);
     const relativePath = normalizedKey.includes("/data/")
       ? normalizedKey.split("/data/")[1] || normalizedKey
@@ -109,9 +135,9 @@ function findAssetUrl(
   return undefined;
 }
 
-const storyImageIndex = buildAssetIndex(storyImageAssets);
-const storyVideoIndex = buildAssetIndex(storyVideoAssets);
-const storyAudioIndex = buildAssetIndex(storyAudioAssets);
+const storyImageIndex = buildAssetIndex(storyAssets, STORY_IMAGE_EXTENSIONS);
+const storyVideoIndex = buildAssetIndex(storyAssets, STORY_VIDEO_EXTENSIONS);
+const storyAudioIndex = buildAssetIndex(storyAssets, STORY_AUDIO_EXTENSIONS);
 
 export function normalizeStoryAssetPath(
   rawPath: string,
@@ -151,4 +177,3 @@ export function resolveStoryAudioAssetUrl(rawPath: string): string | undefined {
   if (!normalized || /^https?:\/\//i.test(normalized)) return undefined;
   return findAssetUrl(normalized, storyAudioIndex);
 }
-

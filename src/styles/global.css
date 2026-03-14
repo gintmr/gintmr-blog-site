@@ -1373,28 +1373,24 @@ video {
   color: color-mix(in srgb, var(--foreground) 86%, transparent);
 }
 
-.story-player__dots {
-  display: flex;
-  align-items: center;
-  gap: 0.32rem;
-}
-
-.story-player__dot {
-  width: 0.44rem;
-  height: 0.44rem;
+.story-player__index-progress {
+  width: min(100%, 9.5rem);
+  height: 0.3rem;
   border-radius: 999px;
-  border: 0;
-  padding: 0;
-  background: color-mix(in srgb, var(--foreground) 25%, transparent);
-  cursor: pointer;
-  transition:
-    transform 0.22s ease,
-    background-color 0.22s ease;
+  background: color-mix(in srgb, var(--border) 62%, transparent);
+  overflow: hidden;
 }
 
-.story-player__dot.is-active {
-  background: var(--accent);
-  transform: scale(1.18);
+.story-player__index-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 92%, #f3d8ff 8%) 0%,
+    color-mix(in srgb, var(--accent) 60%, #c596ff 40%) 100%
+  );
+  transition: width 280ms ease;
 }
 
 .story-player__viewport {

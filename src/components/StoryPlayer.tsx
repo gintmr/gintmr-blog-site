@@ -31,15 +31,6 @@ const StoryPlayer: React.FC<StoryPlayerProps> = ({ slides, bgm, title }) => {
   const touchStartYRef = useRef<number | null>(null);
   const videoRefs = useRef(new Map<number, HTMLVideoElement>());
 
-  const moveTo = useCallback(
-    (index: number) => {
-      if (safeSlides.length === 0) return;
-      const next = Math.max(0, Math.min(index, safeSlides.length - 1));
-      setActiveIndex(next);
-    },
-    [safeSlides.length]
-  );
-
   const goNext = useCallback(() => {
     setActiveIndex(prev => Math.min(prev + 1, safeSlides.length - 1));
   }, [safeSlides.length]);
@@ -206,6 +197,8 @@ const StoryPlayer: React.FC<StoryPlayerProps> = ({ slides, bgm, title }) => {
     );
   }
 
+  const storyProgress = ((activeIndex + 1) / safeSlides.length) * 100;
+
   const renderSlideMedia = (slide: StorySlide, index: number) => {
     if (slide.type === "video") {
       return (
@@ -217,7 +210,18 @@ const StoryPlayer: React.FC<StoryPlayerProps> = ({ slides, bgm, title }) => {
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
+          onLoadedData={event => {
+            if (!slide.live || index !== activeIndex) return;
+            const video = event.currentTarget;
+            if (!video.paused) return;
+            if (video.currentTime > 0) return;
+            try {
+              video.currentTime = 0.01;
+            } catch {
+              // ignore: some browsers block seek before enough data is buffered
+            }
+          }}
           onMouseEnter={() => {
             if (!slide.live || index !== activeIndex) return;
             playVideo(videoRefs.current.get(index));
@@ -259,16 +263,8 @@ const StoryPlayer: React.FC<StoryPlayerProps> = ({ slides, bgm, title }) => {
           <span>{activeIndex + 1}</span>
           <span>/ {safeSlides.length}</span>
         </div>
-        <div className="story-player__dots" aria-hidden="true">
-          {safeSlides.map((slide, index) => (
-            <button
-              key={slide.id}
-              type="button"
-              className={`story-player__dot ${index === activeIndex ? "is-active" : ""}`}
-              onClick={() => moveTo(index)}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
+        <div className="story-player__index-progress" aria-hidden="true">
+          <span style={{ width: `${storyProgress}%` }} />
         </div>
       </div>
 
@@ -343,4 +339,3 @@ const StoryPlayer: React.FC<StoryPlayerProps> = ({ slides, bgm, title }) => {
 };
 
 export default StoryPlayer;
-
