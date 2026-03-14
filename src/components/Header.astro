@@ -68,10 +68,10 @@ const isActive = (path: string) => {
           </li>
           <li>
             <a
-              href="/stories"
+              href="/story"
               class:list={[
                 "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
-                { "active-nav": isActive("/stories") },
+                { "active-nav": isActive("/story") },
               ]}
             >
               {UI.nav.stories}
@@ -172,7 +172,7 @@ const isActive = (path: string) => {
           </a>
         </li>
         <li class="col-span-6">
-          <a href="/stories" class:list={{ "active-nav": isActive("/stories") }}>
+          <a href="/story" class:list={{ "active-nav": isActive("/story") }}>
             {UI.nav.stories}
           </a>
         </li>

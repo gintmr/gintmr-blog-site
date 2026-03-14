@@ -1,6 +1,6 @@
 import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
-import { SITE, BLOG_PATH, DIARY_PATH } from "@/config";
+import { SITE, BLOG_PATH, DIARY_PATH, STORY_PATH } from "@/config";
 
 const normalizeOptionalString = (value: unknown): unknown => {
   if (value == null) return undefined;
@@ -76,13 +76,19 @@ const links = defineCollection({
 });
 
 const story = defineCollection({
-  loader: glob({ pattern: "story/**/[^_]*.{md,mdx}", base: "./src/data" }),
+  loader: glob({ pattern: "**/content.{md,mdx}", base: `./${STORY_PATH}` }),
   schema: z.object({
     author: z.string().default(SITE.author),
-    pubDatetime: z.date(),
+    pubDatetime: z.date().default(() => new Date()),
     modDatetime: z.date().optional().nullable(),
-    title: z.string(),
-    description: z.string(),
+    title: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
+    description: z.preprocess(
+      normalizeOptionalString,
+      z.string().default("")
+    ),
     draft: z.boolean().optional(),
     tags: z.array(z.string()).default(["Story"]),
     cover: z.preprocess(
@@ -112,7 +118,8 @@ const story = defineCollection({
           ),
         })
       )
-      .min(1),
+      .min(1)
+      .optional(),
   }),
 });
 

@@ -1,0 +1,474 @@
+---
+import fs from "node:fs";
+import path from "node:path";
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import BackButton from "@/components/BackButton.astro";
+import BackToTopButton from "@/components/BackToTopButton.astro";
+import Datetime from "@/components/Datetime.astro";
+import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
+import IconChevronRight from "@/assets/icons/IconChevronRight.svg";
+import StoryPlayer, { type StorySlide } from "@/components/StoryPlayer";
+import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
+import { optimizeImage } from "@/utils/optimizeImages";
+import { getVideoPath } from "@/utils/videoUtils";
+import { getAudioPath, getCoverPath } from "@/utils/audioUtils";
+import getSortedStories from "@/utils/getSortedStories";
+import {
+  getStoryFolderRelative,
+  getStoryPath,
+  getStoryTitle,
+} from "@/utils/getStoryPath";
+import {
+  normalizeStoryAssetPath,
+  resolveStoryAudioAssetUrl,
+  resolveStoryImageAssetUrl,
+  resolveStoryVideoAssetUrl,
+} from "@/utils/storyAssetResolver";
+
+export interface Props {
+  story: CollectionEntry<"story">;
+  stories: CollectionEntry<"story">[];
+}
+
+interface StorySlideSource {
+  media: string;
+  text?: string;
+  caption?: string;
+  live?: boolean;
+  poster?: string;
+}
+
+const VIDEO_EXT_REGEX = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i;
+const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|heic|heif)$/i;
+
+const VIDEO_EXTENSIONS = new Set([
+  ".mp4",
+  ".webm",
+  ".ogg",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".m4v",
+]);
+const IMAGE_EXTENSIONS = new Set([
+  ".avif",
+  ".bmp",
+  ".gif",
+  ".ico",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".svg",
+  ".tif",
+  ".tiff",
+  ".webp",
+  ".heic",
+  ".heif",
+]);
+
+const VIDEO_PREFERENCE = [".mov", ".mp4", ".m4v", ".webm", ".ogg", ".avi", ".mkv"];
+const IMAGE_PREFERENCE = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".avif",
+  ".gif",
+  ".bmp",
+  ".tif",
+  ".tiff",
+  ".heic",
+  ".heif",
+  ".svg",
+];
+
+function normalizeSlashes(value: string): string {
+  return value.replace(/\\/g, "/");
+}
+
+function normalizeMediaPath(
+  rawPath: string,
+  storyDirRelative?: string
+): string {
+  const normalized = normalizeStoryAssetPath(rawPath, storyDirRelative);
+  if (!normalized || /^https?:\/\//i.test(normalized)) return normalized;
+  if (normalized.startsWith("attachment/")) return normalized;
+  if (normalized.startsWith("story/")) return normalized;
+  if (normalized.includes("attachment/")) {
+    return `attachment/${normalized.split("attachment/")[1] || ""}`.replace(
+      /\/+/g,
+      "/"
+    );
+  }
+  if (normalized.includes("story/")) {
+    return `story/${normalized.split("story/")[1] || ""}`.replace(/\/+/g, "/");
+  }
+  return normalized;
+}
+
+function selectByExtensionPreference(
+  candidates: string[],
+  preference: string[]
+): string | undefined {
+  if (candidates.length === 0) return undefined;
+
+  const getRank = (filePath: string) => {
+    const ext = path.extname(filePath).toLowerCase();
+    const rank = preference.indexOf(ext);
+    return rank >= 0 ? rank : Number.MAX_SAFE_INTEGER;
+  };
+
+  return [...candidates].sort((a, b) => getRank(a) - getRank(b))[0];
+}
+
+function collectSlidesFromImgsFolder(storyDirRelative: string): StorySlideSource[] {
+  const storyDirAbs = path.resolve(process.cwd(), "src/data", storyDirRelative);
+  const imgsDirAbs = path.join(storyDirAbs, "imgs");
+
+  if (!fs.existsSync(imgsDirAbs)) {
+    return [];
+  }
+
+  const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+  const files = fs
+    .readdirSync(imgsDirAbs, { withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => entry.name)
+    .sort((a, b) => collator.compare(a, b));
+
+  interface GroupedAssets {
+    sortKey: string;
+    videos: string[];
+    images: string[];
+  }
+
+  const grouped = new Map<string, GroupedAssets>();
+
+  for (const fileName of files) {
+    const ext = path.extname(fileName).toLowerCase();
+    const isVideo = VIDEO_EXTENSIONS.has(ext);
+    const isImage = IMAGE_EXTENSIONS.has(ext);
+    if (!isVideo && !isImage) continue;
+
+    const baseName = path.basename(fileName, ext);
+    const key = baseName.toLowerCase();
+    const relativePath = normalizeSlashes(`${storyDirRelative}/imgs/${fileName}`);
+
+    const existing = grouped.get(key) || {
+      sortKey: baseName,
+      videos: [],
+      images: [],
+    };
+
+    if (isVideo) {
+      existing.videos.push(relativePath);
+    } else {
+      existing.images.push(relativePath);
+    }
+
+    grouped.set(key, existing);
+  }
+
+  const groups = [...grouped.values()].sort((a, b) =>
+    collator.compare(a.sortKey, b.sortKey)
+  );
+
+  const slides: StorySlideSource[] = [];
+
+  for (const group of groups) {
+    const selectedVideo = selectByExtensionPreference(group.videos, VIDEO_PREFERENCE);
+    const selectedImage = selectByExtensionPreference(group.images, IMAGE_PREFERENCE);
+
+    if (selectedVideo) {
+      slides.push({
+        media: selectedVideo,
+        live: true,
+        poster: selectedImage,
+      });
+      continue;
+    }
+
+    if (selectedImage) {
+      slides.push({
+        media: selectedImage,
+      });
+    }
+  }
+
+  return slides;
+}
+
+async function resolveImageSrc(rawPath: string): Promise<string> {
+  const normalized = normalizeMediaPath(rawPath);
+  if (!normalized) return normalized;
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+
+  if (normalized.startsWith("story/")) {
+    return resolveStoryImageAssetUrl(normalized) || `/${normalized}`;
+  }
+
+  if (/\.(heic|heif)$/i.test(normalized)) {
+    return getCoverPath(normalized);
+  }
+
+  try {
+    const optimized = await optimizeImage(normalized, {
+      needFullSize: true,
+      keepOriginalSize: true,
+      quality: 88,
+    });
+    return optimized.original || optimized.thumbnail;
+  } catch {
+    return getCoverPath(normalized);
+  }
+}
+
+function resolveVideoSrc(rawPath: string): string {
+  const normalized = normalizeMediaPath(rawPath);
+  if (!normalized) return normalized;
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+
+  if (normalized.startsWith("story/")) {
+    return resolveStoryVideoAssetUrl(normalized) || `/${normalized}`;
+  }
+
+  return getVideoPath(normalized);
+}
+
+function resolveAudioSrc(rawPath: string): string {
+  const normalized = normalizeMediaPath(rawPath);
+  if (!normalized) return normalized;
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+
+  if (normalized.startsWith("story/")) {
+    return resolveStoryAudioAssetUrl(normalized) || `/${normalized}`;
+  }
+
+  return getAudioPath(normalized);
+}
+
+async function resolveStorySlides(
+  slides: StorySlideSource[]
+): Promise<StorySlide[]> {
+  const resolved: StorySlide[] = [];
+
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    const normalizedMedia = normalizeMediaPath(slide.media);
+    if (!normalizedMedia) continue;
+
+    const id = `slide-${i + 1}`;
+    const text = slide.text?.trim() || "";
+    const caption = slide.caption?.trim() || "";
+
+    if (VIDEO_EXT_REGEX.test(normalizedMedia)) {
+      const isLive = slide.live ?? /\.mov$/i.test(normalizedMedia);
+      const poster = slide.poster ? await resolveImageSrc(slide.poster) : undefined;
+      resolved.push({
+        id,
+        type: "video",
+        src: resolveVideoSrc(normalizedMedia),
+        poster,
+        text,
+        caption,
+        live: isLive,
+      });
+      continue;
+    }
+
+    if (IMAGE_EXT_REGEX.test(normalizedMedia)) {
+      resolved.push({
+        id,
+        type: "image",
+        src: await resolveImageSrc(normalizedMedia),
+        text,
+        caption,
+        live: false,
+      });
+    }
+  }
+
+  return resolved;
+}
+
+function normalizeManualSlides(
+  slides: CollectionEntry<"story">["data"]["slides"] | undefined,
+  storyDirRelative: string
+): StorySlideSource[] {
+  if (!slides || slides.length === 0) return [];
+  return slides.map(slide => ({
+    media: normalizeMediaPath(slide.media, storyDirRelative),
+    text: slide.text?.trim() || "",
+    caption: slide.caption?.trim() || "",
+    live: slide.live,
+    poster: slide.poster
+      ? normalizeMediaPath(slide.poster, storyDirRelative)
+      : undefined,
+  }));
+}
+
+function pickOgImagePath(
+  explicitCover: string | undefined,
+  slides: StorySlideSource[]
+): string | undefined {
+  if (explicitCover?.trim()) return explicitCover;
+
+  for (const slide of slides) {
+    const normalizedMedia = normalizeMediaPath(slide.media);
+    if (!normalizedMedia) continue;
+
+    if (IMAGE_EXT_REGEX.test(normalizedMedia)) {
+      return normalizedMedia;
+    }
+
+    if (slide.poster && IMAGE_EXT_REGEX.test(slide.poster)) {
+      return slide.poster;
+    }
+  }
+
+  return undefined;
+}
+
+export async function getStaticPaths() {
+  const stories = await getCollection("story", ({ data }) => !data.draft);
+  const sortedStories = getSortedStories(stories);
+
+  return sortedStories.map(story => ({
+    params: {
+      slug: getStoryPath(story.id, story.filePath, false).replace(/^\/+/, ""),
+    },
+    props: {
+      story,
+      stories: sortedStories,
+    },
+  }));
+}
+
+const { story, stories } = Astro.props;
+const renderedStory = await render(story);
+const Content = renderedStory.Content;
+
+const {
+  title,
+  description,
+  author,
+  pubDatetime,
+  modDatetime,
+  cover,
+  bgm,
+  slides,
+} = story.data;
+
+const storyDirRelative = `story/${getStoryFolderRelative(story.id, story.filePath)}`;
+const manualSlides = normalizeManualSlides(slides, storyDirRelative);
+const autoSlides = collectSlidesFromImgsFolder(storyDirRelative);
+const sourceSlides = manualSlides.length > 0 ? manualSlides : autoSlides;
+
+const storySlides = await resolveStorySlides(sourceSlides);
+const ogImagePath = pickOgImagePath(
+  cover ? normalizeMediaPath(cover, storyDirRelative) : undefined,
+  sourceSlides
+);
+const storyCover = ogImagePath ? await resolveImageSrc(ogImagePath) : undefined;
+
+const normalizedBgm = bgm?.trim()
+  ? resolveAudioSrc(normalizeMediaPath(bgm, storyDirRelative))
+  : undefined;
+
+const storyTitle = getStoryTitle(title, story.id, story.filePath);
+const storyDescription = description?.trim() || "";
+
+const currentStoryIndex = stories.findIndex(item => item.id === story.id);
+const prevStory = currentStoryIndex > 0 ? stories[currentStoryIndex - 1] : null;
+const nextStory =
+  currentStoryIndex >= 0 && currentStoryIndex < stories.length - 1
+    ? stories[currentStoryIndex + 1]
+    : null;
+---
+
+<Layout
+  title={`${storyTitle} | ${SITE.title}`}
+  description={storyDescription}
+  author={author}
+  pubDatetime={pubDatetime}
+  modDatetime={modDatetime}
+  ogImage={storyCover}
+  scrollSmooth={true}
+>
+  <Header />
+  <BackButton />
+
+  <main id="main-content" class="mx-auto mt-4 w-full max-w-app px-4 pb-12">
+    <h1 class="text-accent text-3xl font-bold">{storyTitle}</h1>
+    <div class="my-2 flex items-center gap-2">
+      <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} size="lg" />
+    </div>
+    {
+      storyDescription && (
+        <p class="mb-6 text-sm text-foreground/75">{storyDescription}</p>
+      )
+    }
+
+    <StoryPlayer client:load slides={storySlides} bgm={normalizedBgm} title={storyTitle} />
+
+    {
+      story.body?.trim() && (
+        <article class="app-prose mt-10 max-w-app">
+          <Content />
+        </article>
+      )
+    }
+
+    <hr class="my-8 border-dashed" />
+    <BackToTopButton />
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {
+        prevStory && (
+          <a
+            href={getStoryPath(prevStory.id, prevStory.filePath)}
+            class="flex w-full gap-1 hover:opacity-75"
+          >
+            <IconChevronLeft class="inline-block flex-none rtl:rotate-180" />
+            <div>
+              <span>{UI.post.previous}</span>
+              <div class="text-sm text-accent/85">
+                {getStoryTitle(
+                  prevStory.data.title,
+                  prevStory.id,
+                  prevStory.filePath
+                )}
+              </div>
+            </div>
+          </a>
+        )
+      }
+      {
+        nextStory && (
+          <a
+            href={getStoryPath(nextStory.id, nextStory.filePath)}
+            class="flex w-full justify-end gap-1 text-end hover:opacity-75 sm:col-start-2"
+          >
+            <div>
+              <span>{UI.post.next}</span>
+              <div class="text-sm text-accent/85">
+                {getStoryTitle(
+                  nextStory.data.title,
+                  nextStory.id,
+                  nextStory.filePath
+                )}
+              </div>
+            </div>
+            <IconChevronRight class="inline-block flex-none rtl:rotate-180" />
+          </a>
+        )
+      }
+    </div>
+  </main>
+
+  <Footer />
+</Layout>

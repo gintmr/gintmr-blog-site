@@ -7,7 +7,7 @@ const locale = (SITE.uiLocale ?? "en") as Locale;
 const EN = {
   nav: {
     blog: "Blog",
-    stories: "Stories",
+    stories: "Story",
     about: "About",
     links: "Links",
     archives: "Archives",
@@ -16,13 +16,13 @@ const EN = {
     home: "Life-Log",
     blog: "Blog",
     diary: "Diary",
-    stories: "Stories",
+    stories: "Story",
     archives: "Archives",
     about: "About",
     search: "Search",
     links: "Links",
     storyPage: (page: number) =>
-      page <= 1 ? "Stories" : `Stories (Page ${page})`,
+      page <= 1 ? "Story" : `Story (Page ${page})`,
     postsPage: (page: number) => (page <= 1 ? "Blog" : `Blog (Page ${page})`),
     tagPage: (tag: string, page: number) =>
       page <= 1 ? tag : `${tag} (Page ${page})`,
@@ -42,7 +42,7 @@ const EN = {
     timelineTitle: "Life-Log",
     linksTitle: "Links",
     linksDesc: "Friends and creators I recommend.",
-    storiesTitle: "Stories",
+    storiesTitle: "Story",
     storiesDesc: "Swipe-first visual posts with music and text overlays.",
     linksEmpty: "No links yet.",
     linksVisit: "Visit site",

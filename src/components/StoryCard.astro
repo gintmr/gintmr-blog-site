@@ -1,28 +1,81 @@
 ---
+import fs from "node:fs";
+import path from "node:path";
 import type { CollectionEntry } from "astro:content";
 import Datetime from "./Datetime.astro";
-import { getStoryPath } from "@/utils/getStoryPath";
+import {
+  getStoryFolderRelative,
+  getStoryPath,
+  getStoryTitle,
+} from "@/utils/getStoryPath";
 import { optimizeImage } from "@/utils/optimizeImages";
 import { getCoverPath } from "@/utils/audioUtils";
+import {
+  normalizeStoryAssetPath,
+  resolveStoryImageAssetUrl,
+} from "@/utils/storyAssetResolver";
 import { SITE } from "@/config";
 
 export interface Props extends CollectionEntry<"story"> {}
 
 const { data, id, filePath } = Astro.props;
 const { title, description, pubDatetime, modDatetime, cover, slides } = data;
+const storyTitle = getStoryTitle(title, id, filePath);
+const storyDirRelative = `story/${getStoryFolderRelative(id, filePath)}`;
+let storySlideCount = slides?.length ?? 0;
 
 let coverSrc: string | undefined;
-const firstSlideMedia = slides?.[0]?.media;
+let coverRawPath = cover?.trim()
+  ? normalizeStoryAssetPath(cover, storyDirRelative)
+  : "";
 
-if (cover?.trim()) {
-  const optimized = await optimizeImage(cover, { thumbnailSize: 480 });
-  coverSrc = optimized.thumbnail;
-} else if (firstSlideMedia) {
-  if (/\.(jpe?g|png|webp|gif|svg|bmp|tiff?|avif)$/i.test(firstSlideMedia)) {
-    const optimized = await optimizeImage(firstSlideMedia, { thumbnailSize: 480 });
+if (!coverRawPath && slides?.length) {
+  const firstSlideMedia = slides[0]?.media;
+  if (firstSlideMedia) {
+    coverRawPath = normalizeStoryAssetPath(firstSlideMedia, storyDirRelative);
+  }
+}
+
+if (!coverRawPath) {
+  const imgsDirAbs = path.resolve(process.cwd(), "src/data", storyDirRelative, "imgs");
+  if (fs.existsSync(imgsDirAbs)) {
+    const files = fs
+      .readdirSync(imgsDirAbs, { withFileTypes: true })
+      .filter(entry => entry.isFile())
+      .map(entry => entry.name)
+      .sort((a, b) =>
+        new Intl.Collator("en", { numeric: true, sensitivity: "base" }).compare(
+          a,
+          b
+        )
+      );
+    if (storySlideCount === 0) {
+      const baseNameSet = new Set<string>();
+      files.forEach(file => {
+        if (/\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|heic|heif|mp4|webm|ogg|mov|avi|mkv|m4v)$/i.test(file)) {
+          baseNameSet.add(file.replace(/\.[^.]+$/, "").toLowerCase());
+        }
+      });
+      storySlideCount = baseNameSet.size;
+    }
+    const firstVisual = files.find(file =>
+      /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|heic|heif)$/i.test(file)
+    );
+    if (firstVisual) {
+      coverRawPath = `${storyDirRelative}/imgs/${firstVisual}`;
+    }
+  }
+}
+
+if (coverRawPath) {
+  if (coverRawPath.startsWith("story/")) {
+    coverSrc =
+      resolveStoryImageAssetUrl(coverRawPath) || `/${coverRawPath}`;
+  } else if (/\.(heic|heif)$/i.test(coverRawPath)) {
+    coverSrc = getCoverPath(coverRawPath);
+  } else {
+    const optimized = await optimizeImage(coverRawPath, { thumbnailSize: 480 });
     coverSrc = optimized.thumbnail;
-  } else if (/\.(heic|heif)$/i.test(firstSlideMedia)) {
-    coverSrc = getCoverPath(firstSlideMedia);
   }
 }
 ---
@@ -38,7 +91,7 @@ if (cover?.trim()) {
           <div class="h-64 w-full overflow-hidden rounded-lg md:h-48 md:w-36 md:flex-shrink-0">
             <img
               src={coverSrc}
-              alt={title}
+              alt={storyTitle}
               class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               loading="lazy"
               decoding="async"
@@ -47,10 +100,14 @@ if (cover?.trim()) {
         )
       }
       <div class="min-w-0">
-        <h2 class="text-accent text-xl font-semibold leading-tight">{title}</h2>
+        <h2 class="text-accent text-xl font-semibold leading-tight">{storyTitle}</h2>
         <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} />
-        <p class="mt-2 text-sm text-foreground/80">{description}</p>
-        <p class="mt-2 text-xs text-foreground/60">{slides.length} slides</p>
+        {
+          description?.trim() && (
+            <p class="mt-2 text-sm text-foreground/80">{description}</p>
+          )
+        }
+        <p class="mt-2 text-xs text-foreground/60">{storySlideCount} slides</p>
       </div>
     </div>
   </a>

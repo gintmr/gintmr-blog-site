@@ -3,7 +3,7 @@
 This project now supports:
 
 1. `blog` / `diary` live photo autoplay loop.
-2. `stories` (swipe-first image-text mode).
+2. `story` (swipe-first image-text mode).
 3. Live photo hover/click play in story mode.
 
 ## 1) Blog / Diary Live Photo
@@ -42,11 +42,12 @@ Behavior:
 - Hover/click to play.
 - Leave/click again to stop and reset.
 
-## 2) Story Content (new `story` collection)
+## 2) Story Content (folder style, recommended)
 
-Create file in content repo:
+Create folders in content repo:
 
-`story/dubai-trip.md`
+`story/dubai-trip/content.md`
+`story/dubai-trip/imgs/*`
 
 ```md
 ---
@@ -57,28 +58,18 @@ draft: false
 tags:
   - Story
 bgm: attachment/inbox/Music/火星人来过-薛之谦.mp3
-slides:
-  - media: attachment/inbox/IMG_0001.jpg
-    text: "晚上抵达机场，先去吃点东西。"
-    caption: "Day 1 · Arrival"
-
-  - media: attachment/inbox/IMG_0002.mov
-    live: true
-    text: "这个是实况片段，支持 hover / click 播放。"
-    caption: "Live Photo · Hover Play"
-
-  - media: attachment/inbox/IMG_0003.jpg
-    text: "最后一张收尾。"
-    caption: "The End"
+# 可选：指定封面（支持 imgs/xxx 相对路径）
+cover: imgs/IMG_0001.HEIC
 ---
 
-这段正文会显示在图文播放器下方（可选）。
+正文写在这里。播放器会自动读取当前目录下 `imgs/` 中的媒体文件，
+并按文件名顺序展示（例如 IMG_4169 在 IMG_4171 之前）。
 ```
 
 Then access:
 
-- list: `/stories`
-- detail: `/stories/dubai-trip`
+- list: `/story`
+- detail: `/story/dubai-trip`
 
 ## 3) File Path Rules
 
@@ -89,4 +80,3 @@ Prefer vault-root relative paths:
 - `attachment/inbox/Music/xxx.mp3`
 
 System resolves to site assets automatically.
-
