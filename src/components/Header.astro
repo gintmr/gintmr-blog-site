@@ -68,6 +68,17 @@ const isActive = (path: string) => {
           </li>
           <li>
             <a
+              href="/stories"
+              class:list={[
+                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                { "active-nav": isActive("/stories") },
+              ]}
+            >
+              {UI.nav.stories}
+            </a>
+          </li>
+          <li>
+            <a
               href="/about"
               class:list={[
                 "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
@@ -158,6 +169,11 @@ const isActive = (path: string) => {
         <li class="col-span-6">
           <a href="/about" class:list={{ "active-nav": isActive("/about") }}>
             {UI.nav.about}
+          </a>
+        </li>
+        <li class="col-span-6">
+          <a href="/stories" class:list={{ "active-nav": isActive("/stories") }}>
+            {UI.nav.stories}
           </a>
         </li>
         <li class="col-span-6">

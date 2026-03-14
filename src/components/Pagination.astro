@@ -7,7 +7,7 @@ import LinkButton from "./LinkButton.astro";
 import { UI } from "@/i18n/ui";
 
 export interface Props {
-  page: Page<CollectionEntry<"blog">>;
+  page: Page<CollectionEntry<"blog"> | CollectionEntry<"story">>;
 }
 
 const { page } = Astro.props;

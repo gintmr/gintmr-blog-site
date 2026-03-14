@@ -126,7 +126,9 @@
 
   // 初始化所有视频元素
   function initVideoControls() {
-    const videos = document.querySelectorAll("video");
+    const videos = document.querySelectorAll(
+      "video:not([data-live-photo='true'])"
+    );
 
     videos.forEach(video => {
       setupVideoControls(video);
@@ -134,6 +136,8 @@
   }
 
   function setupVideoControls(video) {
+    if (video.dataset.livePhoto === "true") return;
+
     // 创建视频容器和播放按钮
     createVideoContainer(video);
     const playButton = createPlayButton(video);
@@ -264,6 +268,56 @@
     container.appendChild(playButton);
 
     return playButton;
+  }
+
+  // ===== Live Photo 视频控制 =====
+  function initLivePhotoVideos() {
+    const liveVideos = document.querySelectorAll("video[data-live-photo='true']");
+    liveVideos.forEach(video => {
+      setupLivePhotoVideo(video);
+    });
+  }
+
+  function setupLivePhotoVideo(video) {
+    if (!video || video.dataset.liveInitialized === "true") return;
+
+    const mode = (video.dataset.liveMode || "auto").toLowerCase();
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+
+    const play = () => {
+      void video.play().catch(() => {});
+    };
+
+    const stop = () => {
+      video.pause();
+      video.currentTime = 0;
+    };
+
+    if (mode === "auto") {
+      if (!video.hasAttribute("autoplay")) {
+        video.setAttribute("autoplay", "");
+      }
+      if (video.readyState >= 2) {
+        play();
+      } else {
+        video.addEventListener("loadeddata", play, { once: true });
+      }
+    } else {
+      video.addEventListener("mouseenter", () => play());
+      video.addEventListener("mouseleave", () => stop());
+      video.addEventListener("click", () => {
+        if (video.paused) play();
+        else stop();
+      });
+      video.addEventListener("touchend", () => {
+        if (video.paused) play();
+        else stop();
+      });
+    }
+
+    video.dataset.liveInitialized = "true";
   }
 
   // ===== 音频播放器（card-audio） =====
@@ -416,7 +470,11 @@
       mutation.addedNodes.forEach(node => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           if (node.tagName === "VIDEO") {
-            setupVideoControls(node);
+            if (node.dataset.livePhoto === "true") {
+              setupLivePhotoVideo(node);
+            } else {
+              setupVideoControls(node);
+            }
           } else if (
             node.matches &&
             node.matches("[data-audio-card]")
@@ -425,7 +483,11 @@
           } else if (node.querySelector && node.querySelector("video")) {
             const videos = node.querySelectorAll("video");
             videos.forEach(video => {
-              setupVideoControls(video);
+              if (video.dataset.livePhoto === "true") {
+                setupLivePhotoVideo(video);
+              } else {
+                setupVideoControls(video);
+              }
             });
           } else if (node.querySelector && node.querySelector("[data-audio-card]")) {
             const cards = node.querySelectorAll("[data-audio-card]");
@@ -463,6 +525,7 @@
   // 监听Astro页面导航事件，重新初始化所有控制器
   document.addEventListener("astro:page-load", () => {
     initVideoControls();
+    initLivePhotoVideos();
     initAudioCards();
     initVideoObserver();
     initThemeControls();

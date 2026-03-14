@@ -7,6 +7,7 @@ const locale = (SITE.uiLocale ?? "en") as Locale;
 const EN = {
   nav: {
     blog: "Blog",
+    stories: "Stories",
     about: "About",
     links: "Links",
     archives: "Archives",
@@ -15,10 +16,13 @@ const EN = {
     home: "Life-Log",
     blog: "Blog",
     diary: "Diary",
+    stories: "Stories",
     archives: "Archives",
     about: "About",
     search: "Search",
     links: "Links",
+    storyPage: (page: number) =>
+      page <= 1 ? "Stories" : `Stories (Page ${page})`,
     postsPage: (page: number) => (page <= 1 ? "Blog" : `Blog (Page ${page})`),
     tagPage: (tag: string, page: number) =>
       page <= 1 ? tag : `${tag} (Page ${page})`,
@@ -38,6 +42,8 @@ const EN = {
     timelineTitle: "Life-Log",
     linksTitle: "Links",
     linksDesc: "Friends and creators I recommend.",
+    storiesTitle: "Stories",
+    storiesDesc: "Swipe-first visual posts with music and text overlays.",
     linksEmpty: "No links yet.",
     linksVisit: "Visit site",
     archivesTitle: "Archives",
@@ -66,6 +72,7 @@ const EN = {
 const ZH = {
   nav: {
     blog: "文章",
+    stories: "图文",
     about: "关于",
     links: "友链",
     archives: "收集箱",
@@ -74,10 +81,13 @@ const ZH = {
     home: "时间档案",
     blog: "文章",
     diary: "日记",
+    stories: "图文",
     archives: "收集箱",
     about: "关于",
     search: "搜索",
     links: "友链",
+    storyPage: (page: number) =>
+      page <= 1 ? "图文" : `图文 (第 ${page} 页)`,
     postsPage: (page: number) => (page <= 1 ? "文章" : `文章 (第 ${page} 页)`),
     tagPage: (tag: string, page: number) =>
       page <= 1 ? tag : `${tag} (第 ${page} 页)`,
@@ -97,6 +107,8 @@ const ZH = {
     timelineTitle: "时间档案",
     linksTitle: "友链",
     linksDesc: "这里是我推荐的网站与创作者。",
+    storiesTitle: "图文",
+    storiesDesc: "支持滑动切换、音乐和文本叠加的图文内容。",
     linksEmpty: "暂无友链内容。",
     linksVisit: "访问网站",
     archivesTitle: "收集箱",

@@ -1,0 +1,217 @@
+---
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import BackButton from "@/components/BackButton.astro";
+import BackToTopButton from "@/components/BackToTopButton.astro";
+import Datetime from "@/components/Datetime.astro";
+import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
+import IconChevronRight from "@/assets/icons/IconChevronRight.svg";
+import StoryPlayer, { type StorySlide } from "@/components/StoryPlayer";
+import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
+import { optimizeImage } from "@/utils/optimizeImages";
+import { getVideoPath } from "@/utils/videoUtils";
+import { getAudioPath, getCoverPath } from "@/utils/audioUtils";
+import getSortedStories from "@/utils/getSortedStories";
+import { getStoryPath } from "@/utils/getStoryPath";
+
+export interface Props {
+  story: CollectionEntry<"story">;
+  stories: CollectionEntry<"story">[];
+}
+
+const VIDEO_EXT_REGEX = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i;
+const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|heic|heif)$/i;
+
+function normalizeAttachmentPath(input: string): string {
+  const normalized = input.trim().replace(/\\/g, "/");
+  if (!normalized) return normalized;
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  if (normalized.startsWith("../attachment/")) return normalized;
+  if (normalized.startsWith("attachment/")) return `../${normalized}`;
+  if (normalized.includes("attachment/")) {
+    const suffix = normalized.split("attachment/")[1] || normalized;
+    return `../attachment/${suffix}`;
+  }
+  return normalized;
+}
+
+async function resolveImageSrc(rawPath: string): Promise<string> {
+  const normalized = normalizeAttachmentPath(rawPath);
+  if (!normalized) return normalized;
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+
+  // heic/heif 不在 optimizeImage 支持列表里，直接走静态 URL
+  if (/\.(heic|heif)$/i.test(normalized)) {
+    return getCoverPath(normalized);
+  }
+
+  try {
+    const optimized = await optimizeImage(normalized, {
+      needFullSize: true,
+      keepOriginalSize: true,
+      quality: 88,
+    });
+    return optimized.original || optimized.thumbnail;
+  } catch {
+    return getCoverPath(normalized);
+  }
+}
+
+async function resolveStorySlides(
+  slides: CollectionEntry<"story">["data"]["slides"]
+): Promise<StorySlide[]> {
+  const resolved: StorySlide[] = [];
+
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    const normalizedMedia = normalizeAttachmentPath(slide.media);
+    const id = `slide-${i + 1}`;
+    const text = slide.text?.trim() || "";
+    const caption = slide.caption?.trim() || "";
+
+    if (VIDEO_EXT_REGEX.test(normalizedMedia)) {
+      const isLive = slide.live ?? /\.mov$/i.test(normalizedMedia);
+      const poster = slide.poster
+        ? await resolveImageSrc(slide.poster)
+        : undefined;
+      resolved.push({
+        id,
+        type: "video",
+        src: getVideoPath(normalizedMedia),
+        poster,
+        text,
+        caption,
+        live: isLive,
+      });
+      continue;
+    }
+
+    if (IMAGE_EXT_REGEX.test(normalizedMedia)) {
+      resolved.push({
+        id,
+        type: "image",
+        src: await resolveImageSrc(normalizedMedia),
+        text,
+        caption,
+        live: false,
+      });
+      continue;
+    }
+  }
+
+  return resolved;
+}
+
+export async function getStaticPaths() {
+  const stories = await getCollection("story", ({ data }) => !data.draft);
+  const sortedStories = getSortedStories(stories);
+
+  return sortedStories.map(story => ({
+    params: { slug: story.id },
+    props: {
+      story,
+      stories: sortedStories,
+    },
+  }));
+}
+
+const { story, stories } = Astro.props;
+const renderedStory = await render(story);
+const Content = renderedStory.Content;
+
+const {
+  title,
+  description,
+  author,
+  pubDatetime,
+  modDatetime,
+  cover,
+  bgm,
+  slides,
+} = story.data;
+
+const normalizedBgm = bgm?.trim()
+  ? getAudioPath(normalizeAttachmentPath(bgm))
+  : undefined;
+
+const storySlides = await resolveStorySlides(slides);
+const storyCover = cover?.trim() ? await resolveImageSrc(cover) : undefined;
+
+const currentStoryIndex = stories.findIndex(item => item.id === story.id);
+const prevStory =
+  currentStoryIndex > 0 ? stories[currentStoryIndex - 1] : null;
+const nextStory =
+  currentStoryIndex >= 0 && currentStoryIndex < stories.length - 1
+    ? stories[currentStoryIndex + 1]
+    : null;
+---
+
+<Layout
+  title={`${title} | ${SITE.title}`}
+  description={description}
+  author={author}
+  pubDatetime={pubDatetime}
+  modDatetime={modDatetime}
+  ogImage={storyCover}
+  scrollSmooth={true}
+>
+  <Header />
+  <BackButton />
+
+  <main id="main-content" class="mx-auto mt-4 w-full max-w-app px-4 pb-12">
+    <h1 class="text-accent text-3xl font-bold">{title}</h1>
+    <div class="my-2 flex items-center gap-2">
+      <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} size="lg" />
+    </div>
+    <p class="mb-6 text-sm text-foreground/75">{description}</p>
+
+    <StoryPlayer client:load slides={storySlides} bgm={normalizedBgm} title={title} />
+
+    {
+      story.body?.trim() && (
+        <article class="app-prose mt-10 max-w-app">
+          <Content />
+        </article>
+      )
+    }
+
+    <hr class="my-8 border-dashed" />
+    <BackToTopButton />
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {
+        prevStory && (
+          <a
+            href={getStoryPath(prevStory.id, prevStory.filePath)}
+            class="flex w-full gap-1 hover:opacity-75"
+          >
+            <IconChevronLeft class="inline-block flex-none rtl:rotate-180" />
+            <div>
+              <span>{UI.post.previous}</span>
+              <div class="text-sm text-accent/85">{prevStory.data.title}</div>
+            </div>
+          </a>
+        )
+      }
+      {
+        nextStory && (
+          <a
+            href={getStoryPath(nextStory.id, nextStory.filePath)}
+            class="flex w-full justify-end gap-1 text-end hover:opacity-75 sm:col-start-2"
+          >
+            <div>
+              <span>{UI.post.next}</span>
+              <div class="text-sm text-accent/85">{nextStory.data.title}</div>
+            </div>
+            <IconChevronRight class="inline-block flex-none rtl:rotate-180" />
+          </a>
+        )
+      }
+    </div>
+  </main>
+
+  <Footer />
+</Layout>

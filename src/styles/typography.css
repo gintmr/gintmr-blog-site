@@ -71,6 +71,22 @@
       margin-right: 0;
     }
 
+    .app-prose > .rehype-figure.live-photo-figure {
+      width: fit-content;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .app-prose > .rehype-figure.live-photo-figure > .live-photo-video {
+      width: auto;
+      max-width: 100%;
+      max-height: 70vh;
+      height: auto;
+      object-fit: contain !important;
+      border-radius: 0.7rem;
+    }
+
     .app-prose > .rehype-figure > img,
     .app-prose > .rehype-figure > a {
       width: 100%;

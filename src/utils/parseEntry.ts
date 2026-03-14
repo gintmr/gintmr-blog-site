@@ -80,6 +80,8 @@ interface ParsedObsidianImageEmbed {
   alt: string;
   src: string;
   title: string;
+  isLive?: boolean;
+  liveMode?: "auto" | "hover";
 }
 
 interface ParsedDiaryImage {
@@ -101,6 +103,21 @@ const MARKDOWN_VIDEO_TOKEN_REGEX =
   /!\[[^\]]*\]\([^\)]+\.(?:mp4|webm|ogg|mov|avi|mkv|m4v)(?:\s+["'][^"']*["'])?\)/gi;
 const IMAGE_GROUP_PLACEHOLDER_PREFIX = "++DIARY_IMAGE_GROUP_";
 const INLINE_HTML_BLOCK_PLACEHOLDER_PREFIX = "++INLINE_HTML_BLOCK_";
+const LIVE_VIDEO_HINTS = new Set([
+  "live",
+  "lp",
+  "livephoto",
+  "live-photo",
+  "autoplay",
+  "auto",
+]);
+const LIVE_VIDEO_HOVER_HINTS = new Set([
+  "hover",
+  "hoverplay",
+  "clickplay",
+  "tapplay",
+]);
+const VIDEO_FORCE_NORMAL_HINTS = new Set(["video", "normal", "manual"]);
 
 function decodeURIComponentSafe(value: string): string {
   try {
@@ -128,6 +145,49 @@ function normalizeObsidianImageSource(path: string): string {
   }
 
   return normalized;
+}
+
+function parseVideoEmbedMeta(target: string, descriptors: string[]) {
+  let explicitLive = false;
+  let explicitNormal = false;
+  let liveMode: "auto" | "hover" = "auto";
+  const captionParts: string[] = [];
+
+  for (const descriptor of descriptors) {
+    const normalized = descriptor.trim().toLowerCase();
+    if (!normalized) continue;
+
+    if (LIVE_VIDEO_HOVER_HINTS.has(normalized)) {
+      explicitLive = true;
+      liveMode = "hover";
+      continue;
+    }
+
+    if (LIVE_VIDEO_HINTS.has(normalized)) {
+      explicitLive = true;
+      continue;
+    }
+
+    if (VIDEO_FORCE_NORMAL_HINTS.has(normalized)) {
+      explicitNormal = true;
+      continue;
+    }
+
+    captionParts.push(descriptor);
+  }
+
+  const caption = captionParts.join(" ").trim();
+  const fallbackAlt =
+    decodeURIComponentSafe(target).split("/").pop()?.replace(/\.[^/.]+$/, "").trim() ||
+    "video";
+  const isLive = explicitNormal ? false : explicitLive || /\.mov$/i.test(target);
+
+  return {
+    caption,
+    label: caption || fallbackAlt,
+    isLive,
+    liveMode: isLive ? liveMode : "auto",
+  };
 }
 
 function parseObsidianImageEmbeds(content: string): ParsedObsidianImageEmbed[] {
@@ -190,20 +250,17 @@ function parseObsidianVideoEmbeds(content: string): ParsedObsidianImageEmbed[] {
       continue;
     }
 
-    const title =
-      segments
-        .slice(1)
-        .find(segment => !/^\d+(?:x\d+)?$/i.test(segment.replace(/\s+/g, ""))) ||
-      "";
-
-    const decodedTarget = decodeURIComponentSafe(targetRaw);
-    const fallbackAlt =
-      decodedTarget.split("/").pop()?.replace(/\.[^/.]+$/, "").trim() || "video";
+    const descriptors = segments
+      .slice(1)
+      .filter(segment => !/^\d+(?:x\d+)?$/i.test(segment.replace(/\s+/g, "")));
+    const meta = parseVideoEmbedMeta(targetRaw, descriptors);
 
     embeds.push({
-      alt: title || fallbackAlt,
+      alt: meta.label,
       src: getVideoPath(normalizeObsidianImageSource(targetRaw)),
-      title,
+      title: meta.caption,
+      isLive: meta.isLive,
+      liveMode: meta.liveMode,
     });
   }
 
@@ -252,14 +309,19 @@ function parseMarkdownVideoEmbeds(content: string): ParsedObsidianImageEmbed[] {
     }
 
     const title = (match[3] || match[4] || "").trim();
-    const decodedTarget = decodeURIComponentSafe(srcRaw);
-    const fallbackAlt =
-      decodedTarget.split("/").pop()?.replace(/\.[^/.]+$/, "").trim() || "video";
+    const descriptors = [alt, title]
+      .join("|")
+      .split("|")
+      .map(segment => segment.trim())
+      .filter(Boolean);
+    const meta = parseVideoEmbedMeta(srcRaw, descriptors);
 
     embeds.push({
-      alt: alt || title || fallbackAlt,
+      alt: meta.label,
       src: getVideoPath(normalizeObsidianImageSource(srcRaw)),
-      title,
+      title: meta.caption,
+      isLive: meta.isLive,
+      liveMode: meta.liveMode,
     });
   }
 
@@ -315,11 +377,25 @@ function buildDiaryVideoEmbedHtml(video: ParsedObsidianImageEmbed): string {
   const src = escapeHtmlAttr(video.src);
   const caption = (video.title || "").trim();
   const label = escapeHtmlAttr((video.alt || "video").trim() || "video");
+  const isLive = Boolean(video.isLive);
+  const liveMode = video.liveMode || "auto";
   const captionHtml = caption
     ? `<figcaption>${escapeHtml(caption)}</figcaption>`
     : "";
+  const figureClass = [
+    "rehype-figure",
+    isLive ? "live-photo-figure" : "",
+    isLive ? `live-photo-figure--${liveMode}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  return `<figure class="rehype-figure"><video controls playsinline preload="metadata" src="${src}" aria-label="${label}"></video>${captionHtml}</figure>`;
+  if (isLive) {
+    const autoAttrs = liveMode === "auto" ? " autoplay" : "";
+    return `<figure class="${figureClass}"><video class="live-photo-video" data-live-photo="true" data-live-mode="${liveMode}" muted loop playsinline preload="metadata"${autoAttrs} src="${src}" aria-label="${label}"></video>${captionHtml}</figure>`;
+  }
+
+  return `<figure class="${figureClass}"><video controls playsinline preload="metadata" src="${src}" aria-label="${label}"></video>${captionHtml}</figure>`;
 }
 
 // 解析日记条目的函数

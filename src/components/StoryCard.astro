@@ -1,0 +1,57 @@
+---
+import type { CollectionEntry } from "astro:content";
+import Datetime from "./Datetime.astro";
+import { getStoryPath } from "@/utils/getStoryPath";
+import { optimizeImage } from "@/utils/optimizeImages";
+import { getCoverPath } from "@/utils/audioUtils";
+import { SITE } from "@/config";
+
+export interface Props extends CollectionEntry<"story"> {}
+
+const { data, id, filePath } = Astro.props;
+const { title, description, pubDatetime, modDatetime, cover, slides } = data;
+
+let coverSrc: string | undefined;
+const firstSlideMedia = slides?.[0]?.media;
+
+if (cover?.trim()) {
+  const optimized = await optimizeImage(cover, { thumbnailSize: 480 });
+  coverSrc = optimized.thumbnail;
+} else if (firstSlideMedia) {
+  if (/\.(jpe?g|png|webp|gif|svg|bmp|tiff?|avif)$/i.test(firstSlideMedia)) {
+    const optimized = await optimizeImage(firstSlideMedia, { thumbnailSize: 480 });
+    coverSrc = optimized.thumbnail;
+  } else if (/\.(heic|heif)$/i.test(firstSlideMedia)) {
+    coverSrc = getCoverPath(firstSlideMedia);
+  }
+}
+---
+
+<li class="my-6">
+  <a
+    href={getStoryPath(id, filePath)}
+    class="group block rounded-xl border border-border/60 bg-card/40 p-4 no-underline transition-all hover:-translate-y-0.5 hover:border-accent/45"
+  >
+    <div class="flex flex-col gap-4 md:flex-row">
+      {
+        coverSrc && (
+          <div class="h-64 w-full overflow-hidden rounded-lg md:h-48 md:w-36 md:flex-shrink-0">
+            <img
+              src={coverSrc}
+              alt={title}
+              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        )
+      }
+      <div class="min-w-0">
+        <h2 class="text-accent text-xl font-semibold leading-tight">{title}</h2>
+        <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} />
+        <p class="mt-2 text-sm text-foreground/80">{description}</p>
+        <p class="mt-2 text-xs text-foreground/60">{slides.length} slides</p>
+      </div>
+    </div>
+  </a>
+</li>

@@ -1,0 +1,32 @@
+---
+import type { GetStaticPaths } from "astro";
+import { getCollection } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Main from "@/layouts/Main.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Pagination from "@/components/Pagination.astro";
+import StoryCard from "@/components/StoryCard.astro";
+import getSortedStories from "@/utils/getSortedStories";
+import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
+
+export const getStaticPaths = (async ({ paginate }) => {
+  const stories = await getCollection("story", ({ data }) => !data.draft);
+  return paginate(getSortedStories(stories), { pageSize: SITE.postPerPage });
+}) satisfies GetStaticPaths;
+
+const { page } = Astro.props;
+---
+
+<Layout title={`${UI.pages.storiesTitle} | ${SITE.title}`}>
+  <Header />
+  <Main pageTitle={UI.pages.storiesTitle} pageDesc={UI.pages.storiesDesc}>
+    <ul>
+      {page.data.map(data => <StoryCard {...data} />)}
+    </ul>
+  </Main>
+  <Pagination {page} />
+  <Footer noMarginTop={page.lastPage > 1} />
+</Layout>
+

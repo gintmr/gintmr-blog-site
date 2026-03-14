@@ -41,6 +41,12 @@ if (breadcrumbList[0] === "posts" && !isNaN(Number(breadcrumbList[2]))) {
     2,
     UI.breadcrumb.postsPage(pageNumber)
   );
+} else if (
+  breadcrumbList[0] === "stories" &&
+  !isNaN(Number(breadcrumbList[1]))
+) {
+  const pageNumber = Number(breadcrumbList[1]);
+  breadcrumbList.splice(0, 2, UI.breadcrumb.storyPage(pageNumber));
 }
 ---
 
@@ -74,6 +80,8 @@ if (breadcrumbList[0] === "posts" && !isNaN(Number(breadcrumbList[2]))) {
                         ? UI.breadcrumb.search
                         : breadcrumb === "links"
                           ? UI.breadcrumb.links
+                        : breadcrumb === "stories"
+                          ? UI.breadcrumb.stories
                         : decodeURIComponent(breadcrumb)}
             </span>
           </li>
@@ -92,6 +100,8 @@ if (breadcrumbList[0] === "posts" && !isNaN(Number(breadcrumbList[2]))) {
                         ? UI.breadcrumb.search
                         : breadcrumb === "links"
                           ? UI.breadcrumb.links
+                        : breadcrumb === "stories"
+                          ? UI.breadcrumb.stories
                         : decodeURIComponent(breadcrumb)}
             </a>
             <span aria-hidden="true">&raquo;</span>

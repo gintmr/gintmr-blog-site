@@ -1,5 +1,6 @@
 export const BLOG_PATH = "src/data/blog";
 export const DIARY_PATH = "src/data/diary";
+export const STORY_PATH = "src/data/story";
 
 export const SITE = {
   website: "https://gintmr.20250130.xyz/", // replace this with your deployed domain

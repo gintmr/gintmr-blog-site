@@ -75,4 +75,45 @@ const links = defineCollection({
   }),
 });
 
-export const collections = { blog, diary, links };
+const story = defineCollection({
+  loader: glob({ pattern: "story/**/[^_]*.{md,mdx}", base: "./src/data" }),
+  schema: z.object({
+    author: z.string().default(SITE.author),
+    pubDatetime: z.date(),
+    modDatetime: z.date().optional().nullable(),
+    title: z.string(),
+    description: z.string(),
+    draft: z.boolean().optional(),
+    tags: z.array(z.string()).default(["Story"]),
+    cover: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
+    bgm: z.preprocess(
+      normalizeOptionalString,
+      z.string().optional()
+    ),
+    slides: z
+      .array(
+        z.object({
+          media: z.string().min(1),
+          text: z.preprocess(
+            normalizeOptionalString,
+            z.string().optional()
+          ),
+          caption: z.preprocess(
+            normalizeOptionalString,
+            z.string().optional()
+          ),
+          live: z.boolean().optional(),
+          poster: z.preprocess(
+            normalizeOptionalString,
+            z.string().optional()
+          ),
+        })
+      )
+      .min(1),
+  }),
+});
+
+export const collections = { blog, diary, links, story };

@@ -10,10 +10,25 @@ interface RemarkObsidianEmbedsOptions {
   enableDebug?: boolean;
 }
 
-const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp)$/i;
+const IMAGE_EXT_REGEX = /\.(avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|heic|heif)$/i;
 const VIDEO_EXT_REGEX = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i;
 const AUDIO_EXT_REGEX = /\.(mp3|wav|ogg|m4a|aac|flac)$/i;
 const OBSIDIAN_EMBED_REGEX = /!\[\[([^\]]+)\]\]/g;
+const LIVE_VIDEO_HINTS = new Set([
+  "live",
+  "lp",
+  "livephoto",
+  "live-photo",
+  "autoplay",
+  "auto",
+]);
+const LIVE_VIDEO_HOVER_HINTS = new Set([
+  "hover",
+  "hoverplay",
+  "clickplay",
+  "tapplay",
+]);
+const VIDEO_FORCE_NORMAL_HINTS = new Set(["video", "normal", "manual"]);
 
 function decodeURIComponentSafe(value: string): string {
   try {
@@ -115,6 +130,58 @@ function sanitizeAudioCaption(rawCaption: string, audioUrl: string): string {
   return caption;
 }
 
+type LiveVideoMode = "auto" | "hover";
+
+interface VideoMeta {
+  caption: string;
+  label: string;
+  isLive: boolean;
+  liveMode: LiveVideoMode;
+}
+
+function parseVideoMeta(target: string, descriptors: string[]): VideoMeta {
+  let explicitLive = false;
+  let explicitNormal = false;
+  let liveMode: LiveVideoMode = "auto";
+  const captionParts: string[] = [];
+
+  for (const descriptor of descriptors) {
+    const normalized = descriptor.trim().toLowerCase();
+    if (!normalized) continue;
+
+    if (LIVE_VIDEO_HOVER_HINTS.has(normalized)) {
+      explicitLive = true;
+      liveMode = "hover";
+      continue;
+    }
+
+    if (LIVE_VIDEO_HINTS.has(normalized)) {
+      explicitLive = true;
+      continue;
+    }
+
+    if (VIDEO_FORCE_NORMAL_HINTS.has(normalized)) {
+      explicitNormal = true;
+      continue;
+    }
+
+    captionParts.push(descriptor);
+  }
+
+  const rawCaption = captionParts.join(" ").trim();
+  const caption = sanitizeVideoCaption(rawCaption, target);
+  const fallbackLabel = toBaseNameWithoutExt(target).trim() || "Video";
+  const isMov = /\.mov$/i.test(target);
+  const isLive = explicitNormal ? false : explicitLive || isMov;
+
+  return {
+    caption,
+    label: caption || fallbackLabel,
+    isLive,
+    liveMode: isLive ? liveMode : "auto",
+  };
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -126,19 +193,30 @@ function escapeHtmlAttr(value: string): string {
   return escapeHtml(value).replaceAll('"', "&quot;");
 }
 
-function buildVideoFigureHtml(
-  src: string,
-  caption = "",
-  ariaLabel = "Video"
-): string {
+function buildVideoFigureHtml(src: string, meta: VideoMeta): string {
   const safeSrc = escapeHtmlAttr(src);
-  const safeCaption = caption.trim();
-  const safeAriaLabel = escapeHtmlAttr((ariaLabel || "Video").trim() || "Video");
+  const safeCaption = meta.caption.trim();
+  const safeAriaLabel = escapeHtmlAttr((meta.label || "Video").trim() || "Video");
   const captionHtml = safeCaption
     ? `<figcaption>${escapeHtml(safeCaption)}</figcaption>`
     : "";
+  const figureClass = [
+    "rehype-figure",
+    meta.isLive ? "live-photo-figure" : "",
+    meta.isLive ? `live-photo-figure--${meta.liveMode}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  return `<figure class="rehype-figure"><video controls playsinline preload="metadata" src="${safeSrc}" aria-label="${safeAriaLabel}"></video>${captionHtml}</figure>`;
+  if (meta.isLive) {
+    const autoAttrs =
+      meta.liveMode === "auto"
+        ? " autoplay"
+        : "";
+    return `<figure class="${figureClass}"><video class="live-photo-video" data-live-photo="true" data-live-mode="${meta.liveMode}" muted loop playsinline preload="metadata"${autoAttrs} src="${safeSrc}" aria-label="${safeAriaLabel}"></video>${captionHtml}</figure>`;
+  }
+
+  return `<figure class="${figureClass}"><video controls playsinline preload="metadata" src="${safeSrc}" aria-label="${safeAriaLabel}"></video>${captionHtml}</figure>`;
 }
 
 function buildAudioFigureHtml(
@@ -241,6 +319,8 @@ type ParsedEmbed =
       url: string;
       caption: string;
       label: string;
+      isLive: boolean;
+      liveMode: LiveVideoMode;
     }
   | {
       type: "audio";
@@ -260,13 +340,12 @@ function parseEmbedValue(embedValue: string): ParsedEmbed | null {
   const target = parts[0].split("#")[0]?.trim() || "";
   if (!target) return null;
 
-  const rawDescriptor =
-    parts
-      .slice(1)
-      .find(part => !/^\d+(?:x\d+)?$/i.test(part.replace(/\s+/g, ""))) || "";
+  const descriptors = parts
+    .slice(1)
+    .filter(part => !/^\d+(?:x\d+)?$/i.test(part.replace(/\s+/g, "")));
 
   if (IMAGE_EXT_REGEX.test(target)) {
-    const descriptor = sanitizeImageCaption(rawDescriptor, target);
+    const descriptor = sanitizeImageCaption(descriptors.join(" ").trim(), target);
     return {
       type: "image",
       url: target,
@@ -277,18 +356,19 @@ function parseEmbedValue(embedValue: string): ParsedEmbed | null {
   }
 
   if (VIDEO_EXT_REGEX.test(target)) {
-    const descriptor = sanitizeVideoCaption(rawDescriptor, target);
-    const fallbackLabel = toBaseNameWithoutExt(target).trim() || "Video";
+    const videoMeta = parseVideoMeta(target, descriptors);
     return {
       type: "video",
       url: target,
-      caption: descriptor,
-      label: descriptor || fallbackLabel,
+      caption: videoMeta.caption,
+      label: videoMeta.label,
+      isLive: videoMeta.isLive,
+      liveMode: videoMeta.liveMode,
     };
   }
 
   if (AUDIO_EXT_REGEX.test(target) || isAudioFile(target)) {
-    const descriptor = sanitizeAudioCaption(rawDescriptor, target);
+    const descriptor = sanitizeAudioCaption(descriptors.join(" ").trim(), target);
     const fallbackLabel = toBaseNameWithoutExt(target).trim() || "Audio";
     return {
       type: "audio",
@@ -321,15 +401,16 @@ export const remarkObsidianEmbeds: Plugin<
           originalUrl,
           currentFilePath
         );
-        const caption = sanitizeVideoCaption(
-          node.title || node.alt || "",
-          resolvedVideoUrl
-        );
-        const label = caption || node.alt || toBaseNameWithoutExt(originalUrl);
+        const sourceDescriptor = node.title || node.alt || "";
+        const descriptorParts = sourceDescriptor
+          .split("|")
+          .map(item => item.trim())
+          .filter(Boolean);
+        const videoMeta = parseVideoMeta(resolvedVideoUrl, descriptorParts);
 
         const videoNode: Html = {
           type: "html",
-          value: buildVideoFigureHtml(resolvedVideoUrl, caption, label),
+          value: buildVideoFigureHtml(resolvedVideoUrl, videoMeta),
         };
 
         parent.children[index] = videoNode;
@@ -457,11 +538,12 @@ export const remarkObsidianEmbeds: Plugin<
 
               const videoNode: Html = {
                 type: "html",
-                value: buildVideoFigureHtml(
-                  resolvedVideoUrl,
-                  parsed.caption,
-                  parsed.label
-                ),
+                value: buildVideoFigureHtml(resolvedVideoUrl, {
+                  caption: parsed.caption,
+                  label: parsed.label,
+                  isLive: parsed.isLive,
+                  liveMode: parsed.liveMode,
+                }),
               };
               transformedChildren.push(videoNode);
             } else {
