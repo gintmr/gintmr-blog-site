@@ -9,7 +9,19 @@ function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, "");
 }
 
-export function getStoryFolderRelative(
+function removeMarkdownExtension(value: string): string {
+  return value.replace(/\.(md|mdx)$/i, "");
+}
+
+function toStorySegment(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const slugged = slugifyStr(trimmed);
+  if (slugged) return slugged;
+  return trimmed;
+}
+
+export function getStorySourceRelative(
   id: string,
   filePath: string | undefined
 ): string {
@@ -19,17 +31,19 @@ export function getStoryFolderRelative(
     const markerIndex = normalized.indexOf(marker);
     if (markerIndex >= 0) {
       const afterStoryPath = normalized.slice(markerIndex + marker.length);
-      return trimSlashes(
-        afterStoryPath.replace(/\/content\.(md|mdx)$/i, "")
-      );
+      return trimSlashes(removeMarkdownExtension(afterStoryPath));
     }
   }
 
-  return trimSlashes(
-    id
-      .replace(/^story\//i, "")
-      .replace(/\/content$/i, "")
-  );
+  const normalizedId = normalizeSlashes(id).replace(/^story\//i, "");
+  return trimSlashes(removeMarkdownExtension(normalizedId));
+}
+
+export function getStoryFolderRelative(
+  id: string,
+  filePath: string | undefined
+): string {
+  return getStorySourceRelative(id, filePath);
 }
 
 export function getStoryTitle(
@@ -37,30 +51,37 @@ export function getStoryTitle(
   id: string,
   filePath: string | undefined
 ): string {
-  const trimmed = title?.trim();
-  if (trimmed) return trimmed;
+  const trimmedTitle = title?.trim();
+  if (trimmedTitle) return trimmedTitle;
 
-  const folder = getStoryFolderRelative(id, filePath);
-  const name = folder.split("/").filter(Boolean).slice(-1)[0];
-  return decodeURIComponent(name || id);
+  const relativePath = getStorySourceRelative(id, filePath);
+  const segments = relativePath.split("/").filter(Boolean);
+  let lastSegment = segments[segments.length - 1] || id;
+
+  if (lastSegment.toLowerCase() === "content" && segments.length > 1) {
+    lastSegment = segments[segments.length - 2] || lastSegment;
+  }
+
+  return decodeURIComponent(lastSegment);
 }
 
 export function getStoryPath(
   id: string,
   filePath: string | undefined,
   includeBase = true
-) {
-  const folder = getStoryFolderRelative(id, filePath);
-  const pathSegments = folder
+): string {
+  const relativePath = getStorySourceRelative(id, filePath);
+  const pathSegments = relativePath
     .split("/")
-    .filter(path => path !== "")
-    .filter(path => !path.startsWith("_"))
-    .map(segment => slugifyStr(segment));
+    .filter(Boolean)
+    .filter(segment => !segment.startsWith("_"))
+    .map(toStorySegment)
+    .filter(Boolean);
 
   const basePath = includeBase ? "/story" : "";
-
-  if (!pathSegments || pathSegments.length < 1) {
-    return [basePath, slugifyStr(id.replace(/\/content$/i, ""))].join("/");
+  if (pathSegments.length === 0) {
+    const fallbackSegment = toStorySegment(id.replace(/^story\//i, ""));
+    return [basePath, fallbackSegment || "story-item"].join("/");
   }
 
   return [basePath, ...pathSegments].join("/");

@@ -76,7 +76,7 @@ const links = defineCollection({
 });
 
 const story = defineCollection({
-  loader: glob({ pattern: "**/content.{md,mdx}", base: `./${STORY_PATH}` }),
+  loader: glob({ pattern: "**/[^_]*.{md,mdx}", base: `./${STORY_PATH}` }),
   schema: z.object({
     author: z.string().default(SITE.author),
     pubDatetime: z.date().default(() => new Date()),
@@ -91,35 +91,6 @@ const story = defineCollection({
     ),
     draft: z.boolean().optional(),
     tags: z.array(z.string()).default(["Story"]),
-    cover: z.preprocess(
-      normalizeOptionalString,
-      z.string().optional()
-    ),
-    bgm: z.preprocess(
-      normalizeOptionalString,
-      z.string().optional()
-    ),
-    slides: z
-      .array(
-        z.object({
-          media: z.string().min(1),
-          text: z.preprocess(
-            normalizeOptionalString,
-            z.string().optional()
-          ),
-          caption: z.preprocess(
-            normalizeOptionalString,
-            z.string().optional()
-          ),
-          live: z.boolean().optional(),
-          poster: z.preprocess(
-            normalizeOptionalString,
-            z.string().optional()
-          ),
-        })
-      )
-      .min(1)
-      .optional(),
   }),
 });
 

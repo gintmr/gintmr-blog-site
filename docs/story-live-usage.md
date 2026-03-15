@@ -1,82 +1,56 @@
-# Story + Live Photo Usage
+# Story Usage (Video Backup Mode)
 
-This project now supports:
+Story now uses a simple 1:1 file pair format:
 
-1. `blog` / `diary` live photo autoplay loop.
-2. `story` (swipe-first image-text mode).
-3. Live photo hover/click play in story mode.
+- `story/<same-name>.md`
+- `story/<same-name>.mov` or `story/<same-name>.mp4`
 
-## 1) Blog / Diary Live Photo
+Example:
 
-### Auto-loop live photo (recommended for iPhone Live export `.mov`)
+- `story/老广的吃商我认可了.md`
+- `story/老广的吃商我认可了.mov`
 
-```md
-![[attachment/inbox/IMG_3818.mov|迪拜机场转机]]
-```
-
-Behavior:
-
-- Autoplay + muted + loop.
-- Keeps original aspect ratio.
-- No manual hover/click required.
-
-### Force as normal video (disable live mode)
-
-```md
-![[attachment/inbox/clip.mov|video|普通视频说明]]
-```
-
-Behavior:
-
-- Renders with `controls`.
-- No autoplay loop.
-
-### Force live hover-play
-
-```md
-![[attachment/inbox/IMG_3818.mov|hover|把鼠标放上去才播放]]
-```
-
-Behavior:
-
-- Hover/click to play.
-- Leave/click again to stop and reset.
-
-## 2) Story Content (folder style, recommended)
-
-Create folders in content repo:
-
-`story/dubai-trip/content.md`
-`story/dubai-trip/imgs/*`
+## 1) Markdown format
 
 ```md
 ---
-title: Dubai Weekend
-description: Swipe-up visual story demo
-pubDatetime: 2026-03-10T21:00:00+08:00
+title: 老广的吃商我认可了
+description: 202603广州 backup
+author: Gintmr
+pubDatetime: 2026-03-13T00:00:00+08:00
 draft: false
 tags:
   - Story
-bgm: attachment/inbox/Music/火星人来过-薛之谦.mp3
-# 可选：指定封面（支持 imgs/xxx 相对路径）
-cover: imgs/IMG_0001.HEIC
 ---
-
-正文写在这里。播放器会自动读取当前目录下 `imgs/` 中的媒体文件，
-并按文件名顺序展示（例如 IMG_4169 在 IMG_4171 之前）。
+淡淡的，顺顺的～
 ```
 
-Then access:
+Notes:
 
-- list: `/story`
-- detail: `/story/dubai-trip`
+- `title` optional, but recommended.
+- `pubDatetime` controls ordering (newer first).
+- Body supports normal markdown and is rendered in the right panel of detail page.
 
-## 3) File Path Rules
+## 2) Rendering behavior
 
-Prefer vault-root relative paths:
+- `/story`:
+  - Masonry-style video wall.
+  - Each card shows video preview, date, title.
+- `/story/<slug>`:
+  - Left: main video stage.
+  - Right: title/date/description/body in scrollable panel.
+  - Click video to play and request fullscreen stage.
 
-- `attachment/inbox/xxx.jpg`
-- `attachment/inbox/xxx.mov`
-- `attachment/inbox/Music/xxx.mp3`
+## 3) Filename matching rule
 
-System resolves to site assets automatically.
+Story video is matched by stem:
+
+- `story/abc.md` -> tries `story/abc.mov` / `story/abc.mp4` (and other supported video extensions).
+- Chinese filenames are supported.
+
+## 4) Recommended publishing constraints
+
+- GitHub rejects a **single file > 100MB**.
+- If your source video is too large:
+  - convert/compress to smaller mp4, or
+  - use Git LFS.
