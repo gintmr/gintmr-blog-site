@@ -30,3 +30,77 @@ const { page } = Astro.props;
   <Pagination {page} />
   <Footer noMarginTop={page.lastPage > 1} />
 </Layout>
+
+<script is:inline>
+  (() => {
+    let observer = null;
+
+    const loadVideoMeta = video => {
+      if (!(video instanceof HTMLVideoElement)) return;
+      if (video.dataset.storyMetaLoaded === "true") return;
+
+      video.dataset.storyMetaLoaded = "true";
+      video.preload = "metadata";
+      if (video.readyState < 1) {
+        try {
+          video.load();
+        } catch {
+          // ignore
+        }
+      }
+      if (observer) observer.unobserve(video);
+    };
+
+    const initStoryWallVideoLazyLoad = () => {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+
+      const videos = Array.from(
+        document.querySelectorAll("video[data-story-card-video]")
+      ).filter(node => node instanceof HTMLVideoElement);
+      if (videos.length === 0) return;
+
+      const eagerCount = window.matchMedia("(max-width: 640px)").matches ? 2 : 4;
+      videos.slice(0, eagerCount).forEach(loadVideoMeta);
+
+      if (!("IntersectionObserver" in window)) {
+        videos.slice(eagerCount).forEach(loadVideoMeta);
+        return;
+      }
+
+      observer = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            loadVideoMeta(entry.target);
+          });
+        },
+        {
+          root: null,
+          rootMargin: "260px 0px",
+          threshold: 0.01,
+        }
+      );
+
+      videos.slice(eagerCount).forEach(video => observer.observe(video));
+    };
+
+    document.addEventListener("astro:page-load", initStoryWallVideoLazyLoad);
+    document.addEventListener("astro:before-preparation", () => {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+    });
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initStoryWallVideoLazyLoad, {
+        once: true,
+      });
+    } else {
+      initStoryWallVideoLazyLoad();
+    }
+  })();
+</script>

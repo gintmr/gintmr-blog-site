@@ -33,9 +33,10 @@ const dateLabel = dayjs(pubDatetime)
         storyVideoSrc ? (
           <video
             src={`${storyVideoSrc}#t=0.1`}
-            preload="metadata"
+            preload="none"
             muted
             playsinline
+            data-story-card-video
             class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (

@@ -81,6 +81,15 @@ const structuredData = {
     },
   ],
 };
+
+const currentPath = Astro.url.pathname;
+const isHeavyMediaRoute =
+  currentPath === "/" ||
+  currentPath.startsWith("/story") ||
+  currentPath.startsWith("/posts/") ||
+  currentPath.startsWith("/diary");
+const enableClientRouter = !isHeavyMediaRoute;
+const enablePageTransition = UI_EFFECTS.pageTransition && enableClientRouter;
 ---
 
 <!doctype html>
@@ -90,7 +99,7 @@ const structuredData = {
   class={`${scrollSmooth && "scroll-smooth"}`}
   data-force-dark={UI_THEME.forceDarkMode ? "true" : "false"}
   data-theme={UI_THEME.forceDarkMode ? "dark" : undefined}
-  data-effect-page-transition={UI_EFFECTS.pageTransition ? "on" : "off"}
+  data-effect-page-transition={enablePageTransition ? "on" : "off"}
 >
   <head>
     <meta charset="UTF-8" />
@@ -188,7 +197,7 @@ const structuredData = {
       )
     }
 
-    <ClientRouter />
+    {enableClientRouter && <ClientRouter />}
 
     <script is:inline src="/app-controls.js"></script>
     <script is:inline src="/site-effects.js"></script>

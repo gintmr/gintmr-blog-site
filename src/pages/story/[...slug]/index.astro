@@ -142,32 +142,3 @@ const nextStory =
 
   <Footer />
 </Layout>
-
-<script is:inline>
-  (() => {
-    const video = document.querySelector("[data-story-main-video]");
-    const stage = document.querySelector("[data-story-video-stage]");
-    if (!(video instanceof HTMLVideoElement) || !(stage instanceof HTMLElement)) return;
-
-    const playAndExpand = async () => {
-      if (video.paused) {
-        try {
-          await video.play();
-        } catch {
-          // ignore autoplay blocks
-        }
-      }
-
-      if (document.fullscreenElement || !stage.requestFullscreen) return;
-      try {
-        await stage.requestFullscreen();
-      } catch {
-        // ignore fullscreen denial
-      }
-    };
-
-    video.addEventListener("click", () => {
-      void playAndExpand();
-    });
-  })();
-</script>

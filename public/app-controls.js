@@ -533,6 +533,11 @@
     });
   }
 
+  const appState = {
+    observerActive: false,
+    afterSwapThemeBound: false,
+  };
+
   // 监听动态添加的视频元素
   const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
@@ -569,39 +574,49 @@
     });
   });
 
-  // 确保document.body存在后再开始观察
-  function initVideoObserver() {
-    if (document.body) {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
-    } else {
-      // 如果body还没有加载，等待DOMContentLoaded事件
-      document.addEventListener("DOMContentLoaded", () => {
-        if (document.body) {
-          observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-          });
-        }
-      });
-    }
+  function stopVideoObserver() {
+    if (!appState.observerActive) return;
+    observer.disconnect();
+    appState.observerActive = false;
   }
 
-  // ===== 初始化所有功能 =====
+  // 确保 document.body 存在后再开始观察（并避免重复 observe）
+  function initVideoObserver() {
+    if (appState.observerActive) return;
+    if (!document.body) return;
 
-  // 监听Astro页面导航事件，重新初始化所有控制器
-  document.addEventListener("astro:page-load", () => {
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+    appState.observerActive = true;
+  }
+
+  function initAppControls() {
     initVideoControls();
     initLivePhotoVideos();
     initAudioCards();
     initVideoObserver();
     initThemeControls();
 
-    // Runs on view transitions navigation
-    document.addEventListener("astro:after-swap", initThemeControls);
-  });
+    if (!appState.afterSwapThemeBound) {
+      document.addEventListener("astro:after-swap", initThemeControls);
+      appState.afterSwapThemeBound = true;
+    }
+  }
+
+  // ===== 初始化所有功能 =====
+
+  // 监听 Astro 页面导航事件，重新初始化所有控制器
+  document.addEventListener("astro:page-load", initAppControls);
+  document.addEventListener("post:decrypted", initAppControls);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAppControls, {
+      once: true,
+    });
+  } else {
+    initAppControls();
+  }
 
   // 离开前记录当前页面
   const readStack = () => {
@@ -620,11 +635,18 @@
 
   // ------- 离开前记录 -------
   document.addEventListener("astro:before-preparation", () => {
+    // 避免在 Astro 进行 DOM swap 时，MutationObserver 扫描整页增删导致主线程卡顿
+    stopVideoObserver();
+
     const stack = readStack();
     const cur = currentBase();
     if (stack[stack.length - 1] !== cur) {
       stack.push(cur); // 去重：仅当与栈顶不同才写
       writeStack(stack);
     }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    stopVideoObserver();
   });
 })();
