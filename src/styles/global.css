@@ -1336,13 +1336,7 @@ video {
 }
 
 /* Story wall + detail */
-.story-wall {
-  column-fill: balance;
-}
-
 .story-wall__item {
-  break-inside: avoid;
-  margin: 0 0 1rem;
   list-style: none;
 }
 

@@ -23,7 +23,7 @@ const { page } = Astro.props;
   <main id="main-content" class="mx-auto mt-4 w-full max-w-[88rem] px-4 pb-6">
     <h1 class="text-3xl font-semibold">{UI.pages.storiesTitle}</h1>
     <p class="mt-2 mb-6 text-sm italic text-foreground/72">{UI.pages.storiesDesc}</p>
-    <ul class="story-wall columns-2 gap-4 md:columns-3 xl:columns-4">
+    <ul class="story-wall grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {page.data.map(data => <StoryCard {...data} />)}
     </ul>
   </main>
