@@ -97,6 +97,7 @@ export default defineConfig({
     },
   },
   vite: {
+    assetsInclude: ["**/*.lrc"],
     resolve: {
       alias: {
         react: "preact/compat",

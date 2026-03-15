@@ -354,6 +354,77 @@
     return lines;
   }
 
+  function decodeDataUriText(dataUri) {
+    const match = String(dataUri || "").match(/^data:([^,]*?),(.*)$/);
+    if (!match) return null;
+
+    const meta = match[1] || "";
+    const payload = match[2] || "";
+    const isBase64 = /;base64/i.test(meta);
+
+    if (isBase64) {
+      const binary = atob(payload);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      const charsetMatch = meta.match(/charset=([^;]+)/i);
+      const charset = charsetMatch ? charsetMatch[1].trim() : "utf-8";
+      try {
+        return new TextDecoder(charset).decode(bytes);
+      } catch {
+        return new TextDecoder("utf-8").decode(bytes);
+      }
+    }
+
+    return decodeURIComponent(payload);
+  }
+
+  function loadLrcText(lrcSrc) {
+    const source = String(lrcSrc || "").trim();
+    if (!source) {
+      return Promise.reject(new Error("empty lrc source"));
+    }
+
+    if (source.startsWith("data:")) {
+      const decoded = decodeDataUriText(source);
+      if (decoded == null) {
+        return Promise.reject(new Error("invalid data uri"));
+      }
+      return Promise.resolve(decoded);
+    }
+
+    return fetch(source).then(response => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch LRC: ${response.status}`);
+      }
+      return response.text();
+    });
+  }
+
+  function bindDecodeRetry(el, attr) {
+    if (!el || el.dataset.decodeRetryBound === "true") return;
+    el.dataset.decodeRetryBound = "true";
+
+    el.addEventListener("error", () => {
+      const src = el.getAttribute(attr) || "";
+      if (!src || !src.includes("%") || el.dataset.decodeRetried === "true") {
+        return;
+      }
+
+      try {
+        const decoded = decodeURIComponent(src);
+        if (decoded && decoded !== src) {
+          el.dataset.decodeRetried = "true";
+          el.setAttribute(attr, decoded);
+        }
+      } catch {
+        // Keep original source on decode failure.
+      }
+    });
+  }
+
   function findActiveLyricIndex(lyrics, currentTime) {
     if (!Array.isArray(lyrics) || lyrics.length === 0) return -1;
 
@@ -371,8 +442,12 @@
     }
 
     const audio = card.querySelector("audio[data-audio-source]");
+    const coverImg = card.querySelector(".audio-card__cover");
     const lyricsContainer = card.querySelector("[data-audio-lyrics]");
     const lrcSrc = card.dataset.lrcSrc || "";
+
+    bindDecodeRetry(audio, "src");
+    bindDecodeRetry(coverImg, "src");
 
     if (!audio || !lyricsContainer || !lrcSrc) {
       if (lyricsContainer) {
@@ -382,13 +457,7 @@
       return;
     }
 
-    fetch(lrcSrc)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch LRC: ${response.status}`);
-        }
-        return response.text();
-      })
+    loadLrcText(lrcSrc)
       .then(rawLrc => {
         const parsedLyrics = parseLrc(rawLrc);
         if (parsedLyrics.length === 0) {

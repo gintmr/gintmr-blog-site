@@ -42,6 +42,12 @@ function normalizeSlashes(value: string): string {
   return value.replace(/\\/g, "/");
 }
 
+function normalizeComparablePath(value: string): string {
+  return normalizeSlashes(decodeURIComponentSafe(value))
+    .normalize("NFC")
+    .toLowerCase();
+}
+
 function normalizeInputPath(rawPath: string): string {
   return normalizeSlashes(decodeURIComponentSafe(rawPath))
     .replace(/^['"]|['"]$/g, "")
@@ -66,12 +72,12 @@ function extractAttachmentRelativePath(normalizedPath: string): string {
 function buildAssetIndex(assets: Record<string, string>): AssetIndexEntry[] {
   return Object.entries(assets).map(([key, url]) => {
     const normalizedKey = normalizeSlashes(key);
-    const relativePath = normalizedKey.includes("attachment/")
+    const relativePathRaw = normalizedKey.includes("attachment/")
       ? normalizedKey.split("attachment/")[1] || normalizedKey
       : normalizedKey;
     return {
-      relativePath: relativePath.toLowerCase(),
-      baseName: relativePath.split("/").pop()?.toLowerCase() || "",
+      relativePath: normalizeComparablePath(relativePathRaw),
+      baseName: normalizeComparablePath(relativePathRaw.split("/").pop() || ""),
       url,
     };
   });
@@ -81,8 +87,10 @@ function findAssetUrl(
   normalizedInputPath: string,
   index: AssetIndexEntry[]
 ): string | undefined {
-  const relativePath = extractAttachmentRelativePath(normalizedInputPath).toLowerCase();
-  const baseName = relativePath.split("/").pop() || "";
+  const relativePath = normalizeComparablePath(
+    extractAttachmentRelativePath(normalizedInputPath)
+  );
+  const baseName = normalizeComparablePath(relativePath.split("/").pop() || "");
 
   if (!relativePath) return undefined;
 

@@ -1169,9 +1169,12 @@ video {
   width: 100%;
   aspect-ratio: 1 / 1;
   margin: 0;
+  padding: 0;
   border-radius: 0.68rem;
   overflow: hidden;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  line-height: 0;
+  font-size: 0;
+  background: transparent;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
@@ -1183,6 +1186,7 @@ video {
   display: grid;
   place-items: center;
   min-height: 100%;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .audio-card__cover-fallback {
