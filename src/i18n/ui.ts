@@ -13,7 +13,7 @@ const EN = {
     archives: "Archives",
   },
   breadcrumb: {
-    home: "Life-Log",
+    home: "Life Log",
     blog: "Blog",
     diary: "Diary",
     stories: "Story",
@@ -39,7 +39,7 @@ const EN = {
     taggedPosts: (tag: string) => `Posts tagged "${tag}"`,
     searchTitle: "Search",
     searchDesc: "Search what you're looking for...",
-    timelineTitle: "Life-Log",
+    timelineTitle: "Life Log",
     linksTitle: "Links",
     linksDesc: "Friends and creators I recommend.",
     storiesTitle: "Story",
@@ -48,7 +48,7 @@ const EN = {
     linksVisit: "Visit site",
     archivesTitle: "Archives",
     notFound: "Page not found",
-    goHome: 'Back to "Life-Log"',
+    goHome: 'Back to "Life Log"',
   },
   post: {
     previous: "Previous",

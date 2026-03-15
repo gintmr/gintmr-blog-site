@@ -85,17 +85,17 @@ const nextStory =
       </div>
 
       <aside class="story-memory-panel">
-        <h1 class="text-accent text-3xl font-bold">{storyTitle}</h1>
+        <h1 class="text-accent text-2xl font-bold md:text-[2rem]">{storyTitle}</h1>
         <div class="my-3">
-          <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} size="lg" />
+          <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} />
         </div>
         {
           storyDescription && (
-            <p class="mb-4 text-sm leading-relaxed text-foreground/78">{storyDescription}</p>
+            <p class="mb-3 text-xs leading-relaxed text-foreground/74">{storyDescription}</p>
           )
         }
 
-        <article class="story-memory-prose app-prose">
+        <article class="story-memory-prose app-prose text-sm">
           <Content />
         </article>
       </aside>

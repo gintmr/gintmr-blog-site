@@ -7,6 +7,7 @@ import Footer from "@/components/Footer.astro";
 import Datetime from "@/components/Datetime.astro";
 import { getPath } from "@/utils/getPath";
 import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
+import { optimizeImage } from "@/utils/optimizeImages";
 import { SITE } from "@/config";
 import { MONTHS, UI } from "@/i18n/ui";
 
@@ -24,29 +25,54 @@ interface ArchiveItem {
   modDatetime?: Date | null;
   timezone?: string;
   url: string;
+  imageSrc?: string;
 }
 
 const blogPosts = await getCollection("blog", ({ data }) => !data.draft);
 const storyPosts = await getCollection("story", ({ data }) => !data.draft);
 
+const blogItems: ArchiveItem[] = await Promise.all(
+  blogPosts.map(async post => {
+    let imageSrc: string | undefined;
+    if (typeof post.data.ogImage === "string" && post.data.ogImage.trim()) {
+      const optimized = await optimizeImage(post.data.ogImage, {
+        thumbnailSize: 300,
+      });
+      imageSrc = optimized.thumbnail;
+    } else if (
+      post.data.ogImage &&
+      typeof post.data.ogImage === "object" &&
+      "src" in post.data.ogImage &&
+      typeof post.data.ogImage.src === "string"
+    ) {
+      imageSrc = post.data.ogImage.src;
+    }
+
+    return {
+      kind: "blog" as const,
+      title: post.data.title,
+      description: post.data.description,
+      pubDatetime: post.data.pubDatetime,
+      modDatetime: post.data.modDatetime,
+      timezone: post.data.timezone,
+      url: getPath(post.id, post.filePath),
+      imageSrc,
+    };
+  })
+);
+
+const storyItems: ArchiveItem[] = storyPosts.map(story => ({
+  kind: "story" as const,
+  title: getStoryTitle(story.data.title, story.id, story.filePath),
+  description: story.data.description ?? "",
+  pubDatetime: story.data.pubDatetime,
+  modDatetime: story.data.modDatetime,
+  url: getStoryPath(story.id, story.filePath),
+}));
+
 const archiveItems: ArchiveItem[] = [
-  ...blogPosts.map(post => ({
-    kind: "blog" as const,
-    title: post.data.title,
-    description: post.data.description,
-    pubDatetime: post.data.pubDatetime,
-    modDatetime: post.data.modDatetime,
-    timezone: post.data.timezone,
-    url: getPath(post.id, post.filePath),
-  })),
-  ...storyPosts.map(story => ({
-    kind: "story" as const,
-    title: getStoryTitle(story.data.title, story.id, story.filePath),
-    description: story.data.description ?? "",
-    pubDatetime: story.data.pubDatetime,
-    modDatetime: story.data.modDatetime,
-    url: getStoryPath(story.id, story.filePath),
-  })),
+  ...blogItems,
+  ...storyItems,
 ].sort(
   (a, b) =>
     Math.floor(new Date(b.pubDatetime).getTime() / 1000) -
@@ -95,32 +121,59 @@ const sourceLabel = {
                     <ul>
                       {items.map(item => (
                         <li class="my-6">
-                          <div class="flex items-center gap-2">
-                            <a
-                              href={item.url}
-                              class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
-                            >
-                              <h2 class="text-lg font-medium decoration-dashed hover:underline">
-                                {item.title}
-                              </h2>
-                            </a>
-                            <span
+                          <div class="flex flex-col gap-3 md:flex-row md:gap-4">
+                            {
+                              item.kind === "blog" && item.imageSrc && (
+                                <div class="h-44 w-full overflow-hidden rounded-lg md:mb-0 md:h-[100px] md:w-[100px] md:flex-shrink-0">
+                                  <img
+                                    src={item.imageSrc}
+                                    alt={item.title}
+                                    width={720}
+                                    height={480}
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                  />
+                                </div>
+                              )
+                            }
+
+                            <div
                               class:list={[
-                                "rounded-full border px-2 py-0.5 text-[11px] leading-none",
-                                item.kind === "blog"
-                                  ? "border-accent/45 text-accent"
-                                  : "border-foreground/30 text-foreground/80",
+                                "w-full",
+                                item.kind === "blog" && item.imageSrc
+                                  ? "md:w-[calc(100% - 100px)]"
+                                  : "",
                               ]}
                             >
-                              {sourceLabel[item.kind]}
-                            </span>
+                              <div class="flex items-center gap-2">
+                                <a
+                                  href={item.url}
+                                  class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
+                                >
+                                  <h2 class="text-lg font-medium decoration-dashed hover:underline">
+                                    {item.title}
+                                  </h2>
+                                </a>
+                                <span
+                                  class:list={[
+                                    "rounded-full border px-2 py-0.5 text-[11px] leading-none",
+                                    item.kind === "blog"
+                                      ? "border-accent/45 text-accent"
+                                      : "border-foreground/30 text-foreground/80",
+                                  ]}
+                                >
+                                  {sourceLabel[item.kind]}
+                                </span>
+                              </div>
+                              <Datetime
+                                pubDatetime={item.pubDatetime}
+                                modDatetime={item.modDatetime}
+                                timezone={item.timezone}
+                              />
+                              {item.description && <p>{item.description}</p>}
+                            </div>
                           </div>
-                          <Datetime
-                            pubDatetime={item.pubDatetime}
-                            modDatetime={item.modDatetime}
-                            timezone={item.timezone}
-                          />
-                          {item.description && <p>{item.description}</p>}
                         </li>
                       ))}
                     </ul>

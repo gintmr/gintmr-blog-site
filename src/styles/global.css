@@ -1373,7 +1373,7 @@ video {
 .story-memory-detail {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: minmax(0, 1fr) minmax(19rem, 25rem);
+  grid-template-columns: minmax(0, 1.85fr) minmax(17rem, 1fr);
   align-items: start;
 }
 
@@ -1391,7 +1391,8 @@ video {
 
 .story-memory-video {
   display: block;
-  width: min(100%, 34rem);
+  width: 100%;
+  max-width: 46rem;
   max-height: min(78vh, 54rem);
   height: auto;
   object-fit: contain;
@@ -1413,16 +1414,19 @@ video {
   border-radius: 1rem;
   border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
   background: color-mix(in srgb, var(--background) 84%, transparent);
-  padding: 1rem;
+  padding: 0.9rem;
   max-height: min(78vh, 54rem);
   overflow: hidden;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
+  font-size: 0.94rem;
 }
 
 .story-memory-prose {
   overflow-y: auto;
-  padding-right: 0.2rem;
+  padding-right: 0.25rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
 }
 
 @media (max-width: 1024px) {
