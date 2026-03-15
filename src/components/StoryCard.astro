@@ -13,14 +13,14 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const { data, id, filePath } = Astro.props;
-const { title, description, pubDatetime, modDatetime } = data;
+const { title, description, pubDatetime } = data;
 
 const storyTitle = getStoryTitle(title, id, filePath);
 const storyPath = getStoryPath(id, filePath);
 const storyVideoSrc = resolveStoryVideoUrlByEntry(id, filePath);
-const dateLabel = dayjs(modDatetime ?? pubDatetime)
+const dateLabel = dayjs(pubDatetime)
   .tz(SITE.timezone)
-  .format("MM-DD");
+  .format("YYYY-MM-DD");
 ---
 
 <li class="story-wall__item">
