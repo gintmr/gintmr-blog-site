@@ -10,7 +10,7 @@ import { UI } from "@/i18n/ui";
     <div class="mx-auto flex w-full max-w-app items-center justify-start px-2">
       <LinkButton
         id="back-button"
-        href="javascript:void(0)"
+        href="/"
         class="focus-outline mt-8 mb-2 flex hover:text-foreground/75"
       >
         <IconChevronLeft class="inline-block size-6 rtl:rotate-180" />
@@ -21,9 +21,11 @@ import { UI } from "@/i18n/ui";
 }
 
 <script>
-  document.addEventListener("astro:page-load", function () {
+  const initBackButton = () => {
     const backButton = document.getElementById("back-button");
     if (!backButton) return;
+    if (backButton.dataset.backBound === "true") return;
+    backButton.dataset.backBound = "true";
 
     const readStack = () => {
       try {
@@ -39,6 +41,25 @@ import { UI } from "@/i18n/ui";
     };
 
     const currentBase = () => location.pathname + location.search;
+    const normalizeSameOriginReferrer = () => {
+      try {
+        const ref = document.referrer;
+        if (!ref) return "";
+        const refUrl = new URL(ref);
+        if (refUrl.origin !== location.origin) return "";
+        return `${refUrl.pathname}${refUrl.search}`;
+      } catch {
+        return "";
+      }
+    };
+
+    const goWithFallback = target => {
+      if (target && target !== currentBase()) {
+        location.assign(target);
+        return true;
+      }
+      return false;
+    };
 
     // 监听返回按钮点击事件
     backButton.addEventListener("click", function (e) {
@@ -61,11 +82,33 @@ import { UI } from "@/i18n/ui";
         const newStack = stack.slice(0, targetIndex + 1);
         writeStack(newStack);
 
-        location.assign(target);
-      } else {
-        // 兜底：没有历史 → 首页
-        location.assign("/");
+        if (goWithFallback(target)) return;
       }
+
+      const referrerTarget = normalizeSameOriginReferrer();
+      if (goWithFallback(referrerTarget)) return;
+
+      // 再兜底用浏览器 history（某些直达场景 history 可能不可用）
+      if (window.history.length > 1) {
+        const before = currentBase();
+        window.history.back();
+        window.setTimeout(() => {
+          if (currentBase() === before) {
+            location.assign("/");
+          }
+        }, 350);
+        return;
+      }
+
+      // 最终兜底：回首页
+      location.assign("/");
     });
-  });
+  };
+
+  document.addEventListener("astro:page-load", initBackButton);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initBackButton, { once: true });
+  } else {
+    initBackButton();
+  }
 </script>

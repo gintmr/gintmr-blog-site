@@ -632,21 +632,29 @@
     sessionStorage.setItem("lastPages", JSON.stringify(pruned));
   };
   const currentBase = () => location.pathname + location.search;
-
-  // ------- 离开前记录 -------
-  document.addEventListener("astro:before-preparation", () => {
-    // 避免在 Astro 进行 DOM swap 时，MutationObserver 扫描整页增删导致主线程卡顿
-    stopVideoObserver();
-
+  const pushCurrentPageToStack = () => {
     const stack = readStack();
     const cur = currentBase();
     if (stack[stack.length - 1] !== cur) {
       stack.push(cur); // 去重：仅当与栈顶不同才写
       writeStack(stack);
     }
+  };
+
+  // ------- 离开前记录 -------
+  document.addEventListener("astro:before-preparation", () => {
+    // 避免在 Astro 进行 DOM swap 时，MutationObserver 扫描整页增删导致主线程卡顿
+    stopVideoObserver();
+    pushCurrentPageToStack();
+  });
+
+  // 对非 ClientRouter 的整页跳转，同样记录历史栈
+  window.addEventListener("pagehide", pushCurrentPageToStack, {
+    capture: true,
   });
 
   window.addEventListener("beforeunload", () => {
+    pushCurrentPageToStack();
     stopVideoObserver();
   });
 })();
