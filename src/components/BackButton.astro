@@ -53,7 +53,7 @@ import { UI } from "@/i18n/ui";
       }
     };
 
-    const goWithFallback = target => {
+    const goWithFallback = (target: string) => {
       if (target && target !== currentBase()) {
         location.assign(target);
         return true;
