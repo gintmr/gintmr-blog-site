@@ -1,7 +1,7 @@
 import React from "react";
 import {
   generateUserHash,
-  getPageViewCount,
+  getPageVisitStats,
   trackPageView,
 } from "@/db/supabase";
 import { UI_LOCALE } from "@/i18n/ui";
@@ -13,8 +13,20 @@ interface PageViewCounterProps {
 
 const UI_TEXT =
   UI_LOCALE === "zh-CN"
-    ? { label: "浏览", loading: "统计中", unavailable: "--" }
-    : { label: "Views", loading: "Loading", unavailable: "--" };
+    ? {
+        viewsLabel: "浏览",
+        visitorsLabel: "访客",
+        averageLabel: "人均",
+        loading: "统计中",
+        unavailable: "--",
+      }
+    : {
+        viewsLabel: "Views",
+        visitorsLabel: "Visitors",
+        averageLabel: "Avg",
+        loading: "Loading",
+        unavailable: "--",
+      };
 
 function normalizePath(path: string): string {
   if (!path) return "/";
@@ -51,7 +63,10 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
   fallbackPath = "/",
   dedupeMinutes = 30,
 }) => {
-  const [count, setCount] = React.useState<number | null>(null);
+  const [stats, setStats] = React.useState<{
+    viewCount: number;
+    visitorCount: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentPath, setCurrentPath] = React.useState(normalizePath(fallbackPath));
 
@@ -66,16 +81,20 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
 
     const userHash = generateUserHash("astro-obsidian-blog:pageview");
 
-    let nextCount: number | null = null;
     if (shouldTrackThisSession(path, dedupeMinutes)) {
-      nextCount = await trackPageView(path, userHash, dedupeMinutes);
+      await trackPageView(path, userHash, dedupeMinutes);
     }
 
-    if (nextCount === null) {
-      nextCount = await getPageViewCount(path);
-    }
+    const nextStats = await getPageVisitStats(path);
 
-    setCount(nextCount);
+    setStats(
+      nextStats
+        ? {
+            viewCount: nextStats.view_count,
+            visitorCount: nextStats.visitor_count,
+          }
+        : null
+    );
     setIsLoading(false);
   }, [dedupeMinutes, fallbackPath]);
 
@@ -92,21 +111,48 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
     };
   }, [loadCounter]);
 
+  const averageViewsPerVisitor =
+    stats && stats.visitorCount > 0
+      ? (stats.viewCount / stats.visitorCount).toFixed(2)
+      : null;
+
   return (
     <span
       className="page-view-counter"
       aria-live="polite"
-      title={`${UI_TEXT.label}: ${currentPath}`}
+      title={`${UI_TEXT.viewsLabel}/${UI_TEXT.visitorsLabel}: ${currentPath}`}
     >
       <span className="page-view-counter__icon" aria-hidden="true">
         👁
       </span>
-      <span className="page-view-counter__label">{UI_TEXT.label}</span>
+      <span className="page-view-counter__label">{UI_TEXT.viewsLabel}</span>
       <span className="page-view-counter__value">
         {isLoading
           ? UI_TEXT.loading
-          : count !== null
-            ? count.toLocaleString()
+          : stats !== null
+            ? stats.viewCount.toLocaleString()
+            : UI_TEXT.unavailable}
+      </span>
+      <span className="page-view-counter__separator" aria-hidden="true">
+        ·
+      </span>
+      <span className="page-view-counter__label">{UI_TEXT.visitorsLabel}</span>
+      <span className="page-view-counter__value">
+        {isLoading
+          ? UI_TEXT.loading
+          : stats !== null
+            ? stats.visitorCount.toLocaleString()
+            : UI_TEXT.unavailable}
+      </span>
+      <span className="page-view-counter__separator" aria-hidden="true">
+        ·
+      </span>
+      <span className="page-view-counter__label">{UI_TEXT.averageLabel}</span>
+      <span className="page-view-counter__value">
+        {isLoading
+          ? UI_TEXT.loading
+          : averageViewsPerVisitor !== null
+            ? averageViewsPerVisitor
             : UI_TEXT.unavailable}
       </span>
     </span>

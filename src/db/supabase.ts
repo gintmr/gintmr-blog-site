@@ -39,6 +39,11 @@ export interface PageViewCountRow {
   view_count: number;
 }
 
+export interface PageVisitStats {
+  view_count: number;
+  visitor_count: number;
+}
+
 // 环境判断 & 小工具
 const isBrowser =
   typeof window !== "undefined" && typeof document !== "undefined";
@@ -304,6 +309,43 @@ export async function getPageViewCountsMany(
   }
 
   return (data as PageViewCountRow[]) ?? [];
+}
+
+export async function getPageVisitStats(
+  pagePath: string
+): Promise<PageVisitStats | null> {
+  if (!checkSupabaseAvailable()) {
+    return null;
+  }
+
+  const normalizedPath = normalizePagePath(pagePath);
+  const { data, error } = await supabase!.rpc("get_page_visit_stats", {
+    p_page_path: normalizedPath,
+  });
+
+  if (error) {
+    console.error("Error fetching page visit stats:", error);
+    return null;
+  }
+
+  const firstRow = Array.isArray(data) ? data[0] : data;
+  if (!firstRow || typeof firstRow !== "object") {
+    return { view_count: 0, visitor_count: 0 };
+  }
+
+  const row = firstRow as Record<string, unknown>;
+  const toInt = (value: unknown) => {
+    const n =
+      typeof value === "number"
+        ? value
+        : Number.parseInt(String(value ?? "0"), 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  return {
+    view_count: toInt(row.view_count),
+    visitor_count: toInt(row.visitor_count),
+  };
 }
 
 export async function trackPageView(

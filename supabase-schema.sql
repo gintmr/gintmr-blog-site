@@ -317,6 +317,29 @@ AS $$
   GROUP BY pv.page_path;
 $$;
 
+CREATE OR REPLACE FUNCTION public.get_page_visit_stats(
+  p_page_path text
+)
+RETURNS TABLE(
+  view_count integer,
+  visitor_count integer
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  WITH scoped AS (
+    SELECT pv.visitor_hash
+    FROM public.page_views pv
+    WHERE pv.page_path = NULLIF(btrim(p_page_path), '')
+  )
+  SELECT
+    COUNT(*)::integer AS view_count,
+    COUNT(DISTINCT scoped.visitor_hash)::integer AS visitor_count
+  FROM scoped;
+$$;
+
 CREATE OR REPLACE FUNCTION public.track_page_view(
   p_page_path text,
   p_visitor_hash text,
@@ -505,6 +528,7 @@ GRANT EXECUTE ON FUNCTION public.get_content_reactions_many(text[], text)     TO
 GRANT EXECUTE ON FUNCTION public.toggle_emoji_reaction(text, text, text)      TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_page_view_count(text)                    TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_page_view_counts_many(text[])            TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_page_visit_stats(text)                   TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.track_page_view(text, text, integer)         TO anon, authenticated;
 
 -- 管理/内部函数仅 service_role
@@ -531,3 +555,4 @@ COMMIT;
 -- 4) 页面浏览量：
 -- SELECT public.track_page_view('/posts/beyond_the_sirens', 'visitor-abc', 30);
 -- SELECT public.get_page_view_count('/posts/beyond_the_sirens');
+-- SELECT * FROM public.get_page_visit_stats('/posts/beyond_the_sirens');

@@ -1457,7 +1457,8 @@ video {
 .page-view-counter {
   display: inline-flex;
   align-items: center;
-  gap: 0.32rem;
+  gap: 0.26rem;
+  flex-wrap: wrap;
   font-size: 0.78rem;
   color: color-mix(in srgb, var(--foreground) 68%, transparent);
 }
@@ -1472,6 +1473,10 @@ video {
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--foreground) 84%, transparent);
   font-weight: 600;
+}
+
+.page-view-counter__separator {
+  opacity: 0.6;
 }
 
 .media-card {
