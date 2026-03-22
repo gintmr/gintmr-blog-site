@@ -8,6 +8,7 @@ const EN = {
   nav: {
     blog: "Blog",
     stories: "Story",
+    top: "Top",
     about: "About",
     links: "Links",
     archives: "Archives",
@@ -30,6 +31,7 @@ const EN = {
   common: {
     back: "Back",
     backToTop: "Back to top",
+    top: "Top",
     contactMe: "Contact",
   },
   pages: {
@@ -73,6 +75,7 @@ const ZH = {
   nav: {
     blog: "文章",
     stories: "图文",
+    top: "置顶",
     about: "关于",
     links: "友链",
     archives: "收集箱",
@@ -95,6 +98,7 @@ const ZH = {
   common: {
     back: "返回",
     backToTop: "返回顶部",
+    top: "置顶",
     contactMe: "联系我",
   },
   pages: {

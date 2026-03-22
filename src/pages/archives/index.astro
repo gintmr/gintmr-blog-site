@@ -126,9 +126,9 @@ const sourceLabel = {
   <Main pageTitle={UI.pages.archivesTitle} pageDesc="">
     {
       topArchiveItems.length > 0 && (
-        <section class="mb-10">
+        <section id="top" class="mb-10">
           <div class="mb-3 flex items-center gap-2">
-            <span class="text-2xl font-bold">Top</span>
+            <span class="text-2xl font-bold">{UI.common.top}</span>
             <sup class="text-sm">{topArchiveItems.length}</sup>
           </div>
           <ul>
@@ -169,7 +169,7 @@ const sourceLabel = {
                         </h2>
                       </a>
                       <span class="rounded-full border border-accent/55 px-2 py-0.5 text-[11px] leading-none text-accent">
-                        Top
+                        {UI.common.top}
                       </span>
                       <span
                         class:list={[

@@ -9,7 +9,7 @@ interface RemarkLinkProcessorOptions {
 
 /**
  * Remark插件：处理markdown中的相对链接
- * 将指向blog文件夹下md/mdx文件的相对链接转换为/posts/[slug]格式
+ * 将指向blog文件夹下md/mdx文件的相对链接转换为/blog/[slug]格式
  */
 export const remarkLinkProcessor: Plugin<
   [RemarkLinkProcessorOptions?],
@@ -49,7 +49,7 @@ export const remarkLinkProcessor: Plugin<
         node.url = processedUrl;
 
         // 如果是内部博客链接，添加 target="_blank" 属性在新标签页打开
-        if (processedUrl.startsWith("/posts/")) {
+        if (processedUrl.startsWith("/blog/")) {
           // 为链接节点添加 data 属性，用于在渲染时设置 target="_blank"
           if (!node.data) {
             node.data = {};

@@ -57,10 +57,21 @@ const isActive = (path: string) => {
         <ul class="flex items-center gap-x-2">
           <li>
             <a
-              href="/posts"
+              href="/archives#top"
               class:list={[
                 "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
-                { "active-nav": isActive("/posts") },
+                { "active-nav": isActive("/archives") },
+              ]}
+            >
+              {UI.nav.top}
+            </a>
+          </li>
+          <li>
+            <a
+              href="/blog"
+              class:list={[
+                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                { "active-nav": isActive("/blog") },
               ]}
             >
               {UI.nav.blog}
@@ -162,18 +173,26 @@ const isActive = (path: string) => {
         ]}
       >
         <li class="col-span-6">
-          <a href="/posts" class:list={{ "active-nav": isActive("/posts") }}>
-            {UI.nav.blog}
+          <a
+            href="/archives#top"
+            class:list={{ "active-nav": isActive("/archives") }}
+          >
+            {UI.nav.top}
           </a>
         </li>
         <li class="col-span-6">
-          <a href="/about" class:list={{ "active-nav": isActive("/about") }}>
-            {UI.nav.about}
+          <a href="/blog" class:list={{ "active-nav": isActive("/blog") }}>
+            {UI.nav.blog}
           </a>
         </li>
         <li class="col-span-6">
           <a href="/story" class:list={{ "active-nav": isActive("/story") }}>
             {UI.nav.stories}
+          </a>
+        </li>
+        <li class="col-span-6">
+          <a href="/about" class:list={{ "active-nav": isActive("/about") }}>
+            {UI.nav.about}
           </a>
         </li>
         <li class="col-span-6">

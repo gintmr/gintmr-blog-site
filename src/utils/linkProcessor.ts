@@ -39,7 +39,7 @@ function resolveRelativePath(relativePath: string, basePath: string): string {
 }
 
 /**
- * 处理链接，将相对路径的blog文件链接转换为/posts/[slug]格式
+ * 处理链接，将相对路径的blog文件链接转换为/blog/[slug]格式
  * @param href 原始链接
  * @param currentFilePath 当前文件路径（用于解析相对路径）
  * @returns 处理后的链接
@@ -102,7 +102,7 @@ export function processLink(href: string, currentFilePath?: string): string {
     // 提取slug
     const slug = extractSlugFromFile(targetFilePath);
     if (slug) {
-      return `/posts/${slug}`;
+      return `/blog/${slug}`;
     }
 
     // 如果没有slug，使用文件名
@@ -111,7 +111,7 @@ export function processLink(href: string, currentFilePath?: string): string {
       .replace(/\s/g, "-")
       .toLowerCase();
 
-    return `/posts/${fileName}`;
+    return `/blog/${fileName}`;
   } catch {
     // 出错时返回原链接
     return href;
