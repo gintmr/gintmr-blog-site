@@ -98,6 +98,45 @@ CREATE INDEX IF NOT EXISTS idx_page_views_path_viewed_at
 CREATE INDEX IF NOT EXISTS idx_page_views_path_visitor
   ON public.page_views (page_path, visitor_hash);
 
+-- 访客会话明细（用于 /visitors_info）
+CREATE TABLE IF NOT EXISTS public.visitor_sessions (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_path        text NOT NULL,
+  visitor_hash     text NOT NULL,
+  session_id       text NOT NULL,
+  visit_started_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at     timestamptz NOT NULL DEFAULT now(),
+  dwell_seconds    integer NOT NULL DEFAULT 0,
+  device_type      text,
+  os               text,
+  browser          text,
+  user_agent       text,
+  language         text,
+  timezone         text,
+  referrer         text,
+  country          text,
+  region           text,
+  city             text,
+  ip_address       text,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT visitor_sessions_unique UNIQUE (page_path, visitor_hash, session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_page_last_seen
+  ON public.visitor_sessions (page_path, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_visitor_last_seen
+  ON public.visitor_sessions (visitor_hash, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_visitor_sessions_last_seen
+  ON public.visitor_sessions (last_seen_at DESC);
+
+-- 私有配置（当前用于存储 /visitors_info 的密码哈希）
+CREATE TABLE IF NOT EXISTS public.private_settings (
+  key        text PRIMARY KEY,
+  value      text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- =========================================================
 -- 2) 公共触发器：维护 updated_at
 -- =========================================================
@@ -114,6 +153,16 @@ $$;
 DROP TRIGGER IF EXISTS trg_user_reactions_set_updated_at ON public.user_reactions;
 CREATE TRIGGER trg_user_reactions_set_updated_at
   BEFORE UPDATE ON public.user_reactions
+  FOR EACH ROW EXECUTE FUNCTION public.fn_set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_visitor_sessions_set_updated_at ON public.visitor_sessions;
+CREATE TRIGGER trg_visitor_sessions_set_updated_at
+  BEFORE UPDATE ON public.visitor_sessions
+  FOR EACH ROW EXECUTE FUNCTION public.fn_set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_private_settings_set_updated_at ON public.private_settings;
+CREATE TRIGGER trg_private_settings_set_updated_at
+  BEFORE UPDATE ON public.private_settings
   FOR EACH ROW EXECUTE FUNCTION public.fn_set_updated_at();
 
 -- =========================================================
@@ -388,6 +437,278 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.set_visitors_info_password(
+  p_password text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_password text := NULLIF(btrim(p_password), '');
+BEGIN
+  IF v_password IS NULL OR length(v_password) < 4 THEN
+    RAISE EXCEPTION 'visitors_info password is too short'
+      USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO public.private_settings AS ps (key, value, updated_at)
+  VALUES ('visitors_info_password_hash', crypt(v_password, gen_salt('bf', 10)), now())
+  ON CONFLICT (key)
+  DO UPDATE SET
+    value = EXCLUDED.value,
+    updated_at = now();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_visitors_info_password(
+  p_password text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_hash text;
+  v_password text := COALESCE(p_password, '');
+BEGIN
+  SELECT ps.value
+    INTO v_hash
+  FROM public.private_settings ps
+  WHERE ps.key = 'visitors_info_password_hash'
+  LIMIT 1;
+
+  IF v_hash IS NULL THEN
+    RETURN false;
+  END IF;
+
+  RETURN crypt(v_password, v_hash) = v_hash;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.upsert_visitor_session(
+  p_page_path text,
+  p_visitor_hash text,
+  p_session_id text,
+  p_dwell_seconds integer DEFAULT 0,
+  p_device_type text DEFAULT NULL,
+  p_os text DEFAULT NULL,
+  p_browser text DEFAULT NULL,
+  p_user_agent text DEFAULT NULL,
+  p_language text DEFAULT NULL,
+  p_timezone text DEFAULT NULL,
+  p_referrer text DEFAULT NULL,
+  p_country text DEFAULT NULL,
+  p_region text DEFAULT NULL,
+  p_city text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_path text := NULLIF(btrim(p_page_path), '');
+  v_hash text := NULLIF(btrim(p_visitor_hash), '');
+  v_session text := NULLIF(btrim(p_session_id), '');
+  v_ip text := public.get_request_ip();
+BEGIN
+  IF v_path IS NULL OR v_hash IS NULL OR v_session IS NULL THEN
+    RAISE EXCEPTION 'page path, visitor hash and session id are required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM public.enforce_rate_limit('visitor_session_ip', v_ip, 600);
+
+  INSERT INTO public.visitor_sessions AS vs (
+    page_path,
+    visitor_hash,
+    session_id,
+    visit_started_at,
+    last_seen_at,
+    dwell_seconds,
+    device_type,
+    os,
+    browser,
+    user_agent,
+    language,
+    timezone,
+    referrer,
+    country,
+    region,
+    city,
+    ip_address
+  )
+  VALUES (
+    v_path,
+    v_hash,
+    v_session,
+    now(),
+    now(),
+    GREATEST(COALESCE(p_dwell_seconds, 0), 0),
+    NULLIF(btrim(COALESCE(p_device_type, '')), ''),
+    NULLIF(btrim(COALESCE(p_os, '')), ''),
+    NULLIF(btrim(COALESCE(p_browser, '')), ''),
+    NULLIF(btrim(COALESCE(p_user_agent, '')), ''),
+    NULLIF(btrim(COALESCE(p_language, '')), ''),
+    NULLIF(btrim(COALESCE(p_timezone, '')), ''),
+    NULLIF(btrim(COALESCE(p_referrer, '')), ''),
+    NULLIF(btrim(COALESCE(p_country, '')), ''),
+    NULLIF(btrim(COALESCE(p_region, '')), ''),
+    NULLIF(btrim(COALESCE(p_city, '')), ''),
+    NULLIF(btrim(COALESCE(v_ip, '')), '')
+  )
+  ON CONFLICT ON CONSTRAINT visitor_sessions_unique
+  DO UPDATE SET
+    last_seen_at = now(),
+    dwell_seconds = GREATEST(vs.dwell_seconds, GREATEST(COALESCE(p_dwell_seconds, 0), 0)),
+    device_type = COALESCE(
+      NULLIF(btrim(COALESCE(p_device_type, '')), ''),
+      vs.device_type
+    ),
+    os = COALESCE(
+      NULLIF(btrim(COALESCE(p_os, '')), ''),
+      vs.os
+    ),
+    browser = COALESCE(
+      NULLIF(btrim(COALESCE(p_browser, '')), ''),
+      vs.browser
+    ),
+    user_agent = COALESCE(
+      NULLIF(btrim(COALESCE(p_user_agent, '')), ''),
+      vs.user_agent
+    ),
+    language = COALESCE(
+      NULLIF(btrim(COALESCE(p_language, '')), ''),
+      vs.language
+    ),
+    timezone = COALESCE(
+      NULLIF(btrim(COALESCE(p_timezone, '')), ''),
+      vs.timezone
+    ),
+    referrer = COALESCE(
+      NULLIF(btrim(COALESCE(p_referrer, '')), ''),
+      vs.referrer
+    ),
+    country = COALESCE(
+      NULLIF(btrim(COALESCE(p_country, '')), ''),
+      vs.country
+    ),
+    region = COALESCE(
+      NULLIF(btrim(COALESCE(p_region, '')), ''),
+      vs.region
+    ),
+    city = COALESCE(
+      NULLIF(btrim(COALESCE(p_city, '')), ''),
+      vs.city
+    ),
+    ip_address = COALESCE(vs.ip_address, NULLIF(btrim(COALESCE(v_ip, '')), '')),
+    updated_at = now();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_visitors_overview_secure(
+  p_password text
+)
+RETURNS TABLE(
+  total_views bigint,
+  total_visitors bigint,
+  total_sessions bigint,
+  last_visit_at timestamptz
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_ip text := public.get_request_ip();
+BEGIN
+  PERFORM public.enforce_rate_limit('visitors_info_read_ip', v_ip, 60);
+
+  IF NOT public.check_visitors_info_password(p_password) THEN
+    RAISE EXCEPTION 'invalid visitors_info password'
+      USING ERRCODE = '28000';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    (SELECT COUNT(*)::bigint FROM public.page_views),
+    (SELECT COUNT(DISTINCT visitor_hash)::bigint FROM public.visitor_sessions),
+    (SELECT COUNT(*)::bigint FROM public.visitor_sessions),
+    (SELECT MAX(last_seen_at) FROM public.visitor_sessions);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_visitor_sessions_secure(
+  p_password text,
+  p_limit integer DEFAULT 300,
+  p_page_path text DEFAULT NULL
+)
+RETURNS TABLE(
+  page_path text,
+  visitor_hash text,
+  session_id text,
+  visit_started_at timestamptz,
+  last_seen_at timestamptz,
+  dwell_seconds integer,
+  device_type text,
+  os text,
+  browser text,
+  language text,
+  timezone text,
+  referrer text,
+  country text,
+  region text,
+  city text,
+  ip_address text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_ip text := public.get_request_ip();
+  v_limit integer := LEAST(GREATEST(COALESCE(p_limit, 300), 1), 1000);
+  v_page text := NULLIF(btrim(p_page_path), '');
+BEGIN
+  PERFORM public.enforce_rate_limit('visitors_info_read_ip', v_ip, 60);
+
+  IF NOT public.check_visitors_info_password(p_password) THEN
+    RAISE EXCEPTION 'invalid visitors_info password'
+      USING ERRCODE = '28000';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    vs.page_path,
+    vs.visitor_hash,
+    vs.session_id,
+    vs.visit_started_at,
+    vs.last_seen_at,
+    vs.dwell_seconds,
+    vs.device_type,
+    vs.os,
+    vs.browser,
+    vs.language,
+    vs.timezone,
+    vs.referrer,
+    vs.country,
+    vs.region,
+    vs.city,
+    vs.ip_address
+  FROM public.visitor_sessions vs
+  WHERE (v_page IS NULL OR vs.page_path = v_page)
+  ORDER BY vs.last_seen_at DESC
+  LIMIT v_limit;
+END;
+$$;
+
 -- =========================================================
 -- 6) 对外写接口（原子切换 + IP 限流）—— 受控访问
 -- =========================================================
@@ -477,6 +798,8 @@ ALTER TABLE public.user_reactions     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.emoji_stats_cache  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limit_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.page_views         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.visitor_sessions   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.private_settings   ENABLE ROW LEVEL SECURITY;
 
 -- 清理可能存在的旧策略（幂等）
 DO $$
@@ -510,6 +833,22 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS "No direct update page_views" ON public.page_views';
     EXECUTE 'DROP POLICY IF EXISTS "No direct delete page_views" ON public.page_views';
   END IF;
+
+  PERFORM 1 FROM pg_policies WHERE schemaname='public' AND tablename='visitor_sessions';
+  IF FOUND THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Allow public read visitor_sessions" ON public.visitor_sessions';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct insert visitor_sessions" ON public.visitor_sessions';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct update visitor_sessions" ON public.visitor_sessions';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct delete visitor_sessions" ON public.visitor_sessions';
+  END IF;
+
+  PERFORM 1 FROM pg_policies WHERE schemaname='public' AND tablename='private_settings';
+  IF FOUND THEN
+    EXECUTE 'DROP POLICY IF EXISTS "No direct read private_settings" ON public.private_settings';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct insert private_settings" ON public.private_settings';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct update private_settings" ON public.private_settings';
+    EXECUTE 'DROP POLICY IF EXISTS "No direct delete private_settings" ON public.private_settings';
+  END IF;
 END $$;
 
 -- 现在三张表都**没有**任何允许策略 ⇒ anon/authenticated 直接查/改会被 RLS 拒绝
@@ -519,6 +858,8 @@ REVOKE ALL ON TABLE public.user_reactions     FROM anon, authenticated;
 REVOKE ALL ON TABLE public.emoji_stats_cache  FROM anon, authenticated;
 REVOKE ALL ON TABLE public.rate_limit_records FROM anon, authenticated;
 REVOKE ALL ON TABLE public.page_views         FROM anon, authenticated;
+REVOKE ALL ON TABLE public.visitor_sessions   FROM anon, authenticated;
+REVOKE ALL ON TABLE public.private_settings   FROM anon, authenticated;
 
 -- =========================================================
 -- 9) 授权：只开放受控接口
@@ -530,15 +871,21 @@ GRANT EXECUTE ON FUNCTION public.get_page_view_count(text)                    TO
 GRANT EXECUTE ON FUNCTION public.get_page_view_counts_many(text[])            TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_page_visit_stats(text)                   TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.track_page_view(text, text, integer)         TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_visitor_session(text, text, text, integer, text, text, text, text, text, text, text, text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_visitors_overview_secure(text)           TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_visitor_sessions_secure(text, integer, text) TO anon, authenticated;
 
 -- 管理/内部函数仅 service_role
 REVOKE EXECUTE ON FUNCTION public.enforce_rate_limit(text, text, integer) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.cleanup_expired_rate_limits()           FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.rebuild_emoji_stats_cache()             FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.set_visitors_info_password(text)        FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.check_visitors_info_password(text)      FROM PUBLIC;
 
 GRANT  EXECUTE ON FUNCTION public.enforce_rate_limit(text, text, integer) TO service_role;
 GRANT  EXECUTE ON FUNCTION public.cleanup_expired_rate_limits()           TO service_role;
 GRANT  EXECUTE ON FUNCTION public.rebuild_emoji_stats_cache()             TO service_role;
+GRANT  EXECUTE ON FUNCTION public.set_visitors_info_password(text)        TO service_role;
 
 -- 可选：pg_cron 定时清理（需要安装 pg_cron 扩展）
 -- SELECT cron.schedule('cleanup-rate-limits', '*/5 * * * *', $$SELECT public.cleanup_expired_rate_limits();$$);
@@ -553,6 +900,8 @@ COMMIT;
 -- 3) 点赞切换（IP 限流 60/min）：
 -- SELECT * FROM public.toggle_emoji_reaction('post-1','👍','7usqc8');
 -- 4) 页面浏览量：
--- SELECT public.track_page_view('/posts/beyond_the_sirens', 'visitor-abc', 30);
--- SELECT public.get_page_view_count('/posts/beyond_the_sirens');
--- SELECT * FROM public.get_page_visit_stats('/posts/beyond_the_sirens');
+-- SELECT public.track_page_view('/blog/beyond_the_sirens', 'visitor-abc', 30);
+-- SELECT public.get_page_view_count('/blog/beyond_the_sirens');
+-- SELECT * FROM public.get_page_visit_stats('/blog/beyond_the_sirens');
+-- SELECT public.set_visitors_info_password('your-password-here');  -- service_role
+-- SELECT * FROM public.get_visitors_overview_secure('your-password-here');

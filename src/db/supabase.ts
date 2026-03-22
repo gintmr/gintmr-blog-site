@@ -44,6 +44,57 @@ export interface PageVisitStats {
   visitor_count: number;
 }
 
+export interface VisitorEnvironment {
+  deviceType: string;
+  os: string;
+  browser: string;
+  userAgent: string;
+  language: string;
+  timezone: string;
+  referrer: string;
+}
+
+export interface VisitorGeoInfo {
+  country?: string;
+  region?: string;
+  city?: string;
+}
+
+export interface VisitorSessionPayload {
+  pagePath: string;
+  visitorHash: string;
+  sessionId: string;
+  dwellSeconds?: number;
+  environment?: VisitorEnvironment;
+  geo?: VisitorGeoInfo;
+}
+
+export interface VisitorSessionRow {
+  page_path: string;
+  visitor_hash: string;
+  session_id: string;
+  visit_started_at: string;
+  last_seen_at: string;
+  dwell_seconds: number;
+  device_type: string | null;
+  os: string | null;
+  browser: string | null;
+  language: string | null;
+  timezone: string | null;
+  referrer: string | null;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  ip_address: string | null;
+}
+
+export interface VisitorsOverview {
+  total_views: number;
+  total_visitors: number;
+  total_sessions: number;
+  last_visit_at: string | null;
+}
+
 // 环境判断 & 小工具
 const isBrowser =
   typeof window !== "undefined" && typeof document !== "undefined";
@@ -66,6 +117,10 @@ function normalizePagePath(path: string): string {
   const withoutQuery = trimmed.split("?")[0].split("#")[0];
   const normalized = withoutQuery.replace(/\/+$/, "");
   return normalized || "/";
+}
+
+function safeTrim(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 // 将 rows 以 content_id 分组
@@ -348,6 +403,128 @@ export async function getPageVisitStats(
   };
 }
 
+export async function upsertVisitorSession(
+  payload: VisitorSessionPayload
+): Promise<boolean> {
+  if (!checkSupabaseAvailable()) {
+    return false;
+  }
+
+  const pagePath = normalizePagePath(payload.pagePath);
+  const visitorHash = safeTrim(payload.visitorHash);
+  const sessionId = safeTrim(payload.sessionId);
+
+  if (!visitorHash || !sessionId) {
+    return false;
+  }
+
+  const dwellSeconds = Math.max(0, Math.floor(payload.dwellSeconds ?? 0));
+  const env = payload.environment;
+  const geo = payload.geo;
+
+  const { error } = await supabase!.rpc("upsert_visitor_session", {
+    p_page_path: pagePath,
+    p_visitor_hash: visitorHash,
+    p_session_id: sessionId,
+    p_dwell_seconds: dwellSeconds,
+    p_device_type: env?.deviceType ?? null,
+    p_os: env?.os ?? null,
+    p_browser: env?.browser ?? null,
+    p_user_agent: env?.userAgent ?? null,
+    p_language: env?.language ?? null,
+    p_timezone: env?.timezone ?? null,
+    p_referrer: env?.referrer ?? null,
+    p_country: geo?.country ?? null,
+    p_region: geo?.region ?? null,
+    p_city: geo?.city ?? null,
+  });
+
+  if (error) {
+    console.error("Error upserting visitor session:", error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function getVisitorsOverviewSecure(
+  password: string
+): Promise<VisitorsOverview | null> {
+  if (!checkSupabaseAvailable()) {
+    return null;
+  }
+
+  const pass = safeTrim(password);
+  if (!pass) return null;
+
+  const { data, error } = await supabase!.rpc("get_visitors_overview_secure", {
+    p_password: pass,
+  });
+
+  if (error) {
+    console.error("Error fetching visitors overview:", error);
+    return null;
+  }
+
+  const firstRow = Array.isArray(data) ? data[0] : data;
+  if (!firstRow || typeof firstRow !== "object") {
+    return {
+      total_views: 0,
+      total_visitors: 0,
+      total_sessions: 0,
+      last_visit_at: null,
+    };
+  }
+
+  const row = firstRow as Record<string, unknown>;
+  const toInt = (value: unknown) => {
+    const n =
+      typeof value === "number"
+        ? value
+        : Number.parseInt(String(value ?? "0"), 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  return {
+    total_views: toInt(row.total_views),
+    total_visitors: toInt(row.total_visitors),
+    total_sessions: toInt(row.total_sessions),
+    last_visit_at:
+      typeof row.last_visit_at === "string" ? row.last_visit_at : null,
+  };
+}
+
+export async function getVisitorSessionsSecure(
+  password: string,
+  options?: { limit?: number; pagePath?: string }
+): Promise<VisitorSessionRow[]> {
+  if (!checkSupabaseAvailable()) {
+    return [];
+  }
+
+  const pass = safeTrim(password);
+  if (!pass) return [];
+
+  const limit = Math.min(
+    Math.max(Math.floor(options?.limit ?? 300), 1),
+    1000
+  );
+  const pagePath = safeTrim(options?.pagePath);
+
+  const { data, error } = await supabase!.rpc("get_visitor_sessions_secure", {
+    p_password: pass,
+    p_limit: limit,
+    p_page_path: pagePath || null,
+  });
+
+  if (error) {
+    console.error("Error fetching visitor sessions:", error);
+    return [];
+  }
+
+  return (data as VisitorSessionRow[]) ?? [];
+}
+
 export async function trackPageView(
   pagePath: string,
   visitorHash: string,
@@ -374,6 +551,138 @@ export async function trackPageView(
       ? data
       : Number.parseInt(String(data ?? "0"), 10);
   return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function detectDeviceType(userAgent: string): string {
+  const ua = userAgent.toLowerCase();
+  if (/ipad|tablet|playbook|silk/.test(ua)) return "Tablet";
+  if (/mobi|iphone|android/.test(ua)) return "Mobile";
+  return "Desktop";
+}
+
+function detectOs(userAgent: string): string {
+  const ua = userAgent.toLowerCase();
+  if (ua.includes("windows")) return "Windows";
+  if (ua.includes("mac os x") && !ua.includes("iphone") && !ua.includes("ipad")) return "macOS";
+  if (ua.includes("android")) return "Android";
+  if (ua.includes("iphone") || ua.includes("ipad") || ua.includes("ipod")) return "iOS";
+  if (ua.includes("linux")) return "Linux";
+  return "Unknown";
+}
+
+function detectBrowser(userAgent: string): string {
+  const ua = userAgent.toLowerCase();
+  if (ua.includes("edg/")) return "Edge";
+  if (ua.includes("opr/") || ua.includes("opera")) return "Opera";
+  if (ua.includes("chrome/") && !ua.includes("edg/")) return "Chrome";
+  if (ua.includes("safari/") && !ua.includes("chrome/")) return "Safari";
+  if (ua.includes("firefox/")) return "Firefox";
+  return "Unknown";
+}
+
+export function detectVisitorEnvironment(): VisitorEnvironment {
+  if (!isBrowser) {
+    return {
+      deviceType: "Unknown",
+      os: "Unknown",
+      browser: "Unknown",
+      userAgent: "",
+      language: "",
+      timezone: "",
+      referrer: "",
+    };
+  }
+
+  const userAgent = navigator.userAgent || "";
+  const language =
+    (Array.isArray(navigator.languages) && navigator.languages[0]) ||
+    navigator.language ||
+    "";
+  const timezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  const referrer = document.referrer || "";
+
+  return {
+    deviceType: detectDeviceType(userAgent),
+    os: detectOs(userAgent),
+    browser: detectBrowser(userAgent),
+    userAgent,
+    language,
+    timezone,
+    referrer,
+  };
+}
+
+const GEO_CACHE_KEY = "astro-obsidian-blog:visitor-geo:v1";
+const GEO_CACHE_TTL_MS = 1000 * 60 * 60 * 12; // 12 小时
+
+export async function getVisitorGeoInfo(): Promise<VisitorGeoInfo> {
+  if (!isBrowser) return {};
+
+  try {
+    const cachedRaw = localStorage.getItem(GEO_CACHE_KEY);
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw) as
+        | (VisitorGeoInfo & { fetchedAt?: number })
+        | null;
+      if (
+        cached &&
+        typeof cached === "object" &&
+        typeof cached.fetchedAt === "number" &&
+        Date.now() - cached.fetchedAt < GEO_CACHE_TTL_MS
+      ) {
+        return {
+          country: safeTrim(cached.country),
+          region: safeTrim(cached.region),
+          city: safeTrim(cached.city),
+        };
+      }
+    }
+  } catch {
+    // ignore cache read errors
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 3500);
+    const response = await fetch("https://ipapi.co/json/", {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    window.clearTimeout(timer);
+
+    if (!response.ok) return {};
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const geo: VisitorGeoInfo = {
+      country: safeTrim(String(data.country_name ?? "")),
+      region: safeTrim(String(data.region ?? "")),
+      city: safeTrim(String(data.city ?? "")),
+    };
+
+    try {
+      localStorage.setItem(
+        GEO_CACHE_KEY,
+        JSON.stringify({
+          ...geo,
+          fetchedAt: Date.now(),
+        })
+      );
+    } catch {
+      // ignore cache write errors
+    }
+
+    return geo;
+  } catch {
+    return {};
+  }
+}
+
+export function generateSessionId(
+  ns = "astro-obsidian-blog:visitor-session"
+): string {
+  const random = crypto?.randomUUID?.() ?? randomIdFallback();
+  return `${ns}:${Date.now()}:${random}`;
 }
 
 // 生成用户哈希（基于强随机 + localStorage 持久化）

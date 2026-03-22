@@ -1,8 +1,12 @@
 import React from "react";
 import {
+  detectVisitorEnvironment,
   generateUserHash,
+  generateSessionId,
+  getVisitorGeoInfo,
   getPageVisitStats,
   trackPageView,
+  upsertVisitorSession,
 } from "@/db/supabase";
 import { UI_LOCALE } from "@/i18n/ui";
 
@@ -69,6 +73,96 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
   } | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentPath, setCurrentPath] = React.useState(normalizePath(fallbackPath));
+  const trackerRef = React.useRef<{
+    path: string;
+    visitorHash: string;
+    sessionId: string;
+    startedAt: number;
+    intervalId?: number;
+    cleanup?: () => void;
+  } | null>(null);
+
+  const stopDetailedTracker = React.useCallback(() => {
+    const tracker = trackerRef.current;
+    if (!tracker) return;
+
+    if (tracker.intervalId) {
+      window.clearInterval(tracker.intervalId);
+    }
+
+    if (tracker.cleanup) {
+      tracker.cleanup();
+    }
+
+    trackerRef.current = null;
+  }, []);
+
+  const startDetailedTracker = React.useCallback(
+    async (path: string, visitorHash: string) => {
+      stopDetailedTracker();
+
+      const sessionId = generateSessionId("astro-obsidian-blog:visitor");
+      const startedAt = Date.now();
+      const environment = detectVisitorEnvironment();
+      const geoPromise = getVisitorGeoInfo();
+
+      const sendHeartbeat = async () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return;
+
+        const dwellSeconds = Math.max(
+          0,
+          Math.floor((Date.now() - tracker.startedAt) / 1000)
+        );
+        const geo = await geoPromise;
+
+        await upsertVisitorSession({
+          pagePath: tracker.path,
+          visitorHash: tracker.visitorHash,
+          sessionId: tracker.sessionId,
+          dwellSeconds,
+          environment,
+          geo,
+        });
+      };
+
+      trackerRef.current = {
+        path,
+        visitorHash,
+        sessionId,
+        startedAt,
+      };
+
+      await sendHeartbeat();
+
+      const intervalId = window.setInterval(() => {
+        void sendHeartbeat();
+      }, 20000);
+
+      const onPageHide = () => {
+        void sendHeartbeat();
+      };
+      const onVisibilityChange = () => {
+        if (document.visibilityState === "hidden") {
+          void sendHeartbeat();
+        }
+      };
+
+      window.addEventListener("pagehide", onPageHide);
+      window.addEventListener("beforeunload", onPageHide);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+
+      if (trackerRef.current && trackerRef.current.sessionId === sessionId) {
+        trackerRef.current.intervalId = intervalId;
+        trackerRef.current.cleanup = () => {
+          window.removeEventListener("pagehide", onPageHide);
+          window.removeEventListener("beforeunload", onPageHide);
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+        };
+      }
+    },
+    [stopDetailedTracker]
+  );
 
   const loadCounter = React.useCallback(async () => {
     const runtimePath =
@@ -80,6 +174,7 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
     setIsLoading(true);
 
     const userHash = generateUserHash("astro-obsidian-blog:pageview");
+    void startDetailedTracker(path, userHash);
 
     if (shouldTrackThisSession(path, dedupeMinutes)) {
       await trackPageView(path, userHash, dedupeMinutes);
@@ -96,7 +191,7 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
         : null
     );
     setIsLoading(false);
-  }, [dedupeMinutes, fallbackPath]);
+  }, [dedupeMinutes, fallbackPath, startDetailedTracker]);
 
   React.useEffect(() => {
     void loadCounter();
@@ -108,8 +203,9 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
     document.addEventListener("astro:page-load", handlePageLoad);
     return () => {
       document.removeEventListener("astro:page-load", handlePageLoad);
+      stopDetailedTracker();
     };
-  }, [loadCounter]);
+  }, [loadCounter, stopDetailedTracker]);
 
   const averageViewsPerVisitor =
     stats && stats.visitorCount > 0

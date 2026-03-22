@@ -80,6 +80,8 @@ if (breadcrumbList[0] === "blog" && !isNaN(Number(breadcrumbList[2]))) {
                         ? UI.breadcrumb.search
                         : breadcrumb === "links"
                           ? UI.breadcrumb.links
+                        : breadcrumb === "visitors_info"
+                          ? UI.breadcrumb.visitorsInfo
                         : breadcrumb === "story"
                           ? UI.breadcrumb.stories
                         : decodeURIComponent(breadcrumb)}
@@ -100,6 +102,8 @@ if (breadcrumbList[0] === "blog" && !isNaN(Number(breadcrumbList[2]))) {
                         ? UI.breadcrumb.search
                         : breadcrumb === "links"
                           ? UI.breadcrumb.links
+                        : breadcrumb === "visitors_info"
+                          ? UI.breadcrumb.visitorsInfo
                         : breadcrumb === "story"
                           ? UI.breadcrumb.stories
                         : decodeURIComponent(breadcrumb)}

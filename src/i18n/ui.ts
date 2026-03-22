@@ -22,6 +22,7 @@ const EN = {
     about: "About",
     search: "Search",
     links: "Links",
+    visitorsInfo: "Visitors Info",
     storyPage: (page: number) =>
       page <= 1 ? "Story" : `Story (Page ${page})`,
     postsPage: (page: number) => (page <= 1 ? "Blog" : `Blog (Page ${page})`),
@@ -46,6 +47,8 @@ const EN = {
     linksDesc: "Friends and creators I recommend.",
     storiesTitle: "Story",
     storiesDesc: "Album memories backed up as short vertical videos.",
+    visitorsInfoTitle: "Visitors Info",
+    visitorsInfoDesc: "Detailed visitor analytics dashboard (password protected).",
     linksEmpty: "No links yet.",
     linksVisit: "Visit site",
     archivesTitle: "Archives",
@@ -89,6 +92,7 @@ const ZH = {
     about: "关于",
     search: "搜索",
     links: "友链",
+    visitorsInfo: "访客统计",
     storyPage: (page: number) =>
       page <= 1 ? "图文" : `图文 (第 ${page} 页)`,
     postsPage: (page: number) => (page <= 1 ? "文章" : `文章 (第 ${page} 页)`),
@@ -113,6 +117,8 @@ const ZH = {
     linksDesc: "这里是我推荐的网站与创作者。",
     storiesTitle: "图文",
     storiesDesc: "相册回忆墙：按时间整理的短视频备份。",
+    visitorsInfoTitle: "访客统计",
+    visitorsInfoDesc: "访客明细仪表盘（密码保护）。",
     linksEmpty: "暂无友链内容。",
     linksVisit: "访问网站",
     archivesTitle: "收集箱",

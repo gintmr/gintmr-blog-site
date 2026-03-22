@@ -1,0 +1,17 @@
+---
+import Main from "@/layouts/Main.astro";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import VisitorsInfoPanel from "@/components/VisitorsInfoPanel";
+import { SITE } from "@/config";
+import { UI } from "@/i18n/ui";
+---
+
+<Layout title={`${UI.pages.visitorsInfoTitle} | ${SITE.title}`}>
+  <Header />
+  <Main pageTitle={UI.pages.visitorsInfoTitle} pageDesc={UI.pages.visitorsInfoDesc}>
+    <VisitorsInfoPanel client:load />
+  </Main>
+  <Footer />
+</Layout>
