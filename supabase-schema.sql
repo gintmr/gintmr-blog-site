@@ -443,7 +443,7 @@ CREATE OR REPLACE FUNCTION public.set_visitors_info_password(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_password text := NULLIF(btrim(p_password), '');
@@ -454,7 +454,11 @@ BEGIN
   END IF;
 
   INSERT INTO public.private_settings AS ps (key, value, updated_at)
-  VALUES ('visitors_info_password_hash', crypt(v_password, gen_salt('bf', 10)), now())
+  VALUES (
+    'visitors_info_password_hash',
+    crypt(v_password, gen_salt('bf', 10)),
+    now()
+  )
   ON CONFLICT (key)
   DO UPDATE SET
     value = EXCLUDED.value,
@@ -469,7 +473,7 @@ RETURNS boolean
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_hash text;

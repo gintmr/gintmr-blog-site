@@ -20,6 +20,11 @@ const UI_TEXT =
         remember: "记住密码（当前设备）",
         refresh: "刷新数据",
         wrongPassword: "密码错误或无权限，请重试。",
+        setupMissing: "数据库函数未部署完整，请先执行最新 supabase-schema.sql。",
+        permissionDenied: "数据库权限未授予完整，请重新执行 supabase-schema.sql 中的 GRANT 段落。",
+        envMissing: "站点未正确配置 Supabase 环境变量（SUPABASE_URL/SUPABASE_KEY）。",
+        networkFail: "网络请求失败，请稍后重试。",
+        debugPrefix: "调试信息",
         empty: "暂无访客记录。",
         totalViews: "总浏览量",
         totalVisitors: "总访客数",
@@ -48,6 +53,11 @@ const UI_TEXT =
         remember: "Remember password on this device",
         refresh: "Refresh",
         wrongPassword: "Wrong password or unauthorized.",
+        setupMissing: "Database functions are not fully deployed. Run the latest supabase-schema.sql.",
+        permissionDenied: "Database permissions are missing. Re-run grants in supabase-schema.sql.",
+        envMissing: "Supabase environment variables are missing (SUPABASE_URL/SUPABASE_KEY).",
+        networkFail: "Network request failed. Please try again later.",
+        debugPrefix: "Debug",
         empty: "No visitor records yet.",
         totalViews: "Total Views",
         totalVisitors: "Total Visitors",
@@ -105,11 +115,51 @@ function maskIp(ip: string | null) {
   return `${matched[1]}.${matched[2]}.*.*`;
 }
 
+function resolveErrorMessage(error: unknown) {
+  const message =
+    error instanceof Error ? error.message : String(error ?? "Unknown error");
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes("invalid visitors_info password") ||
+    lower.includes("28000")
+  ) {
+    return { userMessage: UI_TEXT.wrongPassword, debug: message };
+  }
+
+  if (
+    lower.includes("does not exist") ||
+    lower.includes("42883") ||
+    lower.includes("get_visitors_overview_secure")
+  ) {
+    return { userMessage: UI_TEXT.setupMissing, debug: message };
+  }
+
+  if (lower.includes("permission denied") || lower.includes("42501")) {
+    return { userMessage: UI_TEXT.permissionDenied ?? UI_TEXT.setupMissing, debug: message };
+  }
+
+  if (
+    lower.includes("supabase client not initialized") ||
+    lower.includes("apikey") ||
+    lower.includes("invalid api key")
+  ) {
+    return { userMessage: UI_TEXT.envMissing, debug: message };
+  }
+
+  if (lower.includes("failed to fetch") || lower.includes("network")) {
+    return { userMessage: UI_TEXT.networkFail, debug: message };
+  }
+
+  return { userMessage: UI_TEXT.wrongPassword, debug: message };
+}
+
 const VisitorsInfoPanel: React.FC = () => {
   const [password, setPassword] = React.useState("");
   const [remember, setRemember] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [debugError, setDebugError] = React.useState("");
   const [unlocked, setUnlocked] = React.useState(false);
   const [overview, setOverview] = React.useState<VisitorsOverview | null>(null);
   const [rows, setRows] = React.useState<VisitorSessionRow[]>([]);
@@ -118,15 +168,12 @@ const VisitorsInfoPanel: React.FC = () => {
     async (pass: string) => {
       setLoading(true);
       setError("");
+      setDebugError("");
       try {
         const [nextOverview, nextRows] = await Promise.all([
           getVisitorsOverviewSecure(pass),
           getVisitorSessionsSecure(pass, { limit: 300 }),
         ]);
-
-        if (!nextOverview) {
-          throw new Error("unauthorized");
-        }
 
         setOverview(nextOverview);
         setRows(nextRows);
@@ -137,11 +184,13 @@ const VisitorsInfoPanel: React.FC = () => {
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
-      } catch {
+      } catch (error) {
+        const resolved = resolveErrorMessage(error);
         setUnlocked(false);
         setOverview(null);
         setRows([]);
-        setError(UI_TEXT.wrongPassword);
+        setError(resolved.userMessage);
+        setDebugError(resolved.debug);
       } finally {
         setLoading(false);
       }
@@ -214,6 +263,11 @@ const VisitorsInfoPanel: React.FC = () => {
       {error && (
         <p className="mb-5 rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-400">
           {error}
+          {debugError && (
+            <span className="mt-1 block text-xs text-red-300/90">
+              {UI_TEXT.debugPrefix}: {debugError}
+            </span>
+          )}
         </p>
       )}
 

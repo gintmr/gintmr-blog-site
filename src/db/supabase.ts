@@ -449,13 +449,13 @@ export async function upsertVisitorSession(
 
 export async function getVisitorsOverviewSecure(
   password: string
-): Promise<VisitorsOverview | null> {
+): Promise<VisitorsOverview> {
   if (!checkSupabaseAvailable()) {
-    return null;
+    throw new Error("Supabase client not initialized");
   }
 
   const pass = safeTrim(password);
-  if (!pass) return null;
+  if (!pass) throw new Error("Password is empty");
 
   const { data, error } = await supabase!.rpc("get_visitors_overview_secure", {
     p_password: pass,
@@ -463,7 +463,9 @@ export async function getVisitorsOverviewSecure(
 
   if (error) {
     console.error("Error fetching visitors overview:", error);
-    return null;
+    throw new Error(
+      `RPC get_visitors_overview_secure failed (${error.code ?? "unknown"}): ${error.message}`
+    );
   }
 
   const firstRow = Array.isArray(data) ? data[0] : data;
@@ -499,11 +501,11 @@ export async function getVisitorSessionsSecure(
   options?: { limit?: number; pagePath?: string }
 ): Promise<VisitorSessionRow[]> {
   if (!checkSupabaseAvailable()) {
-    return [];
+    throw new Error("Supabase client not initialized");
   }
 
   const pass = safeTrim(password);
-  if (!pass) return [];
+  if (!pass) throw new Error("Password is empty");
 
   const limit = Math.min(
     Math.max(Math.floor(options?.limit ?? 300), 1),
@@ -519,7 +521,9 @@ export async function getVisitorSessionsSecure(
 
   if (error) {
     console.error("Error fetching visitor sessions:", error);
-    return [];
+    throw new Error(
+      `RPC get_visitor_sessions_secure failed (${error.code ?? "unknown"}): ${error.message}`
+    );
   }
 
   return (data as VisitorSessionRow[]) ?? [];
