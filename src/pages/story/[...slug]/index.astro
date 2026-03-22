@@ -13,6 +13,7 @@ import { UI } from "@/i18n/ui";
 import getSortedStories from "@/utils/getSortedStories";
 import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
 import { resolveStoryVideoUrlByEntry } from "@/utils/storyVideo";
+import { isDatePubDatetime } from "@/utils/pubDatetime";
 
 export interface Props {
   story: CollectionEntry<"story">;
@@ -22,15 +23,15 @@ export interface Props {
 
 export async function getStaticPaths() {
   const stories = await getCollection("story", ({ data }) => !data.draft);
-  const sortedStories = getSortedStories(stories);
+  const timelineStories = getSortedStories(stories);
 
-  return sortedStories.map(story => ({
+  return stories.map(story => ({
     params: {
       slug: getStoryPath(story.id, story.filePath, false).replace(/^\/+/, ""),
     },
     props: {
       story,
-      stories: sortedStories,
+      stories: timelineStories,
       storyVideoSrc: resolveStoryVideoUrlByEntry(story.id, story.filePath),
     },
   }));
@@ -43,6 +44,8 @@ const Content = renderedStory.Content;
 const { title, description, author, pubDatetime, modDatetime } = story.data;
 const storyTitle = getStoryTitle(title, story.id, story.filePath);
 const storyDescription = description?.trim() || "";
+const publishDatetime = isDatePubDatetime(pubDatetime) ? pubDatetime : undefined;
+const modifiedDatetime = isDatePubDatetime(modDatetime) ? modDatetime : undefined;
 
 const currentStoryIndex = stories.findIndex(item => item.id === story.id);
 const prevStory = currentStoryIndex > 0 ? stories[currentStoryIndex - 1] : null;
@@ -56,8 +59,8 @@ const nextStory =
   title={`${storyTitle} | ${SITE.title}`}
   description={storyDescription}
   author={author}
-  pubDatetime={pubDatetime}
-  modDatetime={modDatetime}
+  pubDatetime={publishDatetime}
+  modDatetime={modifiedDatetime}
   scrollSmooth={true}
 >
   <Header />
@@ -86,9 +89,17 @@ const nextStory =
 
       <aside class="story-memory-panel">
         <h1 class="text-accent text-2xl font-bold md:text-[2rem]">{storyTitle}</h1>
-        <div class="my-3">
-          <Datetime {pubDatetime} {modDatetime} timezone={SITE.timezone} />
-        </div>
+        {
+          publishDatetime && (
+            <div class="my-3">
+              <Datetime
+                pubDatetime={publishDatetime}
+                modDatetime={modifiedDatetime}
+                timezone={SITE.timezone}
+              />
+            </div>
+          )
+        }
         {
           storyDescription && (
             <p class="mb-3 text-xs leading-relaxed text-foreground/74">{storyDescription}</p>

@@ -8,6 +8,7 @@ import Datetime from "@/components/Datetime.astro";
 import { getPath } from "@/utils/getPath";
 import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
 import { optimizeImage } from "@/utils/optimizeImages";
+import { isDatePubDatetime, isTopPubDatetime } from "@/utils/pubDatetime";
 import { SITE } from "@/config";
 import { MONTHS, UI } from "@/i18n/ui";
 
@@ -21,15 +22,23 @@ interface ArchiveItem {
   kind: ArchiveKind;
   title: string;
   description: string;
-  pubDatetime: Date;
+  pubDatetime: Date | "top";
   modDatetime?: Date | null;
   timezone?: string;
   url: string;
   imageSrc?: string;
 }
 
+type TopArchiveItem = ArchiveItem & { pubDatetime: "top" };
+type TimelineArchiveItem = ArchiveItem & { pubDatetime: Date };
+
 const blogPosts = await getCollection("blog", ({ data }) => !data.draft);
 const storyPosts = await getCollection("story", ({ data }) => !data.draft);
+
+const collator = new Intl.Collator(["en", "zh-Hans-CN-u-co-pinyin"], {
+  sensitivity: "base",
+  numeric: true,
+});
 
 const blogItems: ArchiveItem[] = await Promise.all(
   blogPosts.map(async post => {
@@ -70,16 +79,29 @@ const storyItems: ArchiveItem[] = storyPosts.map(story => ({
   url: getStoryPath(story.id, story.filePath),
 }));
 
-const archiveItems: ArchiveItem[] = [
-  ...blogItems,
-  ...storyItems,
-].sort(
-  (a, b) =>
-    Math.floor(new Date(b.pubDatetime).getTime() / 1000) -
-    Math.floor(new Date(a.pubDatetime).getTime() / 1000)
-);
+const mergedArchiveItems: ArchiveItem[] = [...blogItems, ...storyItems];
 
-const groupedByYearMonth = archiveItems.reduce(
+const isTopArchiveItem = (item: ArchiveItem): item is TopArchiveItem =>
+  isTopPubDatetime(item.pubDatetime);
+
+const isTimelineArchiveItem = (
+  item: ArchiveItem
+): item is TimelineArchiveItem => isDatePubDatetime(item.pubDatetime);
+
+const topArchiveItems = mergedArchiveItems
+  .filter(isTopArchiveItem)
+  .sort((a, b) => collator.compare(a.title, b.title));
+
+const timelineArchiveItems = mergedArchiveItems
+  .filter(isTimelineArchiveItem)
+  .sort(
+    (a, b) =>
+      Math.floor(a.pubDatetime.getTime() / 1000) -
+      Math.floor(b.pubDatetime.getTime() / 1000)
+  )
+  .reverse();
+
+const groupedByYearMonth = timelineArchiveItems.reduce(
   (acc, item) => {
     const year = item.pubDatetime.getFullYear();
     const month = item.pubDatetime.getMonth() + 1;
@@ -102,6 +124,74 @@ const sourceLabel = {
 <Layout title={`${UI.pages.archivesTitle} | ${SITE.title}`}>
   <Header />
   <Main pageTitle={UI.pages.archivesTitle} pageDesc="">
+    {
+      topArchiveItems.length > 0 && (
+        <section class="mb-10">
+          <div class="mb-3 flex items-center gap-2">
+            <span class="text-2xl font-bold">Top</span>
+            <sup class="text-sm">{topArchiveItems.length}</sup>
+          </div>
+          <ul>
+            {topArchiveItems.map(item => (
+              <li class="my-6">
+                <div class="flex flex-col gap-3 md:flex-row md:gap-4">
+                  {
+                    item.kind === "blog" && item.imageSrc && (
+                      <div class="h-44 w-full overflow-hidden rounded-lg md:mb-0 md:h-[100px] md:w-[100px] md:flex-shrink-0">
+                        <img
+                          src={item.imageSrc}
+                          alt={item.title}
+                          width={720}
+                          height={480}
+                          class="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                    )
+                  }
+
+                  <div
+                    class:list={[
+                      "w-full",
+                      item.kind === "blog" && item.imageSrc
+                        ? "md:w-[calc(100% - 100px)]"
+                        : "",
+                    ]}
+                  >
+                    <div class="flex items-center gap-2">
+                      <a
+                        href={item.url}
+                        class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
+                      >
+                        <h2 class="text-lg font-medium decoration-dashed hover:underline">
+                          {item.title}
+                        </h2>
+                      </a>
+                      <span class="rounded-full border border-accent/55 px-2 py-0.5 text-[11px] leading-none text-accent">
+                        Top
+                      </span>
+                      <span
+                        class:list={[
+                          "rounded-full border px-2 py-0.5 text-[11px] leading-none",
+                          item.kind === "blog"
+                            ? "border-accent/45 text-accent"
+                            : "border-foreground/30 text-foreground/80",
+                        ]}
+                      >
+                        {sourceLabel[item.kind]}
+                      </span>
+                    </div>
+                    {item.description && <p>{item.description}</p>}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
     {
       Object.entries(groupedByYearMonth)
         .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))

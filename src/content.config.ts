@@ -1,6 +1,7 @@
 import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
 import { SITE, BLOG_PATH, DIARY_PATH, STORY_PATH } from "@/config";
+import { TOP_PUB_DATETIME, isTopPubDatetime } from "@/utils/pubDatetime";
 
 const normalizeOptionalString = (value: unknown): unknown => {
   if (value == null) return undefined;
@@ -14,7 +15,10 @@ const blog = defineCollection({
   schema: ({ image }) =>
     z.object({
       author: z.string().default(SITE.author),
-      pubDatetime: z.date(),
+      pubDatetime: z.preprocess(
+        value => (isTopPubDatetime(value) ? TOP_PUB_DATETIME : value),
+        z.union([z.date(), z.literal(TOP_PUB_DATETIME)])
+      ),
       modDatetime: z.date().optional().nullable(),
       title: z.string(),
       featured: z.boolean().optional(),
@@ -79,7 +83,13 @@ const story = defineCollection({
   loader: glob({ pattern: "**/[^_]*.{md,mdx}", base: `./${STORY_PATH}` }),
   schema: z.object({
     author: z.string().default(SITE.author),
-    pubDatetime: z.date().default(() => new Date()),
+    pubDatetime: z.preprocess(
+      value => {
+        if (value == null) return new Date();
+        return isTopPubDatetime(value) ? TOP_PUB_DATETIME : value;
+      },
+      z.union([z.date(), z.literal(TOP_PUB_DATETIME)])
+    ),
     modDatetime: z.date().optional().nullable(),
     title: z.preprocess(
       normalizeOptionalString,

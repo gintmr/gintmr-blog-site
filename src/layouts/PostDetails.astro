@@ -24,6 +24,7 @@ import { encryptPostContent, type EncryptedPostPayload } from "@/utils/protected
 import {
   renderProtectedPostHtml,
 } from "@/utils/renderProtectedPostHtml";
+import { isDatePubDatetime } from "@/utils/pubDatetime";
 
 export interface Props {
   post: CollectionEntry<"blog">;
@@ -50,6 +51,9 @@ const {
   // keywords,
   // mainPoints,
 } = post.data;
+
+const publishDatetime = isDatePubDatetime(pubDatetime) ? pubDatetime : undefined;
+const modifiedDatetime = isDatePubDatetime(modDatetime) ? modDatetime : undefined;
 
 const hasPasswordProtection = Boolean(password?.trim());
 const showAISummary = Boolean(enableAISummary && summary?.trim());
@@ -96,8 +100,8 @@ const layoutProps = {
   title: `${title} | ${SITE.title}`,
   author,
   description,
-  pubDatetime,
-  modDatetime,
+  pubDatetime: publishDatetime,
+  modDatetime: modifiedDatetime,
   canonicalURL,
   ogImage,
   scrollSmooth: true,
@@ -113,9 +117,12 @@ const allPosts = posts.map(({ data: { title }, id, filePath }) => ({
 
 const currentPostIndex = allPosts.findIndex(a => a.id === post.id);
 
-const prevPost = currentPostIndex !== 0 ? allPosts[currentPostIndex - 1] : null;
+const prevPost =
+  currentPostIndex > 0 ? allPosts[currentPostIndex - 1] : null;
 const nextPost =
-  currentPostIndex !== allPosts.length ? allPosts[currentPostIndex + 1] : null;
+  currentPostIndex >= 0 && currentPostIndex < allPosts.length - 1
+    ? allPosts[currentPostIndex + 1]
+    : null;
 ---
 
 <Layout {...layoutProps}>
@@ -137,11 +144,21 @@ const nextPost =
       {title}
     </h1>
     <div class="my-2 flex items-center gap-2">
-      <Datetime {pubDatetime} {modDatetime} {timezone} size="lg" />
+      {
+        publishDatetime && (
+          <Datetime
+            pubDatetime={publishDatetime}
+            modDatetime={modifiedDatetime}
+            timezone={timezone}
+            size="lg"
+          />
+        )
+      }
       <span
         aria-hidden="true"
         class:list={[
           "max-sm:hidden",
+          { hidden: !publishDatetime },
           { hidden: !SITE.editPost.enabled || hideEditPost },
         ]}>|</span
       >
