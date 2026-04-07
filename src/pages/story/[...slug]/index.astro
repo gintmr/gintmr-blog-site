@@ -66,32 +66,70 @@ const nextStory =
   <Header />
   <BackButton />
 
-  <main id="main-content" class="mx-auto mt-4 w-full max-w-[92rem] px-4 pb-12">
+  <main id="main-content" class="story-detail-shell mx-auto mt-4 w-full max-w-[94rem] px-4 pb-12">
     <section class="story-memory-detail">
-      <div class="story-memory-stage" data-story-video-stage>
-        {
-          storyVideoSrc ? (
-            <video
-              data-story-main-video
-              class="story-memory-video"
-              src={storyVideoSrc}
-              controls
-              preload="metadata"
-              playsinline
-            />
-          ) : (
-            <div class="story-memory-video-empty">
-              No video file found. Please ensure the `.md` and `.mov/.mp4` filenames match.
-            </div>
-          )
-        }
+      <div class="story-memory-stage-shell">
+        <div class="story-memory-stage" data-story-video-stage>
+          {
+            storyVideoSrc ? (
+              <video
+                data-story-main-video
+                class="story-memory-video"
+                src={storyVideoSrc}
+                controls
+                preload="metadata"
+                playsinline
+              />
+            ) : (
+              <div class="story-memory-video-empty">
+                No video file found. Please ensure the `.md` and `.mov/.mp4` filenames match.
+              </div>
+            )
+          }
+        </div>
+
+        <div class="story-memory-nav">
+          {
+            prevStory ? (
+              <a
+                href={getStoryPath(prevStory.id, prevStory.filePath)}
+                class="story-memory-nav__item"
+              >
+                <span class="story-memory-nav__label">{UI.post.previous}</span>
+                <span class="story-memory-nav__title">
+                  <IconChevronLeft class="story-memory-nav__icon" />
+                  {getStoryTitle(prevStory.data.title, prevStory.id, prevStory.filePath)}
+                </span>
+              </a>
+            ) : (
+              <div class="story-memory-nav__item story-memory-nav__item--empty"></div>
+            )
+          }
+          {
+            nextStory ? (
+              <a
+                href={getStoryPath(nextStory.id, nextStory.filePath)}
+                class="story-memory-nav__item story-memory-nav__item--next"
+              >
+                <span class="story-memory-nav__label">{UI.post.next}</span>
+                <span class="story-memory-nav__title">
+                  {getStoryTitle(nextStory.data.title, nextStory.id, nextStory.filePath)}
+                  <IconChevronRight class="story-memory-nav__icon" />
+                </span>
+              </a>
+            ) : (
+              <div class="story-memory-nav__item story-memory-nav__item--empty"></div>
+            )
+          }
+        </div>
       </div>
 
       <aside class="story-memory-panel">
-        <h1 class="text-accent text-2xl font-bold md:text-[2rem]">{storyTitle}</h1>
+        <p class="story-memory-panel__eyebrow">Vertical Memory</p>
+        <h1 class="story-memory-panel__title">{storyTitle}</h1>
         {
           publishDatetime && (
-            <div class="my-3">
+            <div class="story-memory-panel__meta">
               <Datetime
                 pubDatetime={publishDatetime}
                 modDatetime={modifiedDatetime}
@@ -102,7 +140,7 @@ const nextStory =
         }
         {
           storyDescription && (
-            <p class="mb-3 text-xs leading-relaxed text-foreground/74">{storyDescription}</p>
+            <p class="story-memory-panel__desc">{storyDescription}</p>
           )
         }
 
@@ -114,41 +152,6 @@ const nextStory =
 
     <hr class="my-8 border-dashed" />
     <BackToTopButton />
-
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-      {
-        prevStory && (
-          <a
-            href={getStoryPath(prevStory.id, prevStory.filePath)}
-            class="group relative block rounded-lg border border-border p-4 before:absolute before:inset-0 before:rounded-lg before:bg-accent/5 before:opacity-0 before:transition-opacity hover:before:opacity-100"
-          >
-            <div class="relative">
-              <div class="text-muted mb-1">{UI.post.previous}</div>
-              <div class="text-accent group-hover:underline">
-                <IconChevronLeft class="text-accent mb-1 mr-1 inline-block h-4 w-4" />
-                {getStoryTitle(prevStory.data.title, prevStory.id, prevStory.filePath)}
-              </div>
-            </div>
-          </a>
-        )
-      }
-      {
-        nextStory && (
-          <a
-            href={getStoryPath(nextStory.id, nextStory.filePath)}
-            class="group relative block rounded-lg border border-border p-4 before:absolute before:inset-0 before:rounded-lg before:bg-accent/5 before:opacity-0 before:transition-opacity hover:before:opacity-100 sm:text-right"
-          >
-            <div class="relative">
-              <div class="text-muted mb-1">{UI.post.next}</div>
-              <div class="text-accent group-hover:underline">
-                {getStoryTitle(nextStory.data.title, nextStory.id, nextStory.filePath)}
-                <IconChevronRight class="text-accent mb-1 ml-1 inline-block h-4 w-4" />
-              </div>
-            </div>
-          </a>
-        )
-      }
-    </div>
   </main>
 
   <Footer />

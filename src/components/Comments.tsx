@@ -46,33 +46,61 @@ export default function Comments() {
   // 检查必填字段是否都已配置
   if (PUBLIC_GISCUS_REPO && PUBLIC_GISCUS_REPO_ID) {
     return (
-      <Giscus
-        host={PUBLIC_GISCUS_HOST || "https://giscus.app"}
-        repo={PUBLIC_GISCUS_REPO as `${string}/${string}`}
-        repoId={PUBLIC_GISCUS_REPO_ID}
-        category={PUBLIC_GISCUS_CATEGORY}
-        categoryId={PUBLIC_GISCUS_CATEGORY_ID}
-        mapping="pathname"
-        strict="0"
-        reactionsEnabled="1"
-        emitMetadata="0"
-        inputPosition="bottom"
-        theme={theme}
-        loading="lazy"
-        lang={PUBLIC_GISCUS_LANG || (UI_LOCALE === "zh-CN" ? "zh-CN" : "en")}
-      />
+      <section className="discussion-shell">
+        <div className="discussion-shell__head">
+          <p className="discussion-shell__eyebrow">
+            {UI_LOCALE === "zh-CN" ? "讨论" : "Discussion"}
+          </p>
+          <h2 className="discussion-shell__title">
+            {UI_LOCALE === "zh-CN" ? "留言与回响" : "Notes from readers"}
+          </h2>
+          <p className="discussion-shell__desc">
+            {UI_LOCALE === "zh-CN"
+              ? "把评论区也当成文章的一部分。欢迎留下补充、质疑，或者你自己的线索。"
+              : "Treat the discussion as part of the piece: additions, disagreements, and side notes all belong here."}
+          </p>
+        </div>
+
+        <div className="discussion-shell__embed">
+          <Giscus
+            host={PUBLIC_GISCUS_HOST || "https://giscus.app"}
+            repo={PUBLIC_GISCUS_REPO as `${string}/${string}`}
+            repoId={PUBLIC_GISCUS_REPO_ID}
+            category={PUBLIC_GISCUS_CATEGORY}
+            categoryId={PUBLIC_GISCUS_CATEGORY_ID}
+            mapping="pathname"
+            strict="0"
+            reactionsEnabled="1"
+            emitMetadata="0"
+            inputPosition="bottom"
+            theme={theme}
+            loading="lazy"
+            lang={PUBLIC_GISCUS_LANG || (UI_LOCALE === "zh-CN" ? "zh-CN" : "en")}
+          />
+        </div>
+      </section>
     );
   }
 
   return (
-    <div className="mt-8 rounded-lg border border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800">
-      <p className="text-center text-gray-600 dark:text-gray-400">
-        Comments require Giscus configuration. Set these environment variables:
-        <br />
-        <code className="rounded bg-gray-200 px-1 text-sm dark:bg-gray-700">
-          PUBLIC_GISCUS_REPO, PUBLIC_GISCUS_REPO_ID
-        </code>
-      </p>
-    </div>
+    <section className="discussion-shell discussion-shell--empty">
+      <div className="discussion-shell__head">
+        <p className="discussion-shell__eyebrow">
+          {UI_LOCALE === "zh-CN" ? "讨论" : "Discussion"}
+        </p>
+        <h2 className="discussion-shell__title">
+          {UI_LOCALE === "zh-CN" ? "评论区尚未接通" : "Discussion is not connected yet"}
+        </h2>
+        <p className="discussion-shell__desc">
+          {UI_LOCALE === "zh-CN"
+            ? "需要配置 Giscus 环境变量后，这里才会显示真实评论区。"
+            : "Configure Giscus environment variables and this panel will turn into the live discussion area."}
+        </p>
+      </div>
+      <div className="discussion-shell__empty-note">
+        <code>PUBLIC_GISCUS_REPO</code>
+        <code>PUBLIC_GISCUS_REPO_ID</code>
+      </div>
+    </section>
   );
 }

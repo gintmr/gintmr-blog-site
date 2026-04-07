@@ -4,9 +4,12 @@ import { getCollection } from "astro:content";
 import Layout from "@/layouts/Layout.astro";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
 import Pagination from "@/components/Pagination.astro";
 import StoryCard from "@/components/StoryCard.astro";
 import getSortedStories from "@/utils/getSortedStories";
+import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
+import { resolveStoryVideoUrlByEntry } from "@/utils/storyVideo";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
 
@@ -16,16 +19,95 @@ export const getStaticPaths = (async ({ paginate }) => {
 }) satisfies GetStaticPaths;
 
 const { page } = Astro.props;
+const [leadStory, ...gridStories] = page.data;
+const leadStoryTitle = leadStory
+  ? getStoryTitle(leadStory.data.title, leadStory.id, leadStory.filePath)
+  : "";
+const leadStoryPath = leadStory
+  ? getStoryPath(leadStory.id, leadStory.filePath)
+  : "#";
+const leadStoryVideoSrc = leadStory
+  ? resolveStoryVideoUrlByEntry(leadStory.id, leadStory.filePath)
+  : undefined;
+const timelineYears = new Set(
+  page.data
+    .map(entry => entry.data.pubDatetime)
+    .filter(value => value instanceof Date)
+    .map(value => value.getFullYear())
+).size;
 ---
 
 <Layout title={`${UI.pages.storiesTitle} | ${SITE.title}`}>
   <Header />
-  <main id="main-content" class="mx-auto mt-4 w-full max-w-[88rem] px-4 pb-6">
-    <h1 class="text-3xl font-semibold">{UI.pages.storiesTitle}</h1>
-    <p class="mt-2 mb-6 text-sm italic text-foreground/72">{UI.pages.storiesDesc}</p>
-    <ul class="story-wall grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {page.data.map(data => <StoryCard {...data} />)}
-    </ul>
+  <main id="main-content" class="story-index-shell mx-auto mt-4 w-full max-w-[92rem] px-4 pb-10">
+    <Breadcrumb />
+
+    <section class="story-index-hero">
+      <div class="story-index-hero__intro">
+        <p class="story-index-hero__label">Album Memories</p>
+        <h1 class="story-index-hero__title">{UI.pages.storiesTitle}</h1>
+        <p class="story-index-hero__desc">
+          A shelf of vertical memories, backed up as moving fragments instead of disappearing feeds.
+        </p>
+      </div>
+
+      <div class="story-index-hero__meta">
+        <div class="story-index-hero__meta-card">
+          <span class="story-index-hero__meta-value">{page.data.length}</span>
+          <span class="story-index-hero__meta-label">
+            {page.currentPage > 1 ? `Reels on page ${page.currentPage}` : "Visible reels"}
+          </span>
+        </div>
+        <div class="story-index-hero__meta-card">
+          <span class="story-index-hero__meta-value">{timelineYears || 1}</span>
+          <span class="story-index-hero__meta-label">Years in this slice</span>
+        </div>
+      </div>
+    </section>
+
+    {
+      leadStory && (
+        <section class="story-showcase">
+          <a href={leadStoryPath} class="story-showcase__lead group">
+            <div class="story-showcase__media">
+              {
+                leadStoryVideoSrc ? (
+                  <video
+                    src={`${leadStoryVideoSrc}#t=0.1`}
+                    preload="none"
+                    muted
+                    playsinline
+                    data-story-card-video
+                    class="story-showcase__video"
+                  />
+                ) : (
+                  <div class="story-showcase__fallback">Video not found</div>
+                )
+              }
+              <span class="story-showcase__play">Play memory</span>
+            </div>
+            <div class="story-showcase__copy">
+              <p class="story-showcase__eyebrow">Lead Memory</p>
+              <h2 class="story-showcase__title">{leadStoryTitle}</h2>
+              {
+                leadStory.data.description?.trim() && (
+                  <p class="story-showcase__desc">{leadStory.data.description}</p>
+                )
+              }
+              <span class="story-showcase__cta">Open story</span>
+            </div>
+          </a>
+
+          {
+            gridStories.length > 0 && (
+              <ul class="story-wall story-wall--gallery">
+                {gridStories.map(data => <StoryCard {...data} />)}
+              </ul>
+            )
+          }
+        </section>
+      )
+    }
   </main>
   <Pagination {page} />
   <Footer noMarginTop={page.lastPage > 1} />
