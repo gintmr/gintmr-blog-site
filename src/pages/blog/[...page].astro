@@ -1,44 +1,99 @@
 ---
 import type { GetStaticPaths } from "astro";
 import { getCollection } from "astro:content";
-import Main from "@/layouts/Main.astro";
 import Layout from "@/layouts/Layout.astro";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
 import Card from "@/components/Card.astro";
 import Pagination from "@/components/Pagination.astro";
 import getSortedPosts from "@/utils/getSortedPosts";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
-
-// tag
-import Tag from "@/components/Tag.astro";
 import getUniqueTags from "@/utils/getUniqueTags";
 
 const posts = await getCollection("blog", ({ data }) => !data.draft);
 const tags = getUniqueTags(posts);
 
 export const getStaticPaths = (async ({ paginate }) => {
-  const posts = await getCollection("blog", ({ data }) => !data.draft);
-  return paginate(getSortedPosts(posts), { pageSize: SITE.postPerPage });
+  const visiblePosts = await getCollection("blog", ({ data }) => !data.draft);
+  return paginate(getSortedPosts(visiblePosts), { pageSize: SITE.postPerPage });
 }) satisfies GetStaticPaths;
 
 const { page } = Astro.props;
+const [leadPost, ...streamPosts] = page.data;
+const isFirstPage = page.currentPage === 1;
+const pageDesc = isFirstPage
+  ? "A curated shelf of field notes, long-form reflections, and private dispatches."
+  : `Continuing the archive, page ${page.currentPage}.`;
 ---
 
 <Layout title={`${UI.pages.blogTitle} | ${SITE.title}`}>
   <Header />
-  <Main pageTitle={UI.pages.allPosts} pageDesc="">
-    <ul>
-      {tags.map(({ tag, tagName }) => <Tag {tag} {tagName} size="lg" />)}
-    </ul>
 
-    <ul>
-      {page.data.map(data => <Card {...data} />)}
-    </ul>
-  </Main>
+  <main id="main-content" class="blog-index-shell mx-auto mt-4 w-full max-w-[82rem] px-4 pb-10">
+    <Breadcrumb />
+
+    <section class="blog-index-hero">
+      <div class="blog-index-hero__intro">
+        <p class="blog-index-hero__label">Editorial Archive</p>
+        <h1 class="blog-index-hero__title">{UI.pages.blogTitle}</h1>
+        <p class="blog-index-hero__desc">{pageDesc}</p>
+      </div>
+
+      <div class="blog-index-hero__meta">
+        <div class="blog-index-hero__meta-card">
+          <span class="blog-index-hero__meta-value">{posts.length}</span>
+          <span class="blog-index-hero__meta-label">Published pieces</span>
+        </div>
+        <div class="blog-index-hero__meta-card">
+          <span class="blog-index-hero__meta-value">{tags.length}</span>
+          <span class="blog-index-hero__meta-label">Themes in rotation</span>
+        </div>
+      </div>
+    </section>
+
+    {
+      tags.length > 0 && (
+        <section class="blog-topic-rail" aria-label="Blog topics">
+          <div class="blog-topic-rail__head">
+            <p class="blog-topic-rail__label">Index by motif</p>
+            <p class="blog-topic-rail__hint">Jump into a thread of thought.</p>
+          </div>
+          <ul class="blog-topic-rail__list">
+            {tags.map(({ tag, tagName }) => (
+              <li>
+                <a href={`/blog/${tag}/`} class="blog-topic-rail__pill">
+                  {tagName}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      leadPost && (
+        <section class="blog-deck">
+          <div class="blog-deck__lead">
+            <Card {...leadPost} variant="feature" eyebrow={isFirstPage ? "Lead Story" : `Page ${page.currentPage}`} />
+          </div>
+
+          {
+            streamPosts.length > 0 && (
+              <ul class="blog-deck__stream">
+                {streamPosts.map((data, index) => (
+                  <Card {...data} eyebrow={`Notebook ${String(index + 1).padStart(2, "0")}`} />
+                ))}
+              </ul>
+            )
+          }
+        </section>
+      )
+    }
+  </main>
 
   <Pagination {page} />
-
   <Footer noMarginTop={page.lastPage > 1} />
 </Layout>

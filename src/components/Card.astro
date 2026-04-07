@@ -6,16 +6,19 @@ import Datetime from "./Datetime.astro";
 import { optimizeImage } from "@/utils/optimizeImages";
 
 export interface Props extends CollectionEntry<"blog"> {
-  variant?: "h2" | "h3";
+  variant?: "feature" | "stream";
+  eyebrow?: string;
 }
 
-const { variant = "h2", data, id, filePath } = Astro.props;
+const { variant = "stream", eyebrow, data, id, filePath } = Astro.props;
 
 const { title, description, pubDatetime, modDatetime, timezone } = data;
 let cardImageSrc: string | undefined;
 
 if (typeof data.ogImage === "string" && data.ogImage.trim()) {
-  const optimized = await optimizeImage(data.ogImage, { thumbnailSize: 300 });
+  const optimized = await optimizeImage(data.ogImage, {
+    thumbnailSize: variant === "feature" ? 1200 : 720,
+  });
   cardImageSrc = optimized.thumbnail;
 } else if (
   data.ogImage &&
@@ -26,44 +29,67 @@ if (typeof data.ogImage === "string" && data.ogImage.trim()) {
   cardImageSrc = data.ogImage.src;
 }
 
-const headerProps = {
-  style: { viewTransitionName: slugifyStr(title) },
-  class: "text-lg font-medium decoration-dashed hover:underline",
-};
+const href = getPath(id, filePath);
+const headingTag = variant === "feature" ? "h2" : "h3";
+const defaultEyebrow = variant === "feature" ? "Lead Essay" : "Field Note";
 ---
 
-<li class="my-6">
-  <div class="flex flex-col gap-3 md:flex-row md:gap-4">
-    {
-      cardImageSrc && (
-        <div class="h-44 w-full overflow-hidden rounded-lg md:mb-0 md:h-[100px] md:w-[100px] md:flex-shrink-0">
+<li class:list={["blog-card", `blog-card--${variant}`]}>
+  <article class="blog-card__frame">
+    <a
+      href={href}
+      class="blog-card__media"
+      aria-label={title}
+      transition:name={slugifyStr(title)}
+    >
+      {
+        cardImageSrc ? (
           <img
             src={cardImageSrc}
             alt={title}
-            width={720}
-            height={480}
-            class="h-full w-full object-cover"
+            width={1200}
+            height={800}
+            class="blog-card__image"
             loading="lazy"
             decoding="async"
           />
-        </div>
-      )
-    }
-    <div class="md:w-[calc(100% - 100px)] w-full">
-      <a
-        href={getPath(id, filePath)}
-        class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
-      >
+        ) : (
+          <div class="blog-card__image blog-card__image--fallback" aria-hidden="true">
+            <span>{title.slice(0, 1)}</span>
+          </div>
+        )
+      }
+      <div class="blog-card__media-glow" aria-hidden="true"></div>
+    </a>
+
+    <div class="blog-card__content">
+      <p class="blog-card__eyebrow">{eyebrow ?? defaultEyebrow}</p>
+      <a href={href} class="blog-card__title-link">
         {
-          variant === "h2" ? (
-            <h2 {...headerProps}>{title}</h2>
+          headingTag === "h2" ? (
+            <h2 class="blog-card__title">{title}</h2>
           ) : (
-            <h3 {...headerProps}>{title}</h3>
+            <h3 class="blog-card__title">{title}</h3>
           )
         }
       </a>
-      <Datetime {pubDatetime} {modDatetime} {timezone} />
-      <p>{description}</p>
+
+      <div class="blog-card__meta">
+        <Datetime
+          pubDatetime={pubDatetime}
+          modDatetime={modDatetime}
+          timezone={timezone}
+          class="blog-card__datetime"
+        />
+      </div>
+
+      <p class="blog-card__description">{description}</p>
+
+      <div class="blog-card__footer">
+        <a href={href} class="blog-card__cta">
+          Read entry
+        </a>
+      </div>
     </div>
-  </div>
+  </article>
 </li>

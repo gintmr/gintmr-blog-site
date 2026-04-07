@@ -1,10 +1,10 @@
 ---
 import { getCollection } from "astro:content";
 import type { GetStaticPathsOptions } from "astro";
-import Main from "@/layouts/Main.astro";
 import Layout from "@/layouts/Layout.astro";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
 import Card from "@/components/Card.astro";
 import Pagination from "@/components/Pagination.astro";
 import getUniqueTags from "@/utils/getUniqueTags";
@@ -27,25 +27,54 @@ export async function getStaticPaths({ paginate }: GetStaticPathsOptions) {
   });
 }
 
-const params = Astro.params;
-const { tag } = params;
 const { page, tagName } = Astro.props;
+const [leadPost, ...streamPosts] = page.data;
 ---
 
 <Layout title={`${UI.pages.tags}: ${tagName} | ${SITE.title}`}>
   <Header />
-  <Main
-    pageTitle={[`${UI.pages.tags}:`, `${tagName}`]}
-    titleTransition={tag}
-    pageDesc={UI.pages.taggedPosts(tagName)}
-  >
-    <h1 slot="title" transition:name={tag}>{`${UI.pages.tags}:${tag}`}</h1>
-    <ul>
-      {page.data.map(data => <Card {...data} />)}
-    </ul>
-  </Main>
+
+  <main id="main-content" class="blog-index-shell mx-auto mt-4 w-full max-w-[82rem] px-4 pb-10">
+    <Breadcrumb />
+
+    <section class="blog-index-hero blog-index-hero--tag">
+      <div class="blog-index-hero__intro">
+        <p class="blog-index-hero__label">Filtered Sequence</p>
+        <h1 class="blog-index-hero__title">{tagName}</h1>
+        <p class="blog-index-hero__desc">{UI.pages.taggedPosts(tagName)}</p>
+      </div>
+
+      <div class="blog-index-hero__meta">
+        <div class="blog-index-hero__meta-card">
+          <span class="blog-index-hero__meta-value">{page.data.length}</span>
+          <span class="blog-index-hero__meta-label">
+            {page.currentPage > 1 ? `Entries on page ${page.currentPage}` : "Entries in this slice"}
+          </span>
+        </div>
+      </div>
+    </section>
+
+    {
+      leadPost && (
+        <section class="blog-deck">
+          <div class="blog-deck__lead">
+            <Card {...leadPost} variant="feature" eyebrow={`Tagged: ${tagName}`} />
+          </div>
+
+          {
+            streamPosts.length > 0 && (
+              <ul class="blog-deck__stream">
+                {streamPosts.map((data, index) => (
+                  <Card {...data} eyebrow={`${tagName} / ${String(index + 1).padStart(2, "0")}`} />
+                ))}
+              </ul>
+            )
+          }
+        </section>
+      )
+    }
+  </main>
 
   <Pagination {page} />
-
   <Footer noMarginTop={page.lastPage > 1} />
 </Layout>
