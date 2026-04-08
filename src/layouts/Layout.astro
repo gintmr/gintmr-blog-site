@@ -38,6 +38,7 @@ const designTokenCss = `
   :root {
     --site-font-sans: ${UI_FONTS.sans};
     --site-font-serif: ${UI_FONTS.serif};
+    --site-font-display: ${UI_FONTS.display};
     --site-font-mono: ${UI_FONTS.mono};
     --site-light-background: ${UI_COLORS.light.background};
     --site-light-foreground: ${UI_COLORS.light.foreground};
@@ -63,6 +64,25 @@ const designTokenCss = `
     --site-ai-summary-star-from: ${UI_COLORS.aiSummary.starFrom};
     --site-ai-summary-star-to: ${UI_COLORS.aiSummary.starTo};
     --site-ai-summary-selection-bg: ${UI_COLORS.aiSummary.selectionBg};
+    --site-surface-border: color-mix(in srgb, var(--border) 58%, transparent);
+    --site-surface-bg: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 80%, transparent),
+      color-mix(in srgb, var(--background) 58%, transparent)
+    );
+    --site-surface-bg-strong: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 90%, transparent),
+      color-mix(in srgb, var(--background) 72%, transparent)
+    );
+    --site-surface-highlight: linear-gradient(
+      180deg,
+      color-mix(in srgb, white 4%, transparent) 0%,
+      transparent 100%
+    );
+    --site-surface-shadow:
+      0 18px 38px -30px color-mix(in srgb, black 84%, transparent),
+      inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
   }
 `;
 
@@ -204,6 +224,7 @@ const enablePageTransition = UI_EFFECTS.pageTransition && enableClientRouter;
     <style is:inline set:html={designTokenCss}></style>
   </head>
   <body
+    data-site-watermark="Gintmr"
     data-effect-ambient={UI_EFFECTS.ambientGlow ? "on" : "off"}
     data-effect-grid={UI_EFFECTS.gridOverlay ? "on" : "off"}
     data-effect-cursor={UI_EFFECTS.cursorGlow ? "on" : "off"}

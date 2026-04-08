@@ -10,6 +10,7 @@
   --font-family-sans: 'Noto Sans SC Variable', sans-serif;
   --font-family-serif: 'Noto Serif SC Variable', serif;
   --font-family-hand: 'Ma Shan Zheng', cursive;
+  --font-family-display: 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive;
 }
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -57,6 +58,8 @@ html[data-theme="dark"] {
   body {
     @apply flex min-h-svh flex-col bg-background font-serif text-foreground selection:bg-accent/75 selection:text-background;
     font-family: var(--site-font-serif);
+    position: relative;
+    isolation: isolate;
   }
 
   .font-sans {
@@ -69,6 +72,10 @@ html[data-theme="dark"] {
 
   .font-mono {
     font-family: var(--site-font-mono) !important;
+  }
+
+  .font-display {
+    font-family: var(--site-font-display) !important;
   }
 
   a,
@@ -102,6 +109,9 @@ html[data-theme="dark"] {
 .site-header-shell {
   position: relative;
   overflow: hidden;
+  border-color: var(--site-surface-border);
+  background: var(--site-surface-bg-strong);
+  box-shadow: var(--site-surface-shadow);
 }
 
 .site-header-shell::before {
@@ -130,6 +140,39 @@ html[data-theme="dark"] {
 .site-nav-group,
 .site-utility-group {
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
+}
+
+body::after {
+  content: attr(data-site-watermark);
+  pointer-events: none;
+  position: fixed;
+  top: clamp(5.25rem, 10vh, 7.5rem);
+  right: clamp(-0.75rem, 3vw, 2rem);
+  z-index: -1;
+  font-family: var(--site-font-display);
+  font-size: clamp(5.8rem, 16vw, 13rem);
+  line-height: 0.82;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: transparent;
+  white-space: nowrap;
+  transform: rotate(-9deg);
+  opacity: 0.16;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, white 42%, var(--accent) 58%) 0%,
+      color-mix(in srgb, #f2c4ff 82%, transparent) 28%,
+      color-mix(in srgb, var(--accent) 88%, transparent) 56%,
+      color-mix(in srgb, #8ab8ff 44%, transparent) 100%
+    );
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow:
+    0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 0 26px color-mix(in srgb, var(--accent) 15%, transparent),
+    0 0 62px color-mix(in srgb, #8ab8ff 10%, transparent);
+  filter: saturate(112%);
 }
 
 .ai-summary-card {
@@ -162,14 +205,10 @@ html[data-theme="dark"] {
 }
 
 .subtle-page-note {
-  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 64%, transparent),
-      color-mix(in srgb, var(--background) 56%, transparent)
-    );
+  background: var(--site-surface-bg);
+  box-shadow: var(--site-surface-shadow);
   padding: 0.95rem 1rem;
 }
 
@@ -198,18 +237,11 @@ html[data-theme="dark"] {
   gap: 1.2rem;
   grid-template-columns: minmax(0, 1.15fr) minmax(17rem, 0.85fr);
   align-items: stretch;
-  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1.35rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 62%, transparent),
-      color-mix(in srgb, var(--background) 34%, transparent)
-    );
+  background: var(--site-surface-bg-strong);
   padding: 1.05rem;
-  box-shadow:
-    0 20px 44px -34px color-mix(in srgb, black 78%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
+  box-shadow: var(--site-surface-shadow);
   transition:
     transform 0.24s ease,
     border-color 0.24s ease,
@@ -373,15 +405,11 @@ html[data-theme="dark"] {
   display: flex;
   min-height: 10.75rem;
   flex-direction: column;
-  border: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1.15rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 56%, transparent),
-      color-mix(in srgb, var(--background) 30%, transparent)
-    );
+  background: var(--site-surface-bg);
   padding: 1rem 1rem 0.95rem;
+  box-shadow: var(--site-surface-shadow);
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
@@ -460,14 +488,10 @@ html[data-theme="dark"] {
 .post-intro-shell {
   margin-top: 0.6rem;
   margin-bottom: 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--border) 52%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1.35rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 58%, transparent),
-      color-mix(in srgb, var(--background) 38%, transparent)
-    );
+  background: var(--site-surface-bg-strong);
+  box-shadow: var(--site-surface-shadow);
   padding: 1.15rem 1.2rem 1.05rem;
 }
 
@@ -481,14 +505,10 @@ html[data-theme="dark"] {
 
 .discussion-shell {
   margin-top: 2.5rem;
-  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1.15rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 58%, transparent),
-      color-mix(in srgb, var(--background) 34%, transparent)
-    );
+  background: var(--site-surface-bg);
+  box-shadow: var(--site-surface-shadow);
   overflow: hidden;
 }
 
@@ -531,13 +551,9 @@ html[data-theme="dark"] {
 }
 
 .link-card {
-  border-color: color-mix(in srgb, var(--border) 58%, transparent);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 48%, transparent),
-      color-mix(in srgb, var(--background) 28%, transparent)
-    );
+  border-color: var(--site-surface-border);
+  background: var(--site-surface-bg);
+  box-shadow: var(--site-surface-shadow);
   transition:
     transform 0.2s ease,
     border-color 0.2s ease,
@@ -1101,15 +1117,16 @@ h6 {
 .quote-spotlight {
   position: relative;
   overflow: hidden;
+  border-color: var(--site-surface-border);
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, #06070b 94%, transparent),
-      color-mix(in srgb, #08080d 98%, transparent)
+      color-mix(in srgb, #06070b 90%, transparent),
+      color-mix(in srgb, #0a0910 96%, transparent)
     );
   box-shadow:
-    0 0 0 1px color-mix(in srgb, #c79cff 22%, transparent) inset,
-    0 16px 36px color-mix(in srgb, black 46%, transparent);
+    0 0 0 1px color-mix(in srgb, #c79cff 18%, transparent) inset,
+    0 18px 38px -28px color-mix(in srgb, black 86%, transparent);
 }
 
 .quote-spotlight::after {
@@ -1253,18 +1270,11 @@ h6 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 80%, transparent),
-      color-mix(in srgb, var(--background) 84%, transparent)
-    );
+  background: var(--site-surface-bg-strong);
   backdrop-filter: blur(12px);
-  box-shadow:
-    0 16px 34px color-mix(in srgb, black 32%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--site-primary) 15%, transparent) inset;
+  box-shadow: var(--site-surface-shadow);
   touch-action: pan-y;
 }
 
@@ -1392,25 +1402,17 @@ h6 {
   margin: 0;
   padding: 1rem 1rem 0.8rem;
   list-style: none;
-  border: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 48%, transparent),
-      color-mix(in srgb, var(--background) 26%, transparent)
-    );
+  background: var(--site-surface-bg);
+  box-shadow: var(--site-surface-shadow);
 }
 
 .search-shell {
-  border: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+  border: 1px solid var(--site-surface-border);
   border-radius: 1rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 52%, transparent),
-      color-mix(in srgb, var(--background) 30%, transparent)
-    );
+  background: var(--site-surface-bg);
+  box-shadow: var(--site-surface-shadow);
   padding: 1rem;
 }
 
@@ -1993,6 +1995,14 @@ video {
 }
 
 @media (max-width: 768px) {
+  body::after {
+    top: 6.5rem;
+    right: 50%;
+    transform: translateX(42%) rotate(-8deg);
+    font-size: clamp(4.6rem, 23vw, 7.25rem);
+    opacity: 0.11;
+  }
+
   .home-feature__panel {
     grid-template-columns: 1fr;
     padding: 0.9rem;

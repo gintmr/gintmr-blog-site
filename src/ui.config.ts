@@ -10,6 +10,9 @@ export const UI_FONTS = {
   // 全站正文衬线字体（文章主体）
   serif:
     "'Noto Serif SC Variable', 'Source Han Serif SC', 'Songti SC', 'Times New Roman', serif",
+  // 全站装饰性花体（用于轻量水印、特殊标题）
+  display:
+    "'Snell Roundhand', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive",
   // 代码与等宽字体
   mono:
     "'JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace",
