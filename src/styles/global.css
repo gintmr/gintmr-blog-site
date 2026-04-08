@@ -146,33 +146,23 @@ body::after {
   content: attr(data-site-watermark);
   pointer-events: none;
   position: fixed;
-  top: clamp(5.25rem, 10vh, 7.5rem);
-  right: clamp(-0.75rem, 3vw, 2rem);
+  top: 50%;
+  left: 50%;
   z-index: -1;
-  font-family: var(--site-font-display);
-  font-size: clamp(5.8rem, 16vw, 13rem);
+  font-family: var(--site-font-display), var(--font-family-hand), cursive;
+  font-size: clamp(7.4rem, 20vw, 16rem);
   line-height: 0.82;
   font-weight: 400;
   letter-spacing: 0.02em;
-  color: transparent;
+  color: color-mix(in srgb, #f1d5ff 28%, transparent);
   white-space: nowrap;
-  transform: rotate(-9deg);
-  opacity: 0.16;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, white 42%, var(--accent) 58%) 0%,
-      color-mix(in srgb, #f2c4ff 82%, transparent) 28%,
-      color-mix(in srgb, var(--accent) 88%, transparent) 56%,
-      color-mix(in srgb, #8ab8ff 44%, transparent) 100%
-    );
-  -webkit-background-clip: text;
-  background-clip: text;
+  transform: translate(-50%, -50%) rotate(-9deg);
+  opacity: 0.18;
   text-shadow:
-    0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
-    0 0 26px color-mix(in srgb, var(--accent) 15%, transparent),
-    0 0 62px color-mix(in srgb, #8ab8ff 10%, transparent);
-  filter: saturate(112%);
+    0 0 1px color-mix(in srgb, #ffe3ff 22%, transparent),
+    0 0 24px color-mix(in srgb, var(--accent) 14%, transparent),
+    0 0 52px color-mix(in srgb, #8ab8ff 8%, transparent);
+  filter: saturate(108%);
 }
 
 .ai-summary-card {
@@ -1996,11 +1986,11 @@ video {
 
 @media (max-width: 768px) {
   body::after {
-    top: 6.5rem;
-    right: 50%;
-    transform: translateX(42%) rotate(-8deg);
-    font-size: clamp(4.6rem, 23vw, 7.25rem);
-    opacity: 0.11;
+    top: 48%;
+    left: 50%;
+    font-size: clamp(7rem, 30vw, 10rem);
+    transform: translate(-50%, -50%) rotate(-8deg);
+    opacity: 0.15;
   }
 
   .home-feature__panel {
