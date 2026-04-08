@@ -7,17 +7,28 @@ import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import getUniqueTags from "@/utils/getUniqueTags";
 import { SITE } from "@/config";
-import { UI } from "@/i18n/ui";
+import { UI, UI_LOCALE } from "@/i18n/ui";
 
 const posts = await getCollection("blog");
 
 let tags = getUniqueTags(posts);
+const tagsDesc = UI_LOCALE === "zh-CN"
+  ? "按主题整理的全站文章索引，适合快速找到你想继续读下去的方向。"
+  : "A lightweight index of themes across the blog, useful when you want a cleaner way to browse.";
+const tagsNoteLabel = UI_LOCALE === "zh-CN" ? "Topics" : "Topics";
 ---
 
 <Layout title={`${UI.pages.tags} | ${SITE.title}`}>
   <Header />
-  <Main pageTitle={UI.pages.tags} pageDesc="">
-    <ul>
+  <Main pageTitle={UI.pages.tags} pageDesc={tagsDesc}>
+    <section class="subtle-page-note mb-6">
+      <div class="subtle-page-note__label">{tagsNoteLabel}</div>
+      <p class="text-sm leading-7 text-foreground/72">
+        {tagsDesc}
+      </p>
+    </section>
+
+    <ul class="tag-shelf">
       {tags.map(({ tag, tagName }) => <Tag {tag} {tagName} size="lg" />)}
     </ul>
   </Main>

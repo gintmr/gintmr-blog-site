@@ -13,7 +13,7 @@ const { tag, tagName, size = "sm" } = Astro.props;
 <li
   class:list={[
     "group inline-block group-hover:cursor-pointer",
-    size === "sm" ? "my-1 underline-offset-4" : "my-3 pr-2 underline-offset-8",
+    size === "sm" ? "my-1 underline-offset-4" : "my-0",
   ]}
 >
   <a
@@ -22,15 +22,18 @@ const { tag, tagName, size = "sm" } = Astro.props;
     class:list={[
       "relative pe-2 text-lg underline decoration-dashed group-hover:-top-0.5 group-hover:text-accent focus-visible:p-1 focus-visible:no-underline",
       { "text-sm": size === "sm" },
+      {
+        "inline-flex items-center gap-1.5 rounded-full border border-border/58 bg-card/20 px-3 py-2 text-[0.93rem] no-underline transition-colors hover:border-accent/36 hover:bg-card/32 hover:text-accent focus-visible:rounded-full": size === "lg",
+      },
     ]}
   >
     <IconHash
       class:list={[
         "inline-block opacity-80",
         { "-me-3 size-4": size === "sm" },
-        { "-me-3 size-5": size === "lg" },
+        { "me-0 size-4 opacity-65": size === "lg" },
       ]}
     />
-    &nbsp;&nbsp;<span>{tagName}</span>
+    {size === "sm" ? <>&nbsp;&nbsp;<span>{tagName}</span></> : <span>{tagName}</span>}
   </a>
 </li>

@@ -24,6 +24,7 @@ const payload: Payload = {
   data-quote-spotlight
 >
   <div class="quote-spotlight__glow" aria-hidden="true"></div>
+  <div class="quote-spotlight__glow quote-spotlight__glow--secondary" aria-hidden="true"></div>
   <div class="quote-spotlight__header relative z-10">
     <button
       type="button"
@@ -37,6 +38,7 @@ const payload: Payload = {
   </div>
 
   <blockquote class="quote-spotlight__card relative z-10 mt-2 sm:mt-3">
+    <span class="quote-spotlight__kicker" aria-hidden="true"></span>
     <p class="quote-spotlight__text" data-role="text"></p>
     <footer class="quote-spotlight__source" data-role="source"></footer>
   </blockquote>

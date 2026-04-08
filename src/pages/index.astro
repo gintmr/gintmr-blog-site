@@ -10,7 +10,7 @@ import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
-import { UI } from "@/i18n/ui";
+import { UI, UI_LOCALE } from "@/i18n/ui";
 
 const diaryEntries = await getCollection("diary");
 
@@ -41,6 +41,48 @@ const paginationInfo = {
   hasMore: totalPages > 1,
   itemsPerPage: ITEMS_PER_PAGE,
 };
+
+const homeLaunch = UI_LOCALE === "zh-CN"
+  ? {
+      label: "Start Here",
+      items: [
+        {
+          href: "/blog",
+          title: "Blog",
+          desc: "长文章、图文记录与一些值得认真写下来的内容。",
+        },
+        {
+          href: "/story",
+          title: "Story",
+          desc: "竖屏短视频相册，适合快速浏览近期记忆。",
+        },
+        {
+          href: "/archives#top",
+          title: "Top",
+          desc: "查看置顶内容与完整时间归档，快速进入全站索引。",
+        },
+      ],
+    }
+  : {
+      label: "Start Here",
+      items: [
+        {
+          href: "/blog",
+          title: "Blog",
+          desc: "Long-form notes, essays, and entries worth slowing down for.",
+        },
+        {
+          href: "/story",
+          title: "Story",
+          desc: "A short-form wall of vertical memory clips for quick browsing.",
+        },
+        {
+          href: "/archives#top",
+          title: "Top",
+          desc: "Pinned entries and the full archive, arranged as one timeline.",
+        },
+      ],
+    };
 ---
 
 <Layout title={`${UI.pages.timelineTitle} | ${SITE.title}`}>
@@ -85,6 +127,17 @@ const paginationInfo = {
               A reverse-chronological stream of places, fragments, photos, and
               ordinary days worth remembering.
             </p>
+          </section>
+
+          <section class="home-launch-grid mt-0 mb-10" aria-label={homeLaunch.label}>
+            {homeLaunch.items.map(item => (
+              <a href={item.href} class="home-launch-card group">
+                <div class="home-launch-card__eyebrow">{homeLaunch.label}</div>
+                <h2 class="home-launch-card__title">{item.title}</h2>
+                <p class="home-launch-card__desc">{item.desc}</p>
+                <span class="home-launch-card__cta" aria-hidden="true">↗</span>
+              </a>
+            ))}
           </section>
 
           <div id="diary-description" class="sr-only">

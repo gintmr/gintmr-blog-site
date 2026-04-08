@@ -99,6 +99,39 @@ html[data-theme="dark"] {
   }
 }
 
+.site-header-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.site-header-shell::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      48% 120% at 0% 0%,
+      color-mix(in srgb, var(--accent) 8%, transparent) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, white 3%, transparent) 0%,
+      transparent 100%
+    );
+  opacity: 0.95;
+}
+
+.site-brand-title {
+  color: color-mix(in srgb, var(--foreground) 96%, transparent);
+}
+
+.site-nav-group,
+.site-utility-group {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
+}
+
 .ai-summary-card {
   border-color: var(--site-ai-summary-border, color-mix(in srgb, var(--accent) 24%, transparent));
   background-image: linear-gradient(
@@ -146,6 +179,93 @@ html[data-theme="dark"] {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--foreground) 56%, transparent);
+}
+
+.home-launch-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.home-launch-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  min-height: 10.75rem;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card) 56%, transparent),
+      color-mix(in srgb, var(--background) 30%, transparent)
+    );
+  padding: 1rem 1rem 0.95rem;
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.home-launch-card::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      52% 90% at 100% 0%,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      transparent 72%
+    );
+  opacity: 0.9;
+}
+
+.home-launch-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  box-shadow: 0 18px 32px -28px color-mix(in srgb, black 70%, transparent);
+}
+
+.home-launch-card__eyebrow {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0.8rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 52%, transparent);
+}
+
+.home-launch-card__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--foreground) 96%, transparent);
+}
+
+.home-launch-card__desc {
+  position: relative;
+  z-index: 1;
+  margin: 0.7rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--foreground) 70%, transparent);
+}
+
+.home-launch-card__cta {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  align-self: flex-end;
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--accent) 82%, transparent);
 }
 
 .tag-rail {
@@ -801,10 +921,29 @@ h6 {
 .quote-spotlight {
   position: relative;
   overflow: hidden;
-  background: #050507;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, #06070b 94%, transparent),
+      color-mix(in srgb, #08080d 98%, transparent)
+    );
   box-shadow:
     0 0 0 1px color-mix(in srgb, #c79cff 22%, transparent) inset,
     0 16px 36px color-mix(in srgb, black 46%, transparent);
+}
+
+.quote-spotlight::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, white 3%, transparent) 0%,
+      transparent 100%
+    );
+  opacity: 0.95;
 }
 
 .quote-spotlight__glow {
@@ -823,6 +962,23 @@ h6 {
   filter: blur(34px);
   opacity: 0.62;
   pointer-events: none;
+}
+
+.quote-spotlight__glow--secondary {
+  left: auto;
+  right: -18%;
+  bottom: auto;
+  top: -105%;
+  width: 62%;
+  height: 180%;
+  background:
+    radial-gradient(
+      55% 48% at 50% 100%,
+      color-mix(in srgb, #9d7cff 30%, transparent) 0%,
+      transparent 78%
+    );
+  filter: blur(28px);
+  opacity: 0.42;
 }
 
 .quote-spotlight__header {
@@ -866,15 +1022,28 @@ h6 {
 .quote-spotlight__card {
   margin: 0;
   border-radius: 0;
-  padding: 0.1rem 0.35rem 0.2rem;
+  padding: 0.15rem 0.35rem 0.25rem;
   border: none;
   background: transparent;
 }
 
+.quote-spotlight__kicker {
+  display: inline-block;
+  width: 2.5rem;
+  height: 1px;
+  margin-bottom: 1rem;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 88%, transparent),
+    color-mix(in srgb, var(--accent) 22%, transparent)
+  );
+}
+
 .quote-spotlight__text {
   margin: 0;
-  font-size: clamp(1.02rem, 2.2vw, 1.18rem);
-  line-height: 1.72;
+  max-width: 42rem;
+  font-size: clamp(1.05rem, 2.15vw, 1.22rem);
+  line-height: 1.78;
   font-weight: 620;
   color: color-mix(in srgb, #faf8ff 92%, transparent);
   text-wrap: pretty;
@@ -1034,6 +1203,35 @@ h6 {
 .quick-jump-nav__link.active {
   color: var(--accent);
   background: color-mix(in srgb, var(--site-primary) 12%, transparent);
+}
+
+.tag-shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  margin: 0;
+  padding: 1rem 1rem 0.8rem;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+  border-radius: 1rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card) 48%, transparent),
+      color-mix(in srgb, var(--background) 26%, transparent)
+    );
+}
+
+.search-shell {
+  border: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+  border-radius: 1rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card) 52%, transparent),
+      color-mix(in srgb, var(--background) 30%, transparent)
+    );
+  padding: 1rem;
 }
 
 /* iOS Safari 兼容性修复 - 确保图片正方形显示 */
@@ -1615,6 +1813,14 @@ video {
 }
 
 @media (max-width: 768px) {
+  .home-launch-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-launch-card {
+    min-height: auto;
+  }
+
   .post-intro-shell {
     border-radius: 1rem;
     padding: 0.95rem 0.95rem 0.9rem;
@@ -1633,7 +1839,9 @@ video {
   .archive-entry,
   .subtle-page-note,
   .discussion-shell,
-  .story-memory-panel {
+  .story-memory-panel,
+  .search-shell,
+  .tag-shelf {
     border-radius: 1rem;
   }
 

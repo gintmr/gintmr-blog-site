@@ -35,31 +35,35 @@ const isActive = (path: string) => {
   </a>
   <div
     id="nav-container"
-    class="mx-auto flex max-w-app flex-col items-center justify-between sm:flex-row"
+    class="mx-auto flex max-w-app flex-col items-center justify-between px-4 pt-3 sm:flex-row sm:px-4 sm:pt-4"
   >
     <div
       id="top-nav-wrap"
-      class="relative flex w-full items-center justify-between bg-background p-4 sm:h-18 sm:justify-start sm:bg-transparent sm:py-0"
+      class="site-header-shell relative flex w-full items-center justify-between rounded-[1.3rem] border border-border/58 bg-background/82 px-4 py-3 shadow-[0_16px_34px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:min-h-[4.25rem] sm:justify-start sm:px-5 sm:py-3"
     >
       <!-- 左侧：网站标题 -->
       <a
         href="/"
-        class="mr-8 py-1 text-xl leading-8 font-semibold whitespace-nowrap sm:my-auto sm:flex-shrink-0 sm:leading-none"
+        class="mr-6 py-1 text-[1.05rem] leading-7 font-semibold tracking-[0.01em] whitespace-nowrap sm:my-auto sm:flex-shrink-0 sm:text-[1.08rem] sm:leading-none"
       >
-        <div class="relative -left-1.5 flex items-center">
-          <img src={faviconURL} alt="favicon" class="h-10 w-10" />
-          <span class="ml-2">{SITE.title}</span>
+        <div class="relative -left-1 flex items-center gap-2.5">
+          <img
+            src={faviconURL}
+            alt="favicon"
+            class="h-10 w-10 rounded-xl ring-1 ring-border/58 sm:h-11 sm:w-11"
+          />
+          <span class="site-brand-title">{SITE.title}</span>
         </div>
       </a>
 
       <!-- 主导航菜单（桌面端） -->
       <nav id="main-nav" class="hidden sm:flex sm:items-center">
-        <ul class="flex items-center gap-x-2">
+        <ul class="site-nav-group flex items-center gap-x-1 rounded-full border border-border/46 bg-card/16 px-2 py-1">
           <li>
             <a
               href="/archives#top"
               class:list={[
-                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                "px-3 py-2 text-[0.95rem] font-medium tracking-[0.01em] transition-colors hover:text-accent",
                 { "active-nav": isActive("/archives") },
               ]}
             >
@@ -70,7 +74,7 @@ const isActive = (path: string) => {
             <a
               href="/blog"
               class:list={[
-                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                "px-3 py-2 text-[0.95rem] font-medium tracking-[0.01em] transition-colors hover:text-accent",
                 { "active-nav": isActive("/blog") },
               ]}
             >
@@ -81,7 +85,7 @@ const isActive = (path: string) => {
             <a
               href="/story"
               class:list={[
-                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                "px-3 py-2 text-[0.95rem] font-medium tracking-[0.01em] transition-colors hover:text-accent",
                 { "active-nav": isActive("/story") },
               ]}
             >
@@ -92,7 +96,7 @@ const isActive = (path: string) => {
             <a
               href="/about"
               class:list={[
-                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                "px-3 py-2 text-[0.95rem] font-medium tracking-[0.01em] transition-colors hover:text-accent",
                 { "active-nav": isActive("/about") },
               ]}
             >
@@ -103,7 +107,7 @@ const isActive = (path: string) => {
             <a
               href="/links"
               class:list={[
-                "px-3 py-2 text-base font-medium transition-colors hover:text-accent",
+                "px-3 py-2 text-[0.95rem] font-medium tracking-[0.01em] transition-colors hover:text-accent",
                 { "active-nav": isActive("/links") },
               ]}
             >
@@ -115,14 +119,14 @@ const isActive = (path: string) => {
 
       <!-- 右侧：功能按钮（桌面端） -->
       <div
-        class="hidden sm:ml-auto sm:flex sm:flex-shrink-0 sm:items-center sm:gap-x-2"
+        class="site-utility-group hidden rounded-full border border-border/46 bg-card/16 p-1 sm:ml-auto sm:flex sm:flex-shrink-0 sm:items-center sm:gap-x-1"
       >
         {
           SITE.showArchives && (
             <LinkButton
               href="/archives"
               class:list={[
-                "focus-outline flex p-3",
+                "focus-outline flex rounded-full p-3",
                 {
                   "active-nav [&>svg]:stroke-accent": isActive("/archives"),
                 },
@@ -137,7 +141,7 @@ const isActive = (path: string) => {
         <LinkButton
           href="/search"
           class:list={[
-            "focus-outline flex p-3",
+            "focus-outline flex rounded-full p-3",
             {
               "active-nav [&>svg]:stroke-accent": isActive("/search"),
             },
@@ -152,7 +156,7 @@ const isActive = (path: string) => {
       <!-- 移动端菜单按钮 -->
       <button
         id="menu-btn"
-        class="focus-outline p-2 sm:hidden"
+        class="focus-outline rounded-xl border border-border/46 bg-card/18 p-2.5 sm:hidden"
         aria-label="Open Menu"
         aria-expanded="false"
         aria-controls="menu-items"
@@ -167,8 +171,8 @@ const isActive = (path: string) => {
       <ul
         id="menu-items"
         class:list={[
-          "mx-auto mt-4 grid w-44 grid-cols-2 place-content-center gap-2",
-          "[&>li>a]:block [&>li>a]:px-4 [&>li>a]:py-3 [&>li>a]:text-center [&>li>a]:text-base [&>li>a]:font-medium [&>li>a]:hover:text-accent",
+          "mx-auto mt-3 grid w-full max-w-xs grid-cols-2 place-content-center gap-2 rounded-2xl border border-border/56 bg-background/86 p-2 shadow-[0_14px_28px_-24px_rgba(0,0,0,0.9)] backdrop-blur-xl",
+          "[&>li>a]:block [&>li>a]:rounded-xl [&>li>a]:px-4 [&>li>a]:py-3 [&>li>a]:text-center [&>li>a]:text-[0.95rem] [&>li>a]:font-medium [&>li>a]:hover:text-accent",
           "hidden",
         ]}
       >

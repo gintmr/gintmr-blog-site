@@ -5,17 +5,28 @@ import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import PagefindSearch from "astro-pagefind/components/Search";
 import { SITE } from "@/config";
-import { UI } from "@/i18n/ui";
+import { UI, UI_LOCALE } from "@/i18n/ui";
+
+const searchNote = UI_LOCALE === "zh-CN"
+  ? "这里适合直接搜标题、关键词、地点、书签内容，速度会比翻时间线更高。"
+  : "Search works best for titles, keywords, places, and embedded references when you want a faster route than browsing.";
 ---
 
 <Layout title={`Search | ${SITE.title}`}>
   <Header />
   <Main pageTitle={UI.pages.searchTitle} pageDesc={UI.pages.searchDesc}>
-    <PagefindSearch
-      id="search"
-      className="pagefind-ui"
-      uiOptions={{ showImages: false, showSubResults: true }}
-    />
+    <section class="subtle-page-note mb-6">
+      <div class="subtle-page-note__label">Search</div>
+      <p class="text-sm leading-7 text-foreground/72">{searchNote}</p>
+    </section>
+
+    <section class="search-shell">
+      <PagefindSearch
+        id="search"
+        className="pagefind-ui"
+        uiOptions={{ showImages: false, showSubResults: true }}
+      />
+    </section>
   </Main>
   <Footer />
 </Layout>
