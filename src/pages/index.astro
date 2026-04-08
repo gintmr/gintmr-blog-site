@@ -9,7 +9,6 @@ import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 import QuickJumpNav from "@/components/QuickJumpNav.astro";
-import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
 import { UI, UI_LOCALE } from "@/i18n/ui";
 
 const diaryEntries = await getCollection("diary");
@@ -101,7 +100,8 @@ const leadPreviewText = leadEntry
 const leadPreviewImages = leadEntry ? getLeadImages(leadEntry.timeBlocks) : [];
 const leadDispatch = leadEntry
   ? {
-      label: UI_LOCALE === "zh-CN" ? "Latest Dispatch" : "Latest Dispatch",
+      label: UI_LOCALE === "zh-CN" ? "Life Log" : "Life Log",
+      kicker: UI_LOCALE === "zh-CN" ? "Latest Dispatch" : "Latest Dispatch",
       title: UI_LOCALE === "zh-CN" ? "从最新一页开始" : "Begin with the newest page",
       desc:
         leadPreviewText ||
@@ -113,47 +113,14 @@ const leadDispatch = leadEntry
       href: leadEntryId ? `#date-${leadEntryId}` : "#diary-content",
     }
   : null;
-
-const homeLaunch = UI_LOCALE === "zh-CN"
+const timelinePrelude = UI_LOCALE === "zh-CN"
   ? {
-      label: "Start Here",
-      items: [
-        {
-          href: "/blog",
-          title: "Blog",
-          desc: "长文章、图文记录与一些值得认真写下来的内容。",
-        },
-        {
-          href: "/story",
-          title: "Story",
-          desc: "竖屏短视频相册，适合快速浏览近期记忆。",
-        },
-        {
-          href: "/archives#top",
-          title: "Top",
-          desc: "查看置顶内容与完整时间归档，快速进入全站索引。",
-        },
-      ],
+      label: "Recent Pages",
+      desc: "下面开始按时间倒序浏览 diary 时间流。",
     }
   : {
-      label: "Start Here",
-      items: [
-        {
-          href: "/blog",
-          title: "Blog",
-          desc: "Long-form notes, essays, and entries worth slowing down for.",
-        },
-        {
-          href: "/story",
-          title: "Story",
-          desc: "A short-form wall of vertical memory clips for quick browsing.",
-        },
-        {
-          href: "/archives#top",
-          title: "Top",
-          desc: "Pinned entries and the full archive, arranged as one timeline.",
-        },
-      ],
+      label: "Recent Pages",
+      desc: "The reverse-chronological diary stream begins here.",
     };
 ---
 
@@ -191,21 +158,12 @@ const homeLaunch = UI_LOCALE === "zh-CN"
 
         <!-- 主要内容区域 -->
         <div class="py-8">
-          <QuoteSpotlight />
-
-          <section class="subtle-page-note mt-6 mb-8">
-            <div class="subtle-page-note__label">Life Log</div>
-            <p class="text-sm leading-7 text-foreground/72">
-              A reverse-chronological stream of places, fragments, photos, and
-              ordinary days worth remembering.
-            </p>
-          </section>
-
           {leadDispatch && (
-            <section class="home-feature mb-10" aria-label={leadDispatch.label}>
+            <section class="home-feature home-feature--solo mb-8" aria-label={leadDispatch.label}>
               <a href={leadDispatch.href} class="home-feature__panel group">
                 <div class="home-feature__copy">
                   <div class="home-feature__label">{leadDispatch.label}</div>
+                  <div class="home-feature__kicker">{leadDispatch.kicker}</div>
                   <h2 class="home-feature__title">{leadDispatch.title}</h2>
                   <p class="home-feature__desc">{leadDispatch.desc}</p>
 
@@ -238,15 +196,9 @@ const homeLaunch = UI_LOCALE === "zh-CN"
             </section>
           )}
 
-          <section class="home-launch-grid mt-0 mb-10" aria-label={homeLaunch.label}>
-            {homeLaunch.items.map(item => (
-              <a href={item.href} class="home-launch-card group">
-                <div class="home-launch-card__eyebrow">{homeLaunch.label}</div>
-                <h2 class="home-launch-card__title">{item.title}</h2>
-                <p class="home-launch-card__desc">{item.desc}</p>
-                <span class="home-launch-card__cta" aria-hidden="true">↗</span>
-              </a>
-            ))}
+          <section class="home-timeline-intro mb-6" aria-label={timelinePrelude.label}>
+            <div class="home-timeline-intro__label">{timelinePrelude.label}</div>
+            <p class="home-timeline-intro__desc">{timelinePrelude.desc}</p>
           </section>
 
           <div id="diary-description" class="sr-only">

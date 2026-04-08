@@ -220,6 +220,10 @@ body::after {
   position: relative;
 }
 
+.home-feature--solo {
+  margin-top: 0.35rem;
+}
+
 .home-feature__panel {
   position: relative;
   overflow: hidden;
@@ -288,6 +292,14 @@ body::after {
   color: color-mix(in srgb, var(--foreground) 54%, transparent);
 }
 
+.home-feature__kicker {
+  margin-bottom: 0.85rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 46%, transparent);
+}
+
 .home-feature__title {
   margin: 0;
   max-width: 18ch;
@@ -305,6 +317,28 @@ body::after {
   line-height: 1.82;
   color: color-mix(in srgb, var(--foreground) 74%, transparent);
   text-wrap: pretty;
+}
+
+.home-timeline-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  padding-left: 0.15rem;
+}
+
+.home-timeline-intro__label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+}
+
+.home-timeline-intro__desc {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.72;
+  color: color-mix(in srgb, var(--foreground) 66%, transparent);
 }
 
 .home-feature__meta {
