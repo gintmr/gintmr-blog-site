@@ -3,6 +3,7 @@ import { render, type CollectionEntry } from "astro:content";
 import Layout from "@/layouts/Layout.astro";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
+import Tag from "@/components/Tag.astro";
 import Datetime from "@/components/Datetime.astro";
 import EditPost from "@/components/EditPost.astro";
 import ShareLinks from "@/components/ShareLinks.astro";
@@ -130,118 +131,93 @@ const nextPost =
   <main
     id="main-content"
     class:list={[
-      "relative isolate mx-auto mt-4 w-full max-w-[72rem] px-4 pb-12",
+      "relative isolate mx-auto mt-4 w-full max-w-app px-4 pb-12",
       { "mt-8": !SITE.showBackButton },
     ]}
     data-pagefind-body
     data-pagefind-weight="5"
   >
-    <section class="blog-post-hero">
-      <div class="blog-post-hero__frame">
-        <div class="blog-post-hero__grid">
-          <div class="blog-post-hero__main">
-            <p class="blog-post-hero__label">
-              {hasPasswordProtection ? "Private dispatch" : "Long-form entry"}
-            </p>
-            <h1
-              transition:name={slugifyStr(title)}
-              class="blog-post-hero__title"
-            >
-              {title}
-            </h1>
-
-            <div class="blog-post-hero__meta-row">
-              {
-                publishDatetime && (
-                  <Datetime
-                    pubDatetime={publishDatetime}
-                    modDatetime={modifiedDatetime}
-                    timezone={timezone}
-                    size="lg"
-                    class="blog-post-hero__datetime"
-                  />
-                )
-              }
-              <span
-                aria-hidden="true"
-                class:list={[
-                  "max-sm:hidden text-foreground/30",
-                  { hidden: !publishDatetime },
-                  { hidden: !SITE.editPost.enabled || hideEditPost },
-                ]}>|</span
-              >
-              <EditPost {hideEditPost} {post} class="max-sm:hidden" />
-            </div>
-
-            {
-              description && (
-                <p class="blog-post-hero__deck">{description}</p>
-              )
-            }
-
-            {
-              tags.length > 0 && (
-                <ul class="blog-post-hero__tags">
-                  {tags.map(tag => (
-                    <li>
-                      <a href={`/blog/${slugifyStr(tag)}/`} class="blog-post-hero__tag">
-                        {tag}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          </div>
-
-          <aside class="blog-post-hero__aside">
-            {
-              showAISummary ? (
-                <div class="blog-post-hero__summary ai-summary-card support-panel support-panel--summary rounded-[1.4rem] border p-5 font-sans">
-                  <div class="support-panel__head mb-3 flex items-center gap-2">
-                    <svg class="h-5 w-5" fill="url(#starGradient)" viewBox="0 0 24 24">
-                      <defs>
-                        <linearGradient
-                          id="starGradient"
-                          x1="0%"
-                          y1="0%"
-                          x2="100%"
-                          y2="100%"
-                        >
-                          <stop offset="0%" style="stop-color:var(--site-ai-summary-star-from)" />
-                          <stop offset="100%" style="stop-color:var(--site-ai-summary-star-to)" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M12 2L9.1 9.1 2 12l7.1 2.9L12 22l2.9-7.1L22 12l-7.1-2.9z" />
-                      <path
-                        fill="url(#starGradient)"
-                        transform="translate(16, 0) scale(0.4)"
-                        d="M12 2L9.1 9.1 2 12l7.1 2.9L12 22l2.9-7.1L22 12l-7.1-2.9z"
-                      />
-                    </svg>
-                    <h3 class="ai-summary-title support-panel__title text-lg font-bold">
-                      AI Summary
-                    </h3>
-                  </div>
-                  <p class="support-panel__copy text-sm leading-relaxed text-foreground/82">{summary}</p>
-                </div>
-              ) : (
-                <div class="blog-post-hero__note support-panel support-panel--note">
-                  <p class="blog-post-hero__note-label support-panel__eyebrow">Archive note</p>
-                  <p class="blog-post-hero__note-copy support-panel__copy">
-                    {
-                      hasPasswordProtection
-                        ? passwordHint?.trim() || "This entry opens after verification."
-                        : description || "A page from the running archive."
-                    }
-                  </p>
-                </div>
-              )
-            }
-          </aside>
+    <section class="post-intro-shell">
+      <div class="post-intro-shell__body">
+        <h1
+          transition:name={slugifyStr(title)}
+          class="inline-block text-2xl font-bold text-accent sm:text-[2.1rem]"
+        >
+          {title}
+        </h1>
+        <div class="post-intro-meta my-2 flex flex-wrap items-center gap-2">
+          {
+            publishDatetime && (
+              <Datetime
+                pubDatetime={publishDatetime}
+                modDatetime={modifiedDatetime}
+                timezone={timezone}
+                size="lg"
+              />
+            )
+          }
+          <span
+            aria-hidden="true"
+            class:list={[
+              "max-sm:hidden",
+              { hidden: !publishDatetime },
+              { hidden: !SITE.editPost.enabled || hideEditPost },
+            ]}>|</span
+          >
+          <EditPost {hideEditPost} {post} class="max-sm:hidden" />
         </div>
+        {
+          description?.trim() && (
+            <p class="post-intro-desc max-w-3xl text-[0.98rem] leading-8 text-foreground/74">
+              {description}
+            </p>
+          )
+        }
+        {
+          tags.length > 0 && (
+            <ul class="tag-rail mt-5">
+              {tags.map(tag => <Tag tag={slugifyStr(tag)} tagName={tag} />)}
+            </ul>
+          )
+        }
       </div>
     </section>
+
+    {
+      showAISummary && (
+        <div class="ai-summary-card mt-6 mb-8 rounded-xl border p-4 font-sans">
+          <div class="mb-3 flex items-center gap-2">
+            <svg class="h-5 w-5" fill="url(#starGradient)" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient
+                  id="starGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" style="stop-color:var(--site-ai-summary-star-from)" />
+                  <stop offset="100%" style="stop-color:var(--site-ai-summary-star-to)" />
+                </linearGradient>
+              </defs>
+              <path d="M12 2L9.1 9.1 2 12l7.1 2.9L12 22l2.9-7.1L22 12l-7.1-2.9z" />
+              <path
+                fill="url(#starGradient)"
+                transform="translate(16, 0) scale(0.4)"
+                d="M12 2L9.1 9.1 2 12l7.1 2.9L12 22l2.9-7.1L22 12l-7.1-2.9z"
+              />
+            </svg>
+            <h3 class="ai-summary-title text-lg font-bold">
+              AI 总结
+            </h3>
+          </div>
+
+          {showAISummary && (
+            <p class="text-sm leading-relaxed text-foreground/80">{summary}</p>
+          )}
+        </div>
+      )
+    }
 
     {
       hasPasswordProtection && protectedPayload ? (
@@ -253,7 +229,7 @@ const nextPost =
       ) : (
         <article
           id="article"
-          class="app-prose relative mx-auto mt-10 max-w-app prose-pre:bg-(--shiki-light-bg) dark:prose-pre:bg-(--shiki-dark-bg)"
+          class="app-prose relative mx-auto mt-8 max-w-app prose-pre:bg-(--shiki-light-bg) dark:prose-pre:bg-(--shiki-dark-bg)"
         >
           {Content && <Content components={{ MediaCard }} />}
         </article>
@@ -267,56 +243,50 @@ const nextPost =
       observeMutations={false}
     />
 
-    <div class="mx-auto max-w-app">
-      <hr class="my-8 border-dashed" />
+    <hr class="my-8 border-dashed" />
 
-      <EditPost class="sm:hidden" {hideEditPost} {post} />
+    <EditPost class="sm:hidden" {hideEditPost} {post} />
 
-      <ShareLinks />
+    <ShareLinks />
 
-      {SITE.comments.enabled && <Comments client:only="react" />}
+    {SITE.comments.enabled && <Comments client:only="react" />}
 
-      <hr
-        class={`my-6 ${SITE.comments.enabled ? "border-none" : "border-dashed"}`}
-      />
+    <hr
+      class={`my-6 ${SITE.comments.enabled ? "border-none" : "border-dashed"}`}
+    />
 
-      <BackToTopButton />
+    <BackToTopButton />
 
-      <!-- Previous/Next Post Buttons -->
-      <div data-pagefind-ignore class="post-nav-grid grid grid-cols-1 gap-6 sm:grid-cols-2">
-        {
-          prevPost && (
-            <a
-              href={getPath(prevPost.id, prevPost.filePath)}
-              class="post-nav-card post-nav-card--prev"
-            >
-              <div>
-                <span class="post-nav-card__label">{UI.post.previous}</span>
-                <div class="post-nav-card__title">
-                  <IconChevronLeft class="post-nav-card__icon inline-block flex-none rtl:rotate-180" />
-                  {prevPost.title}
-                </div>
-              </div>
-            </a>
-          )
-        }
-        {
-          nextPost && (
-            <a
-              href={getPath(nextPost.id, nextPost.filePath)}
-              class="post-nav-card post-nav-card--next sm:col-start-2"
-            >
-              <div>
-                <span class="post-nav-card__label">{UI.post.next}</span>
-                <div class="post-nav-card__title">
-                  {nextPost.title}
-                  <IconChevronRight class="post-nav-card__icon inline-block flex-none rtl:rotate-180" />
-                </div>
-              </div>
-            </a>
-          )
-        }
-      </div>
+    <!-- Previous/Next Post Buttons -->
+    <div data-pagefind-ignore class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {
+        prevPost && (
+          <a
+            href={getPath(prevPost.id, prevPost.filePath)}
+            class="flex w-full gap-1 hover:opacity-75"
+          >
+            <IconChevronLeft class="inline-block flex-none rtl:rotate-180" />
+            <div>
+              <span>{UI.post.previous}</span>
+              <div class="text-sm text-accent/85">{prevPost.title}</div>
+            </div>
+          </a>
+        )
+      }
+      {
+        nextPost && (
+          <a
+            href={getPath(nextPost.id, nextPost.filePath)}
+            class="flex w-full justify-end gap-1 text-end hover:opacity-75 sm:col-start-2"
+          >
+            <div>
+              <span>{UI.post.next}</span>
+              <div class="text-sm text-accent/85">{nextPost.title}</div>
+            </div>
+            <IconChevronRight class="inline-block flex-none rtl:rotate-180" />
+          </a>
+        )
+      }
     </div>
   </main>
   <Footer />

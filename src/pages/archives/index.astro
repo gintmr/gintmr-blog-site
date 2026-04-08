@@ -1,9 +1,9 @@
 ---
 import { getCollection } from "astro:content";
+import Main from "@/layouts/Main.astro";
 import Layout from "@/layouts/Layout.astro";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
-import Breadcrumb from "@/components/Breadcrumb.astro";
 import Datetime from "@/components/Datetime.astro";
 import { getPath } from "@/utils/getPath";
 import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
@@ -45,7 +45,7 @@ const blogItems: ArchiveItem[] = await Promise.all(
     let imageSrc: string | undefined;
     if (typeof post.data.ogImage === "string" && post.data.ogImage.trim()) {
       const optimized = await optimizeImage(post.data.ogImage, {
-        thumbnailSize: 360,
+        thumbnailSize: 300,
       });
       imageSrc = optimized.thumbnail;
     } else if (
@@ -112,7 +112,7 @@ const groupedByYearMonth = timelineArchiveItems.reduce(
 
     return acc;
   },
-  {} as Record<number, Record<number, TimelineArchiveItem[]>>
+  {} as Record<number, Record<number, ArchiveItem[]>>
 );
 
 const sourceLabel = {
@@ -123,170 +123,159 @@ const sourceLabel = {
 
 <Layout title={`${UI.pages.archivesTitle} | ${SITE.title}`}>
   <Header />
-
-  <main id="main-content" class="archive-shell mx-auto mt-4 w-full max-w-[90rem] px-4 pb-12">
-    <Breadcrumb />
-
-    <section class="archive-hero">
-      <div class="archive-hero__intro">
-        <p class="archive-hero__label">Timebound Catalogue</p>
-        <h1 class="archive-hero__title">{UI.pages.archivesTitle}</h1>
-        <p class="archive-hero__desc">
-          Every long-form entry and remembered reel, arranged as one continuous life-log rather than separate silos.
-        </p>
-      </div>
-
-      <div class="archive-hero__meta">
-        <div class="archive-hero__meta-card">
-          <span class="archive-hero__meta-value">{mergedArchiveItems.length}</span>
-          <span class="archive-hero__meta-label">Total archived entries</span>
-        </div>
-        <div class="archive-hero__meta-card">
-          <span class="archive-hero__meta-value">{topArchiveItems.length}</span>
-          <span class="archive-hero__meta-label">Pinned records</span>
-        </div>
-      </div>
-    </section>
-
+  <Main
+    pageTitle={UI.pages.archivesTitle}
+    pageDesc="A single timeline for essays, stories, and the pieces worth keeping."
+  >
     {
       topArchiveItems.length > 0 && (
-        <section id="top" class="archive-cluster archive-cluster--top">
-          <div class="archive-cluster__head">
-            <div>
-              <p class="archive-cluster__label">{UI.common.top}</p>
-              <h2 class="archive-cluster__title">Pinned Atlas</h2>
-            </div>
-            <p class="archive-cluster__hint">
-              Entries without a date placement, held above the timeline as permanent markers.
-            </p>
+        <section id="top" class="archive-panel mb-10">
+          <div class="mb-3 flex items-center gap-2">
+            <span class="text-2xl font-bold">{UI.common.top}</span>
+            <sup class="text-sm">{topArchiveItems.length}</sup>
           </div>
-
-          <div class="archive-grid archive-grid--top">
+          <ul class="space-y-4">
             {topArchiveItems.map(item => (
-              <article class="archive-entry archive-entry--top">
-                {
-                  item.kind === "blog" && item.imageSrc ? (
-                    <a href={item.url} class="archive-entry__thumb-link" aria-label={item.title}>
-                      <img
-                        src={item.imageSrc}
-                        alt={item.title}
-                        width={720}
-                        height={480}
-                        class="archive-entry__thumb"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </a>
-                  ) : (
-                    <div class="archive-entry__story-badge">Story</div>
-                  )
-                }
-
-                <div class="archive-entry__content">
-                  <div class="archive-entry__meta-row">
-                    <span class="archive-entry__pill archive-entry__pill--top">{UI.common.top}</span>
-                    <span class="archive-entry__pill">{sourceLabel[item.kind]}</span>
-                  </div>
-                  <h3 class="archive-entry__title">
-                    <a href={item.url}>{item.title}</a>
-                  </h3>
+              <li class="archive-entry">
+                <div class="flex flex-col gap-3 md:flex-row md:gap-4">
                   {
-                    item.description && (
-                      <p class="archive-entry__desc">{item.description}</p>
+                    item.kind === "blog" && item.imageSrc && (
+                      <div class="h-40 w-full overflow-hidden rounded-xl md:mb-0 md:h-[96px] md:w-[96px] md:flex-shrink-0">
+                        <img
+                          src={item.imageSrc}
+                          alt={item.title}
+                          width={720}
+                          height={480}
+                          class="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
                     )
                   }
+
+                    <div
+                      class:list={[
+                        "w-full",
+                        item.kind === "blog" && item.imageSrc
+                        ? "md:w-[calc(100% - 96px)]"
+                        : "",
+                      ]}
+                    >
+                    <div class="flex items-center gap-2">
+                      <a
+                        href={item.url}
+                        class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
+                      >
+                        <h2 class="text-lg font-medium decoration-dashed hover:underline">
+                          {item.title}
+                        </h2>
+                      </a>
+                      <span class="rounded-full border border-accent/55 px-2 py-0.5 text-[11px] leading-none text-accent">
+                        {UI.common.top}
+                      </span>
+                      <span
+                        class:list={[
+                          "rounded-full border px-2 py-0.5 text-[11px] leading-none",
+                          item.kind === "blog"
+                            ? "border-accent/45 text-accent"
+                            : "border-foreground/30 text-foreground/80",
+                        ]}
+                      >
+                        {sourceLabel[item.kind]}
+                      </span>
+                    </div>
+                    {item.description && <p>{item.description}</p>}
+                  </div>
                 </div>
-              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )
     }
 
-    <section class="archive-timeline">
-      {
-        Object.entries(groupedByYearMonth)
-          .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
-          .map(([year, monthMap]) => {
-            const yearItems = Object.values(monthMap).flat();
-
-            return (
-              <section class="archive-year-block">
-                <div class="archive-year-block__head">
-                  <div>
-                    <p class="archive-year-block__eyebrow">Year</p>
-                    <h2 class="archive-year-block__title">{year}</h2>
-                  </div>
-                  <span class="archive-year-block__count">{yearItems.length} entries</span>
-                </div>
-
-                <div class="archive-year-block__body">
-                  {Object.entries(monthMap)
-                    .sort(([monthA], [monthB]) => Number(monthB) - Number(monthA))
-                    .map(([month, items]) => (
-                      <section class="archive-month-block">
-                        <div class="archive-month-block__label">{MONTHS[Number(month) - 1]}</div>
-
-                        <div class="archive-month-block__entries">
-                          {items.map(item => (
-                            <article class:list={["archive-entry", item.kind === "story" && "archive-entry--story"]}>
-                              {
-                                item.kind === "blog" && item.imageSrc ? (
-                                  <a
-                                    href={item.url}
-                                    class="archive-entry__thumb-link"
-                                    aria-label={item.title}
-                                  >
-                                    <img
-                                      src={item.imageSrc}
-                                      alt={item.title}
-                                      width={720}
-                                      height={480}
-                                      class="archive-entry__thumb"
-                                      loading="lazy"
-                                      decoding="async"
-                                    />
-                                  </a>
-                                ) : (
-                                  <div class="archive-entry__story-badge">Story</div>
-                                )
-                              }
-
-                              <div class="archive-entry__content">
-                                <div class="archive-entry__meta-row">
-                                  <span class="archive-entry__pill">{sourceLabel[item.kind]}</span>
-                                </div>
-
-                                <h3 class="archive-entry__title">
-                                  <a href={item.url}>{item.title}</a>
-                                </h3>
-
-                                <div class="archive-entry__datetime">
-                                  <Datetime
-                                    pubDatetime={item.pubDatetime}
-                                    modDatetime={item.modDatetime}
-                                    timezone={item.timezone}
+    {
+      Object.entries(groupedByYearMonth)
+        .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
+        .map(([year, monthMap]) => {
+          const yearItems = Object.values(monthMap).flat();
+          return (
+            <div class="archive-year-block">
+              <span class="text-2xl font-bold">{year}</span>
+              <sup class="text-sm">{yearItems.length}</sup>
+              {Object.entries(monthMap)
+                .sort(([monthA], [monthB]) => Number(monthB) - Number(monthA))
+                .map(([month, items]) => (
+                  <div class="archive-month-row flex flex-col sm:flex-row">
+                    <div class="mt-6 min-w-36 text-lg sm:my-6">
+                      <span class="font-bold">{MONTHS[Number(month) - 1]}</span>
+                    </div>
+                    <ul class="flex-1 space-y-4">
+                      {items.map(item => (
+                        <li class="archive-entry">
+                          <div class="flex flex-col gap-3 md:flex-row md:gap-4">
+                            {
+                              item.kind === "blog" && item.imageSrc && (
+                                <div class="h-40 w-full overflow-hidden rounded-xl md:mb-0 md:h-[96px] md:w-[96px] md:flex-shrink-0">
+                                  <img
+                                    src={item.imageSrc}
+                                    alt={item.title}
+                                    width={720}
+                                    height={480}
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
                                   />
                                 </div>
+                              )
+                            }
 
-                                {
-                                  item.description && (
-                                    <p class="archive-entry__desc">{item.description}</p>
-                                  )
-                                }
+                              <div
+                                class:list={[
+                                  "w-full",
+                                  item.kind === "blog" && item.imageSrc
+                                  ? "md:w-[calc(100% - 96px)]"
+                                  : "",
+                                ]}
+                              >
+                              <div class="flex items-center gap-2">
+                                <a
+                                  href={item.url}
+                                  class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
+                                >
+                                  <h2 class="text-lg font-medium decoration-dashed hover:underline">
+                                    {item.title}
+                                  </h2>
+                                </a>
+                                <span
+                                  class:list={[
+                                    "rounded-full border px-2 py-0.5 text-[11px] leading-none",
+                                    item.kind === "blog"
+                                      ? "border-accent/45 text-accent"
+                                      : "border-foreground/30 text-foreground/80",
+                                  ]}
+                                >
+                                  {sourceLabel[item.kind]}
+                                </span>
                               </div>
-                            </article>
-                          ))}
-                        </div>
-                      </section>
-                    ))}
-                </div>
-              </section>
-            );
-          })
-      }
-    </section>
-  </main>
-
+                              <Datetime
+                                pubDatetime={item.pubDatetime}
+                                modDatetime={item.modDatetime}
+                                timezone={item.timezone}
+                              />
+                              {item.description && <p>{item.description}</p>}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          );
+        })
+    }
+  </Main>
   <Footer />
 </Layout>

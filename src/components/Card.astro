@@ -6,19 +6,16 @@ import Datetime from "./Datetime.astro";
 import { optimizeImage } from "@/utils/optimizeImages";
 
 export interface Props extends CollectionEntry<"blog"> {
-  variant?: "feature" | "stream";
-  eyebrow?: string;
+  variant?: "h2" | "h3";
 }
 
-const { variant = "stream", eyebrow, data, id, filePath } = Astro.props;
+const { variant = "h2", data, id, filePath } = Astro.props;
 
 const { title, description, pubDatetime, modDatetime, timezone } = data;
 let cardImageSrc: string | undefined;
 
 if (typeof data.ogImage === "string" && data.ogImage.trim()) {
-  const optimized = await optimizeImage(data.ogImage, {
-    thumbnailSize: variant === "feature" ? 1200 : 720,
-  });
+  const optimized = await optimizeImage(data.ogImage, { thumbnailSize: 300 });
   cardImageSrc = optimized.thumbnail;
 } else if (
   data.ogImage &&
@@ -29,67 +26,47 @@ if (typeof data.ogImage === "string" && data.ogImage.trim()) {
   cardImageSrc = data.ogImage.src;
 }
 
-const href = getPath(id, filePath);
-const headingTag = variant === "feature" ? "h2" : "h3";
-const defaultEyebrow = variant === "feature" ? "Lead Essay" : "Field Note";
+const headerProps = {
+  style: { viewTransitionName: slugifyStr(title) },
+  class:
+    "text-[1.05rem] font-semibold leading-snug decoration-dashed transition-colors hover:text-accent/90 hover:underline sm:text-[1.14rem]",
+};
 ---
 
-<li class:list={["blog-card", `blog-card--${variant}`]}>
-  <article class="blog-card__frame">
-    <a
-      href={href}
-      class="blog-card__media"
-      aria-label={title}
-      transition:name={slugifyStr(title)}
-    >
-      {
-        cardImageSrc ? (
+<li class="my-5 list-none first:mt-0 last:mb-0">
+  <div class="blog-list-card group flex flex-col gap-4 rounded-2xl border border-border/55 bg-card/28 p-3.5 transition-colors duration-200 hover:border-accent/30 md:flex-row md:gap-5 md:p-4">
+    {
+      cardImageSrc && (
+        <div class="aspect-[16/10] w-full overflow-hidden rounded-xl md:mb-0 md:h-[112px] md:w-[112px] md:flex-shrink-0 md:aspect-auto">
           <img
             src={cardImageSrc}
             alt={title}
-            width={1200}
-            height={800}
-            class="blog-card__image"
+            width={720}
+            height={480}
+            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             loading="lazy"
             decoding="async"
           />
-        ) : (
-          <div class="blog-card__image blog-card__image--fallback" aria-hidden="true">
-            <span>{title.slice(0, 1)}</span>
-          </div>
-        )
-      }
-      <div class="blog-card__media-glow" aria-hidden="true"></div>
-    </a>
-
-    <div class="blog-card__content">
-      <p class="blog-card__eyebrow">{eyebrow ?? defaultEyebrow}</p>
-      <a href={href} class="blog-card__title-link">
+        </div>
+      )
+    }
+    <div class="w-full flex-1">
+      <a
+        href={getPath(id, filePath)}
+        class="inline-block text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
+      >
         {
-          headingTag === "h2" ? (
-            <h2 class="blog-card__title">{title}</h2>
+          variant === "h2" ? (
+            <h2 {...headerProps}>{title}</h2>
           ) : (
-            <h3 class="blog-card__title">{title}</h3>
+            <h3 {...headerProps}>{title}</h3>
           )
         }
       </a>
-
-      <div class="blog-card__meta">
-        <Datetime
-          pubDatetime={pubDatetime}
-          modDatetime={modDatetime}
-          timezone={timezone}
-          class="blog-card__datetime"
-        />
+      <div class="mt-1.5 text-sm text-foreground/66">
+        <Datetime {pubDatetime} {modDatetime} {timezone} />
       </div>
-
-      <p class="blog-card__description">{description}</p>
-
-      <div class="blog-card__footer">
-        <a href={href} class="blog-card__cta">
-          Read entry
-        </a>
-      </div>
+      <p class="mt-2 line-clamp-3 text-sm leading-7 text-foreground/74">{description}</p>
     </div>
-  </article>
+  </div>
 </li>

@@ -48,20 +48,16 @@ export default function Comments() {
     return (
       <section className="discussion-shell">
         <div className="discussion-shell__head">
-          <p className="discussion-shell__eyebrow">
-            {UI_LOCALE === "zh-CN" ? "讨论" : "Discussion"}
-          </p>
           <h2 className="discussion-shell__title">
-            {UI_LOCALE === "zh-CN" ? "留言与回响" : "Notes from readers"}
+            {UI_LOCALE === "zh-CN" ? "讨论" : "Discussion"}
           </h2>
           <p className="discussion-shell__desc">
             {UI_LOCALE === "zh-CN"
-              ? "把评论区也当成文章的一部分。欢迎留下补充、质疑，或者你自己的线索。"
-              : "Treat the discussion as part of the piece: additions, disagreements, and side notes all belong here."}
+              ? "欢迎留下看法、补充或继续聊下去。"
+              : "Thoughts, follow-ups, and side notes are all welcome here."}
           </p>
         </div>
-
-        <div className="discussion-shell__embed">
+        <div className="discussion-shell__body">
           <Giscus
             host={PUBLIC_GISCUS_HOST || "https://giscus.app"}
             repo={PUBLIC_GISCUS_REPO as `${string}/${string}`}
@@ -83,23 +79,23 @@ export default function Comments() {
   }
 
   return (
-    <section className="discussion-shell discussion-shell--empty">
+    <section className="discussion-shell">
       <div className="discussion-shell__head">
-        <p className="discussion-shell__eyebrow">
-          {UI_LOCALE === "zh-CN" ? "讨论" : "Discussion"}
-        </p>
         <h2 className="discussion-shell__title">
-          {UI_LOCALE === "zh-CN" ? "评论区尚未接通" : "Discussion is not connected yet"}
+          {UI_LOCALE === "zh-CN" ? "讨论" : "Discussion"}
         </h2>
         <p className="discussion-shell__desc">
           {UI_LOCALE === "zh-CN"
-            ? "需要配置 Giscus 环境变量后，这里才会显示真实评论区。"
-            : "Configure Giscus environment variables and this panel will turn into the live discussion area."}
+            ? "评论区需要先配置 Giscus。"
+            : "Giscus needs to be configured before comments can appear."}
         </p>
       </div>
-      <div className="discussion-shell__empty-note">
-        <code>PUBLIC_GISCUS_REPO</code>
-        <code>PUBLIC_GISCUS_REPO_ID</code>
+      <div className="discussion-shell__body discussion-shell__body--empty">
+        <p>
+          Comments require Giscus configuration. Set these environment variables:
+          <br />
+          <code>PUBLIC_GISCUS_REPO, PUBLIC_GISCUS_REPO_ID</code>
+        </p>
       </div>
     </section>
   );

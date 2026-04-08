@@ -26,7 +26,7 @@ const dateLabel = dayjs(pubDatetime)
 <li class="story-wall__item">
   <a
     href={storyPath}
-    class="story-wall-card group block no-underline"
+    class="story-wall-card group block overflow-hidden rounded-[1.15rem] border border-border/62 bg-card/28 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/34"
   >
     <div class="story-wall-card__media relative aspect-[3/4] overflow-hidden bg-black">
       {
@@ -37,27 +37,25 @@ const dateLabel = dayjs(pubDatetime)
             muted
             playsinline
             data-story-card-video
-            class="story-wall-card__video h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
+            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
-          <div class="story-wall-card__fallback flex h-full w-full items-center justify-center text-xs text-foreground/55">
+          <div class="flex h-full w-full items-center justify-center text-xs text-foreground/55">
             Video not found
           </div>
         )
       }
-      <div class="story-wall-card__veil"></div>
-      <div class="story-wall-card__headline">
-        <span class="story-wall-card__headline-date">{dateLabel}</span>
-        <h2 class="story-wall-card__headline-title">{storyTitle}</h2>
-      </div>
       <span class="story-wall-card__play-badge">▶</span>
     </div>
 
-    <div class="story-wall-card__copy p-3">
-      <p class="story-wall-card__meta">{dateLabel}</p>
+    <div class="story-wall-card__body p-3.5">
+      <h2 class="line-clamp-2 text-[1.02rem] font-semibold leading-snug text-foreground">
+        {storyTitle}
+      </h2>
+      <p class="mt-2 text-sm text-foreground/68">{dateLabel}</p>
       {
         description?.trim() && (
-          <p class="story-wall-card__desc mt-1 line-clamp-2 text-xs text-foreground/58">{description}</p>
+          <p class="mt-1.5 line-clamp-2 text-xs leading-6 text-foreground/58">{description}</p>
         )
       }
     </div>
