@@ -370,24 +370,35 @@ body::after {
   align-items: stretch;
 }
 
-.home-feature__collage {
-  display: grid;
-  gap: 0.55rem;
-  width: 100%;
-  min-height: 13rem;
-  grid-template-columns: 1.2fr 0.9fr;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-}
-
-.home-feature__shot {
+.home-feature__media {
+  position: relative;
   overflow: hidden;
+  width: 100%;
+  min-height: 15rem;
   border-radius: 1rem;
   border: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
   background: color-mix(in srgb, var(--card) 24%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 3%, transparent);
 }
 
-.home-feature__shot img {
+.home-feature__media::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, black 0%, transparent) 0%,
+    color-mix(in srgb, black 18%, transparent) 100%
+  );
+}
+
+.home-feature__media--story {
+  min-height: 16.5rem;
+}
+
+.home-feature__cover,
+.home-feature__video {
   display: block;
   width: 100%;
   height: 100%;
@@ -395,12 +406,27 @@ body::after {
   transition: transform 0.28s ease;
 }
 
-.home-feature__panel:hover .home-feature__shot img {
+.home-feature__panel:hover .home-feature__cover,
+.home-feature__panel:hover .home-feature__video {
   transform: scale(1.02);
 }
 
-.home-feature__shot--1 {
-  grid-row: 1 / span 2;
+.home-feature__play {
+  position: absolute;
+  inset: auto auto 0.85rem 0.85rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, white 14%, transparent);
+  background: color-mix(in srgb, black 52%, transparent);
+  color: color-mix(in srgb, white 92%, transparent);
+  font-size: 0.95rem;
+  line-height: 1;
+  backdrop-filter: blur(10px);
 }
 
 .home-feature__fallback {
@@ -2036,7 +2062,7 @@ video {
     max-width: none;
   }
 
-  .home-feature__collage,
+  .home-feature__media,
   .home-feature__fallback {
     min-height: 10.5rem;
   }

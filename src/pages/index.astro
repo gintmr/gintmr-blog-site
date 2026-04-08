@@ -4,14 +4,24 @@ import Header from "@/components/Header.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
 import { SITE } from "@/config";
 import Layout from "@/layouts/Layout.astro";
+import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
 import { getCollection } from "astro:content";
 import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
 import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import { UI, UI_LOCALE } from "@/i18n/ui";
+import getSortedPosts from "@/utils/getSortedPosts";
+import getSortedStories from "@/utils/getSortedStories";
+import { getPublishTimestamp, isDatePubDatetime } from "@/utils/pubDatetime";
+import { optimizeImage } from "@/utils/optimizeImages";
+import { getPath } from "@/utils/getPath";
+import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
+import { resolveStoryVideoUrlByEntry } from "@/utils/storyVideo";
 
 const diaryEntries = await getCollection("diary");
+const blogEntries = getSortedPosts(await getCollection("blog"));
+const storyEntries = getSortedStories(await getCollection("story"));
 
 // 过滤掉草稿状态的条目
 const publishedEntries = diaryEntries.filter(entry => !entry.data.draft);
@@ -41,78 +51,109 @@ const paginationInfo = {
   itemsPerPage: ITEMS_PER_PAGE,
 };
 
-function getFirstMeaningfulText(blocks: typeof initialParsedEntries[number]["timeBlocks"]) {
-  for (const block of blocks) {
-    if (block.text) {
-      const plain = block.text
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (plain) return plain;
-    }
-  }
-  return "";
+function formatDateLabel(value: Date | undefined): string | undefined {
+  if (!value) return undefined;
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: SITE.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
 }
 
-function getLeadImages(blocks: typeof initialParsedEntries[number]["timeBlocks"]) {
-  const collected: Array<{ src: string; alt: string; title?: string }> = [];
-
-  for (const block of blocks) {
-    if (block.imageGroups?.length) {
-      for (const group of block.imageGroups) {
-        for (const image of group) {
-          if (!image?.src) continue;
-          collected.push({
-            src: image.src,
-            alt: image.alt || image.title || "image",
-            title: image.title,
-          });
-          if (collected.length >= 3) return collected;
-        }
-      }
-    }
-
-    if (block.images?.length) {
-      for (const image of block.images) {
-        if (!image?.src) continue;
-        collected.push({
-          src: image.src,
-          alt: image.alt || image.title || "image",
-          title: image.title,
-        });
-        if (collected.length >= 3) return collected;
-      }
-    }
-  }
-
-  return collected;
+function resolveDisplayDate(
+  modDatetime: Date | null | undefined,
+  pubDatetime: unknown
+): Date | undefined {
+  if (isDatePubDatetime(modDatetime)) return modDatetime;
+  if (isDatePubDatetime(pubDatetime)) return pubDatetime;
+  return undefined;
 }
 
-const leadEntry = initialParsedEntries[0];
-const leadEntryId =
-  leadEntry &&
-  (leadEntry.isDateRange && leadEntry.dateEnd
-    ? `${leadEntry.date}_to_${leadEntry.dateEnd}`
-    : leadEntry.date);
-const leadPreviewText = leadEntry
-  ? getFirstMeaningfulText(leadEntry.timeBlocks).slice(0, 180)
-  : "";
-const leadPreviewImages = leadEntry ? getLeadImages(leadEntry.timeBlocks) : [];
-const leadDispatch = leadEntry
-  ? {
-      label: UI_LOCALE === "zh-CN" ? "Life Log" : "Life Log",
-      kicker: UI_LOCALE === "zh-CN" ? "Latest Dispatch" : "Latest Dispatch",
-      title: UI_LOCALE === "zh-CN" ? "从最新一页开始" : "Begin with the newest page",
-      desc:
-        leadPreviewText ||
-        (UI_LOCALE === "zh-CN"
-          ? "先从最新一篇时间记录开始，再顺着时间线向下走。"
-          : "Start from the latest diary entry, then continue down the timeline."),
-      date: leadEntry.date,
-      location: leadEntry.locationName,
-      href: leadEntryId ? `#date-${leadEntryId}` : "#diary-content",
-    }
+async function resolveBlogLeadImage(entry: (typeof blogEntries)[number] | undefined) {
+  if (!entry) return undefined;
+
+  const ogImage = entry.data.ogImage;
+  if (typeof ogImage === "string" && ogImage.trim()) {
+    const optimized = await optimizeImage(ogImage, { thumbnailSize: 900 });
+    return optimized.thumbnail;
+  }
+
+  if (
+    ogImage &&
+    typeof ogImage === "object" &&
+    "src" in ogImage &&
+    typeof ogImage.src === "string"
+  ) {
+    return ogImage.src;
+  }
+
+  return undefined;
+}
+
+const latestBlog = blogEntries[0];
+const latestStory = storyEntries[0];
+const latestBlogTimestamp = latestBlog
+  ? getPublishTimestamp(latestBlog.data.modDatetime ?? latestBlog.data.pubDatetime)
   : null;
+const latestStoryTimestamp = latestStory
+  ? getPublishTimestamp(latestStory.data.modDatetime ?? latestStory.data.pubDatetime)
+  : null;
+
+const leadMode =
+  latestStory &&
+  latestStoryTimestamp !== null &&
+  (latestBlogTimestamp === null || latestStoryTimestamp > latestBlogTimestamp)
+    ? "story"
+    : latestBlog
+      ? "blog"
+      : latestStory
+        ? "story"
+        : null;
+
+const leadStoryTitle =
+  latestStory && getStoryTitle(latestStory.data.title, latestStory.id, latestStory.filePath);
+const leadStoryVideoSrc =
+  latestStory && resolveStoryVideoUrlByEntry(latestStory.id, latestStory.filePath);
+const leadBlogImageSrc = await resolveBlogLeadImage(latestBlog);
+
+const leadDispatch =
+  leadMode === "story" && latestStory
+    ? {
+        label: UI_LOCALE === "zh-CN" ? "Spotlight" : "Spotlight",
+        kicker: UI_LOCALE === "zh-CN" ? "Latest Story" : "Latest Story",
+        title: leadStoryTitle,
+        desc:
+          latestStory.data.description?.trim() ||
+          (UI_LOCALE === "zh-CN"
+            ? "最新发布的一期竖屏短篇，适合从这里进入最近的记忆切片。"
+            : "The latest short vertical story, a quick way into the newest memory clip."),
+        date: formatDateLabel(
+          resolveDisplayDate(latestStory.data.modDatetime, latestStory.data.pubDatetime)
+        ),
+        href: getStoryPath(latestStory.id, latestStory.filePath),
+        mediaType: "story" as const,
+        mediaSrc: leadStoryVideoSrc,
+      }
+    : leadMode === "blog" && latestBlog
+      ? {
+          label: UI_LOCALE === "zh-CN" ? "Spotlight" : "Spotlight",
+          kicker: UI_LOCALE === "zh-CN" ? "Latest Blog" : "Latest Blog",
+          title: latestBlog.data.title,
+        desc:
+          latestBlog.data.description?.trim() ||
+          (UI_LOCALE === "zh-CN"
+            ? "最新发布的一篇长文，从这里开始进入最近一次完整记录。"
+            : "The latest long-form entry, a good place to start with the newest full record."),
+        date: formatDateLabel(
+          resolveDisplayDate(latestBlog.data.modDatetime, latestBlog.data.pubDatetime)
+        ),
+        href: getPath(latestBlog.id, latestBlog.filePath),
+        mediaType: "blog" as const,
+        mediaSrc: leadBlogImageSrc,
+        }
+      : null;
 const timelinePrelude = UI_LOCALE === "zh-CN"
   ? {
       label: "Recent Pages",
@@ -158,6 +199,8 @@ const timelinePrelude = UI_LOCALE === "zh-CN"
 
         <!-- 主要内容区域 -->
         <div class="py-8">
+          <QuoteSpotlight />
+
           {leadDispatch && (
             <section class="home-feature home-feature--solo mb-8" aria-label={leadDispatch.label}>
               <a href={leadDispatch.href} class="home-feature__panel group">
@@ -168,23 +211,43 @@ const timelinePrelude = UI_LOCALE === "zh-CN"
                   <p class="home-feature__desc">{leadDispatch.desc}</p>
 
                   <div class="home-feature__meta">
-                    <span class="home-feature__chip">{leadDispatch.date}</span>
-                    {leadDispatch.location && (
-                      <span class="home-feature__chip home-feature__chip--muted">
-                        {leadDispatch.location}
-                      </span>
-                    )}
+                    {leadDispatch.date && <span class="home-feature__chip">{leadDispatch.date}</span>}
+                    <span class="home-feature__chip home-feature__chip--muted">
+                      {leadDispatch.mediaType === "story"
+                        ? UI_LOCALE === "zh-CN"
+                          ? "Story"
+                          : "Story"
+                        : UI_LOCALE === "zh-CN"
+                          ? "Blog"
+                          : "Blog"}
+                    </span>
                   </div>
                 </div>
 
                 <div class="home-feature__visual" aria-hidden="true">
-                  {leadPreviewImages.length > 0 ? (
-                    <div class="home-feature__collage">
-                      {leadPreviewImages.map((image, index) => (
-                        <figure class={`home-feature__shot home-feature__shot--${index + 1}`}>
-                          <img src={image.src} alt={image.alt} loading="lazy" />
-                        </figure>
-                      ))}
+                  {leadDispatch.mediaSrc ? (
+                    <div class={`home-feature__media home-feature__media--${leadDispatch.mediaType}`}>
+                      {leadDispatch.mediaType === "story" ? (
+                        <>
+                          <video
+                            class="home-feature__video"
+                            src={`${leadDispatch.mediaSrc}#t=0.1`}
+                            muted
+                            playsinline
+                            autoplay
+                            loop
+                            preload="metadata"
+                          />
+                          <span class="home-feature__play">▶</span>
+                        </>
+                      ) : (
+                        <img
+                          class="home-feature__cover"
+                          src={leadDispatch.mediaSrc}
+                          alt={leadDispatch.title}
+                          loading="lazy"
+                        />
+                      )}
                     </div>
                   ) : (
                     <div class="home-feature__fallback">
