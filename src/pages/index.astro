@@ -42,6 +42,78 @@ const paginationInfo = {
   itemsPerPage: ITEMS_PER_PAGE,
 };
 
+function getFirstMeaningfulText(blocks: typeof initialParsedEntries[number]["timeBlocks"]) {
+  for (const block of blocks) {
+    if (block.text) {
+      const plain = block.text
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (plain) return plain;
+    }
+  }
+  return "";
+}
+
+function getLeadImages(blocks: typeof initialParsedEntries[number]["timeBlocks"]) {
+  const collected: Array<{ src: string; alt: string; title?: string }> = [];
+
+  for (const block of blocks) {
+    if (block.imageGroups?.length) {
+      for (const group of block.imageGroups) {
+        for (const image of group) {
+          if (!image?.src) continue;
+          collected.push({
+            src: image.src,
+            alt: image.alt || image.title || "image",
+            title: image.title,
+          });
+          if (collected.length >= 3) return collected;
+        }
+      }
+    }
+
+    if (block.images?.length) {
+      for (const image of block.images) {
+        if (!image?.src) continue;
+        collected.push({
+          src: image.src,
+          alt: image.alt || image.title || "image",
+          title: image.title,
+        });
+        if (collected.length >= 3) return collected;
+      }
+    }
+  }
+
+  return collected;
+}
+
+const leadEntry = initialParsedEntries[0];
+const leadEntryId =
+  leadEntry &&
+  (leadEntry.isDateRange && leadEntry.dateEnd
+    ? `${leadEntry.date}_to_${leadEntry.dateEnd}`
+    : leadEntry.date);
+const leadPreviewText = leadEntry
+  ? getFirstMeaningfulText(leadEntry.timeBlocks).slice(0, 180)
+  : "";
+const leadPreviewImages = leadEntry ? getLeadImages(leadEntry.timeBlocks) : [];
+const leadDispatch = leadEntry
+  ? {
+      label: UI_LOCALE === "zh-CN" ? "Latest Dispatch" : "Latest Dispatch",
+      title: UI_LOCALE === "zh-CN" ? "从最新一页开始" : "Begin with the newest page",
+      desc:
+        leadPreviewText ||
+        (UI_LOCALE === "zh-CN"
+          ? "先从最新一篇时间记录开始，再顺着时间线向下走。"
+          : "Start from the latest diary entry, then continue down the timeline."),
+      date: leadEntry.date,
+      location: leadEntry.locationName,
+      href: leadEntryId ? `#date-${leadEntryId}` : "#diary-content",
+    }
+  : null;
+
 const homeLaunch = UI_LOCALE === "zh-CN"
   ? {
       label: "Start Here",
@@ -128,6 +200,43 @@ const homeLaunch = UI_LOCALE === "zh-CN"
               ordinary days worth remembering.
             </p>
           </section>
+
+          {leadDispatch && (
+            <section class="home-feature mb-10" aria-label={leadDispatch.label}>
+              <a href={leadDispatch.href} class="home-feature__panel group">
+                <div class="home-feature__copy">
+                  <div class="home-feature__label">{leadDispatch.label}</div>
+                  <h2 class="home-feature__title">{leadDispatch.title}</h2>
+                  <p class="home-feature__desc">{leadDispatch.desc}</p>
+
+                  <div class="home-feature__meta">
+                    <span class="home-feature__chip">{leadDispatch.date}</span>
+                    {leadDispatch.location && (
+                      <span class="home-feature__chip home-feature__chip--muted">
+                        {leadDispatch.location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div class="home-feature__visual" aria-hidden="true">
+                  {leadPreviewImages.length > 0 ? (
+                    <div class="home-feature__collage">
+                      {leadPreviewImages.map((image, index) => (
+                        <figure class={`home-feature__shot home-feature__shot--${index + 1}`}>
+                          <img src={image.src} alt={image.alt} loading="lazy" />
+                        </figure>
+                      ))}
+                    </div>
+                  ) : (
+                    <div class="home-feature__fallback">
+                      <span>↘</span>
+                    </div>
+                  )}
+                </div>
+              </a>
+            </section>
+          )}
 
           <section class="home-launch-grid mt-0 mb-10" aria-label={homeLaunch.label}>
             {homeLaunch.items.map(item => (
