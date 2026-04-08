@@ -51,6 +51,13 @@ const hasMultipleSections = sections.length > 1;
         <p class="text-skin-base/70">{UI.pages.linksEmpty}</p>
       ) : (
         <div class="space-y-10">
+          <section class="subtle-page-note">
+            <div class="subtle-page-note__label">Directory</div>
+            <p class="text-sm leading-7 text-foreground/72">
+              A small set of people, projects, and places on the web that feel
+              worth revisiting.
+            </p>
+          </section>
           {
             sections.map(section => (
               <section>
@@ -87,24 +94,24 @@ const hasMultipleSections = sections.length > 1;
                         href={card.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="group border-skin-line/60 bg-skin-card/30 block h-full overflow-hidden rounded-2xl border transition hover:-translate-y-0.5 hover:border-accent/60"
+                        class="link-card group block h-full overflow-hidden rounded-2xl border"
                       >
                         {card.image && (
                           <img
                             src={card.image}
                             alt={card.title}
-                            class="h-36 w-full object-cover"
+                            class="link-card__image h-40 w-full object-cover"
                             loading="lazy"
                           />
                         )}
-                        <div class="p-4">
-                          <h3 class="text-lg font-semibold">{card.title}</h3>
+                        <div class="link-card__body p-4">
+                          <h3 class="text-lg font-semibold leading-snug">{card.title}</h3>
                           {card.description && (
-                            <p class="text-skin-base/75 mt-2 text-sm leading-relaxed">
+                            <p class="text-skin-base/75 mt-2 text-sm leading-7">
                               {card.description}
                             </p>
                           )}
-                          <p class="text-accent mt-3 text-xs font-medium">
+                          <p class="text-accent mt-3 text-xs font-medium tracking-wide uppercase">
                             {UI.pages.linksVisit} →
                           </p>
                         </div>
