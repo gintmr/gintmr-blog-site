@@ -8,7 +8,9 @@ import {
 import { UI_LOCALE } from "@/i18n/ui";
 
 const STORAGE_KEY = "visitors-info-password";
+const VISITOR_ALIAS_STORAGE_KEY = "visitors-info-aliases";
 const ROW_LIMIT = 1400;
+const SESSION_PAGE_SIZE = 20;
 
 type TimeRange = "all" | "today" | "7d" | "30d";
 type PageType = "all" | "blog" | "story" | "diary" | "visitors" | "other";
@@ -30,6 +32,8 @@ type DecoratedSession = VisitorSessionRow & {
   isReturning: boolean;
   isNewVisitor: boolean;
   suspicion: SuspicionResult;
+  displayVisitor: string;
+  alias: string | null;
 };
 
 type ChartDatum = {
@@ -75,6 +79,14 @@ const UI_TEXT =
         sessionsTitle: "最近会话",
         detailsTitle: "访客画像",
         timelineTitle: "访问链路",
+        aliasTitle: "访客别名",
+        aliasPlaceholder: "例如：我自己 / 主力电脑 / iPhone",
+        aliasSave: "保存别名",
+        aliasRemove: "删除别名",
+        paginationPrev: "上一页",
+        paginationNext: "下一页",
+        paginationSummary: "第 {current} / {total} 页",
+        selectedHint: "当前选中记录",
         revealIp: "显示完整 IP",
         hideIp: "隐藏完整 IP",
         overview: {
@@ -91,10 +103,12 @@ const UI_TEXT =
           period: "时间范围",
           pageType: "页面类型",
           device: "设备",
+          deviceId: "设备标识",
           visitorType: "访客类型",
           sort: "排序",
           keyword: "关键词",
           location: "地区关键词",
+          alias: "访客别名",
         },
         filterOptions: {
           all: "全部",
@@ -193,6 +207,14 @@ const UI_TEXT =
         sessionsTitle: "Recent Sessions",
         detailsTitle: "Visitor Profile",
         timelineTitle: "Journey",
+        aliasTitle: "Visitor alias",
+        aliasPlaceholder: "For example: Me / Main laptop / iPhone",
+        aliasSave: "Save alias",
+        aliasRemove: "Remove alias",
+        paginationPrev: "Previous",
+        paginationNext: "Next",
+        paginationSummary: "Page {current} / {total}",
+        selectedHint: "Selected record",
         revealIp: "Reveal full IP",
         hideIp: "Hide full IP",
         overview: {
@@ -209,10 +231,12 @@ const UI_TEXT =
           period: "Period",
           pageType: "Page Type",
           device: "Device",
+          deviceId: "Device identifier",
           visitorType: "Visitor Type",
           sort: "Sort",
           keyword: "Keyword",
           location: "Location keyword",
+          alias: "Visitor alias",
         },
         filterOptions: {
           all: "All",
@@ -322,6 +346,36 @@ function maskVisitorHash(value: string) {
   if (!value) return "--";
   if (value.length <= 10) return value;
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
+function formatTemplate(template: string, params: Record<string, string | number>) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ""));
+}
+
+function readVisitorAliases() {
+  if (typeof window === "undefined") return {} as Record<string, string>;
+  try {
+    const raw = window.localStorage.getItem(VISITOR_ALIAS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeVisitorAliases(next: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VISITOR_ALIAS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getVisitorDisplayName(visitorHash: string, aliasMap: Record<string, string>) {
+  const alias = aliasMap[visitorHash]?.trim();
+  return alias || maskVisitorHash(visitorHash);
 }
 
 function maskIp(ip: string | null) {
@@ -606,11 +660,16 @@ const VisitorsInfoPanel: React.FC = () => {
   const [sortMode, setSortMode] = React.useState<SortMode>("latest");
   const [keyword, setKeyword] = React.useState("");
   const [locationKeyword, setLocationKeyword] = React.useState("");
+  const [deviceIdentifierKeyword, setDeviceIdentifierKeyword] = React.useState("");
+  const [aliasKeyword, setAliasKeyword] = React.useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = React.useState(false);
   const [selectedSessionId, setSelectedSessionId] = React.useState<
     string | null
   >(null);
   const [revealedIpIds, setRevealedIpIds] = React.useState<string[]>([]);
+  const [visitorAliases, setVisitorAliases] = React.useState<Record<string, string>>({});
+  const [aliasInput, setAliasInput] = React.useState("");
+  const [sessionPage, setSessionPage] = React.useState(1);
 
   const loadData = React.useCallback(
     async (pass: string) => {
@@ -658,6 +717,10 @@ const VisitorsInfoPanel: React.FC = () => {
     }
   }, [loadData]);
 
+  React.useEffect(() => {
+    setVisitorAliases(readVisitorAliases());
+  }, []);
+
   const visitorFirstSeenMap = React.useMemo(() => getVisitorFirstSeenMap(rows), [rows]);
   const visitorSessionCountMap = React.useMemo(
     () => getVisitorSessionCountMap(rows),
@@ -671,6 +734,7 @@ const VisitorsInfoPanel: React.FC = () => {
         row,
         visitorSessionCountMap.get(row.visitor_hash) ?? 1
       );
+      const alias = visitorAliases[row.visitor_hash]?.trim() || null;
 
       return {
         ...row,
@@ -683,14 +747,18 @@ const VisitorsInfoPanel: React.FC = () => {
           (visitorFirstSeenMap.get(row.visitor_hash) ?? Number.MAX_SAFE_INTEGER) >=
           Date.now() - 7 * 24 * 60 * 60 * 1000,
         suspicion,
+        displayVisitor: alias || maskVisitorHash(row.visitor_hash),
+        alias,
       };
     });
-  }, [rows, visitorFirstSeenMap, visitorSessionCountMap]);
+  }, [rows, visitorAliases, visitorFirstSeenMap, visitorSessionCountMap]);
 
   const filteredRows = React.useMemo(() => {
     const now = Date.now();
     const keywordLower = keyword.trim().toLowerCase();
     const locationLower = locationKeyword.trim().toLowerCase();
+    const deviceIdentifierLower = deviceIdentifierKeyword.trim().toLowerCase();
+    const aliasLower = aliasKeyword.trim().toLowerCase();
 
     const result = decoratedRows.filter(row => {
       const seenAt = new Date(row.last_seen_at).getTime();
@@ -714,6 +782,7 @@ const VisitorsInfoPanel: React.FC = () => {
           row.org ?? "",
           row.asn ?? "",
           row.user_agent ?? "",
+          row.displayVisitor,
         ]
           .join(" ")
           .toLowerCase();
@@ -723,6 +792,16 @@ const VisitorsInfoPanel: React.FC = () => {
       if (locationLower) {
         const geo = `${row.country ?? ""} ${row.region ?? ""} ${row.city ?? ""}`.toLowerCase();
         if (!geo.includes(locationLower)) return false;
+      }
+
+      if (deviceIdentifierLower) {
+        const identifier = `${row.visitor_hash} ${row.session_id} ${row.displayVisitor}`.toLowerCase();
+        if (!identifier.includes(deviceIdentifierLower)) return false;
+      }
+
+      if (aliasLower) {
+        const aliasText = (row.alias ?? "").toLowerCase();
+        if (!aliasText.includes(aliasLower)) return false;
       }
 
       return true;
@@ -747,7 +826,9 @@ const VisitorsInfoPanel: React.FC = () => {
   }, [
     decoratedRows,
     deviceFilter,
+    deviceIdentifierKeyword,
     keyword,
+    aliasKeyword,
     locationKeyword,
     pageType,
     sortMode,
@@ -776,6 +857,27 @@ const VisitorsInfoPanel: React.FC = () => {
       null,
     [filteredRows, selectedSessionId]
   );
+
+  React.useEffect(() => {
+    setSessionPage(1);
+  }, [timeRange, pageType, deviceFilter, visitorType, sortMode, keyword, locationKeyword, deviceIdentifierKeyword, aliasKeyword]);
+
+  React.useEffect(() => {
+    setAliasInput(selectedSession?.alias ?? "");
+  }, [selectedSession]);
+
+  const totalSessionPages = Math.max(1, Math.ceil(filteredRows.length / SESSION_PAGE_SIZE));
+
+  React.useEffect(() => {
+    if (sessionPage > totalSessionPages) {
+      setSessionPage(totalSessionPages);
+    }
+  }, [sessionPage, totalSessionPages]);
+
+  const pagedRows = React.useMemo(() => {
+    const start = (sessionPage - 1) * SESSION_PAGE_SIZE;
+    return filteredRows.slice(start, start + SESSION_PAGE_SIZE);
+  }, [filteredRows, sessionPage]);
 
   const averageViews =
     overview && overview.total_visitors > 0
@@ -950,6 +1052,32 @@ const VisitorsInfoPanel: React.FC = () => {
     );
   };
 
+  const saveAlias = React.useCallback(() => {
+    if (!selectedSession) return;
+    const nextValue = aliasInput.trim();
+    setVisitorAliases(current => {
+      const next = { ...current };
+      if (nextValue) {
+        next[selectedSession.visitor_hash] = nextValue;
+      } else {
+        delete next[selectedSession.visitor_hash];
+      }
+      writeVisitorAliases(next);
+      return next;
+    });
+  }, [aliasInput, selectedSession]);
+
+  const removeAlias = React.useCallback(() => {
+    if (!selectedSession) return;
+    setAliasInput("");
+    setVisitorAliases(current => {
+      const next = { ...current };
+      delete next[selectedSession.visitor_hash];
+      writeVisitorAliases(next);
+      return next;
+    });
+  }, [selectedSession]);
+
   return (
     <section className="visitors-panel rounded-[2rem] border border-border/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 shadow-[0_25px_90px_rgba(15,23,42,0.12)] backdrop-blur sm:p-6">
       <header className="mb-6">
@@ -1023,7 +1151,7 @@ const VisitorsInfoPanel: React.FC = () => {
             </button>
           </div>
 
-          <div className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-8 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label={UI_TEXT.overview.totalViews} value={formatNumber(overview?.total_views)} />
             <StatCard label={UI_TEXT.overview.totalVisitors} value={formatNumber(overview?.total_visitors)} />
             <StatCard label={UI_TEXT.overview.totalSessions} value={formatNumber(overview?.total_sessions)} />
@@ -1034,19 +1162,19 @@ const VisitorsInfoPanel: React.FC = () => {
             <StatCard label={UI_TEXT.overview.lastVisit} value={formatTime(overview?.last_visit_at ?? null)} />
           </div>
 
-          <section className="mb-8 rounded-[1.5rem] border border-border/40 bg-background/40 p-4">
+          <section className="mb-8 rounded-[1.35rem] border border-border/40 bg-background/40 p-4">
             <div className="mb-4 flex items-center justify-between gap-4">
-              <h3 className="text-lg font-semibold text-skin-base">{UI_TEXT.filtersTitle}</h3>
+              <h3 className="text-base font-semibold text-skin-base">{UI_TEXT.filtersTitle}</h3>
               <button
                 type="button"
                 onClick={() => setShowAdvancedFilters(value => !value)}
-                className="text-sm text-accent transition hover:opacity-80"
+                className="text-xs text-accent transition hover:opacity-80"
               >
                 {showAdvancedFilters ? UI_TEXT.hideFilters : UI_TEXT.moreFilters}
               </button>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
               <FilterSelect
                 label={UI_TEXT.filters.period}
                 value={timeRange}
@@ -1106,7 +1234,7 @@ const VisitorsInfoPanel: React.FC = () => {
             </div>
 
             {showAdvancedFilters && (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                 <FilterInput
                   label={UI_TEXT.filters.keyword}
                   value={keyword}
@@ -1119,6 +1247,18 @@ const VisitorsInfoPanel: React.FC = () => {
                   onChange={setLocationKeyword}
                   placeholder="Hong Kong / Tokyo / Beijing"
                 />
+                <FilterInput
+                  label={UI_TEXT.filters.deviceId}
+                  value={deviceIdentifierKeyword}
+                  onChange={setDeviceIdentifierKeyword}
+                  placeholder="visitor hash / session id"
+                />
+                <FilterInput
+                  label={UI_TEXT.filters.alias}
+                  value={aliasKeyword}
+                  onChange={setAliasKeyword}
+                  placeholder="Me / iPhone / Test device"
+                />
               </div>
             )}
           </section>
@@ -1128,8 +1268,8 @@ const VisitorsInfoPanel: React.FC = () => {
           ) : (
             <>
               <section className="mb-8">
-                <h3 className="mb-4 text-lg font-semibold text-skin-base">{UI_TEXT.insightsTitle}</h3>
-                <div className="grid gap-3 lg:grid-cols-5">
+                <h3 className="mb-4 text-base font-semibold text-skin-base">{UI_TEXT.insightsTitle}</h3>
+                <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
                   {insights.map(card => (
                     <InsightPanel key={card.label} label={card.label} text={card.text} />
                   ))}
@@ -1137,8 +1277,8 @@ const VisitorsInfoPanel: React.FC = () => {
               </section>
 
               <section className="mb-8">
-                <h3 className="mb-4 text-lg font-semibold text-skin-base">{UI_TEXT.chartsTitle}</h3>
-                <div className="grid gap-4 xl:grid-cols-2">
+                <h3 className="mb-4 text-base font-semibold text-skin-base">{UI_TEXT.chartsTitle}</h3>
+                <div className="grid gap-3 xl:grid-cols-2">
                   <ChartCard title={UI_TEXT.charts.countries}>
                     <BarList data={countryChart} />
                   </ChartCard>
@@ -1160,14 +1300,14 @@ const VisitorsInfoPanel: React.FC = () => {
                 </div>
               </section>
 
-              <section className="mb-8 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <section className="mb-8 grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
                 <ChartCard title={UI_TEXT.geoTitle}>
-                  <p className="mb-3 text-sm text-skin-base/65">{UI_TEXT.metrics.mapHint}</p>
+                  <p className="mb-3 text-xs text-skin-base/65">{UI_TEXT.metrics.mapHint}</p>
                   <GeoRadarMap points={geoPoints} />
                 </ChartCard>
 
                 <ChartCard title={UI_TEXT.behaviorTitle}>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                  <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
                     <HighlightCard
                       label={UI_TEXT.labels.bounceRate}
                       value={formatPercent((bounceSessions.length / filteredRows.length) * 100)}
@@ -1187,7 +1327,7 @@ const VisitorsInfoPanel: React.FC = () => {
                 </ChartCard>
               </section>
 
-              <section className="mb-8 grid gap-4 xl:grid-cols-4">
+              <section className="mb-8 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                 <HighlightCard
                   label={UI_TEXT.labels.suspiciousSessions}
                   value={String(highlightStats.suspiciousCount)}
@@ -1204,7 +1344,11 @@ const VisitorsInfoPanel: React.FC = () => {
                 />
                 <HighlightCard
                   label={UI_TEXT.labels.mostActiveVisitor}
-                  value={highlightStats.mostActiveVisitor ? maskVisitorHash(highlightStats.mostActiveVisitor[0]) : "--"}
+                  value={
+                    highlightStats.mostActiveVisitor
+                      ? getVisitorDisplayName(highlightStats.mostActiveVisitor[0], visitorAliases)
+                      : "--"
+                  }
                   detail={
                     highlightStats.mostActiveVisitor
                       ? `${highlightStats.mostActiveVisitor[1]} ${UI_TEXT.metrics.sessions}`
@@ -1222,79 +1366,160 @@ const VisitorsInfoPanel: React.FC = () => {
                 />
               </section>
 
-              <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.9fr)]">
-                <div className="rounded-[1.5rem] border border-border/40 bg-background/45 p-4">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-skin-base">{UI_TEXT.sessionsTitle}</h3>
+              <section className="mb-8 rounded-[1.35rem] border border-border/40 bg-background/45 p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-base font-semibold text-skin-base">{UI_TEXT.sessionsTitle}</h3>
                     <span className="text-xs text-skin-base/60">
                       {filteredRows.length} / {rows.length}
                     </span>
                   </div>
+                  <div className="flex items-center gap-2 text-xs text-skin-base/65">
+                    <button
+                      type="button"
+                      onClick={() => setSessionPage(page => Math.max(1, page - 1))}
+                      disabled={sessionPage <= 1}
+                      className="rounded-full border border-border/40 px-3 py-1.5 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {UI_TEXT.paginationPrev}
+                    </button>
+                    <span>
+                      {formatTemplate(UI_TEXT.paginationSummary, {
+                        current: sessionPage,
+                        total: totalSessionPages,
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSessionPage(page => Math.min(totalSessionPages, page + 1))}
+                      disabled={sessionPage >= totalSessionPages}
+                      className="rounded-full border border-border/40 px-3 py-1.5 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {UI_TEXT.paginationNext}
+                    </button>
+                  </div>
+                </div>
 
-                  <div className="space-y-3">
-                    {filteredRows.map(row => (
+                <div className="overflow-hidden rounded-[1.15rem] border border-border/30 bg-background/40">
+                  <div className="hidden grid-cols-[170px_minmax(0,1.7fr)_110px_110px_150px_110px] gap-3 border-b border-border/25 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-skin-base/45 lg:grid">
+                    <span>{UI_TEXT.metrics.lastSeen}</span>
+                    <span>{UI_TEXT.metrics.fullUrl}</span>
+                    <span>{UI_TEXT.filters.device}</span>
+                    <span>{UI_TEXT.metrics.dwell}</span>
+                    <span>{UI_TEXT.filters.deviceId}</span>
+                    <span>{UI_TEXT.metrics.ip}</span>
+                  </div>
+
+                  <div className="divide-y divide-border/20">
+                    {pagedRows.map(row => (
                       <button
                         key={row.sessionKey}
                         type="button"
                         onClick={() => setSelectedSessionId(row.sessionKey)}
-                        className={`w-full rounded-[1.25rem] border px-4 py-3 text-left transition ${
+                        className={`grid w-full gap-2 px-4 py-3 text-left transition lg:grid-cols-[170px_minmax(0,1.7fr)_110px_110px_150px_110px] lg:items-center lg:gap-3 ${
                           selectedSessionId === row.sessionKey
-                            ? "border-accent/70 bg-accent/10 shadow-[0_10px_30px_rgba(59,130,246,0.12)]"
-                            : "border-border/35 bg-background/55 hover:border-accent/40 hover:bg-background/80"
+                            ? "bg-accent/10"
+                            : "bg-transparent hover:bg-background/70"
                         }`}
                       >
-                        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-skin-base/60">
-                          <span>{formatTime(row.last_seen_at)}</span>
-                          <span>•</span>
-                          <span>{safeDisplay(row.device_type)}</span>
-                          <span>•</span>
-                          <span>{row.locationLabel || "--"}</span>
+                        <div className="text-[12px] text-skin-base/62">{formatTime(row.last_seen_at)}</div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-skin-base">{row.decodedPath}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-skin-base/58">
+                            <Pill>{row.displayVisitor}</Pill>
+                            {row.locationLabel ? <Pill>{row.locationLabel}</Pill> : null}
+                            <Pill>{formatPercent(row.max_scroll_percent ?? 0)} scroll</Pill>
+                            <Pill>{formatNumber(row.interaction_count)} interactions</Pill>
+                            <RiskPill suspicion={row.suspicion} />
+                            {selectedSessionId === row.sessionKey ? (
+                              <span className="text-accent">{UI_TEXT.selectedHint}</span>
+                            ) : null}
+                          </div>
                         </div>
-                        <div className="line-clamp-2 text-sm font-medium leading-6 text-skin-base">
-                          {row.decodedPath}
-                        </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                          <Pill>{formatDwell(row.dwell_seconds)}</Pill>
-                          <Pill>{formatPercent(row.max_scroll_percent ?? 0)} scroll</Pill>
-                          <Pill>{formatNumber(row.interaction_count)} interactions</Pill>
-                          <Pill>{maskVisitorHash(row.visitor_hash)}</Pill>
-                          <Pill>{maskIp(row.ip_address)}</Pill>
-                          <RiskPill suspicion={row.suspicion} />
-                        </div>
+                        <div className="text-[12px] text-skin-base/72">{safeDisplay(row.device_type)}</div>
+                        <div className="text-[12px] text-skin-base/72">{formatDwell(row.dwell_seconds)}</div>
+                        <div className="text-[12px] text-skin-base/72">{row.displayVisitor}</div>
+                        <div className="text-[12px] text-skin-base/72">{maskIp(row.ip_address)}</div>
                       </button>
                     ))}
                   </div>
                 </div>
+              </section>
 
-                <aside className="rounded-[1.5rem] border border-border/40 bg-background/45 p-4">
-                  <h3 className="mb-4 text-lg font-semibold text-skin-base">{UI_TEXT.detailsTitle}</h3>
+              <section className="rounded-[1.35rem] border border-border/40 bg-background/45 p-4">
+                <h3 className="mb-4 text-base font-semibold text-skin-base">{UI_TEXT.detailsTitle}</h3>
 
-                  {selectedSession ? (
-                    <div className="space-y-5">
-                      <DetailGroup label={UI_TEXT.metrics.fullUrl} value={selectedSession.page_path} mono />
-                      <DetailGroup label={UI_TEXT.metrics.decodedUrl} value={selectedSession.decodedPath} />
-                      <DetailGroup
-                        label={UI_TEXT.metrics.ip}
-                        value={
-                          revealedIpIds.includes(selectedSession.sessionKey)
-                            ? safeDisplay(selectedSession.ip_address)
-                            : maskIp(selectedSession.ip_address)
-                        }
-                        action={
-                          selectedSession.ip_address ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleIpReveal(selectedSession.sessionKey)}
-                              className="text-xs text-accent"
-                            >
-                              {revealedIpIds.includes(selectedSession.sessionKey)
-                                ? UI_TEXT.hideIp
-                                : UI_TEXT.revealIp}
-                            </button>
-                          ) : undefined
-                        }
-                        mono
-                      />
+                {selectedSession ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+                      <div className="space-y-3">
+                        <DetailGroup label={UI_TEXT.metrics.fullUrl} value={selectedSession.page_path} mono />
+                        <DetailGroup label={UI_TEXT.metrics.decodedUrl} value={selectedSession.decodedPath} />
+                        <DetailGroup
+                          label={UI_TEXT.metrics.referrer}
+                          value={safeDisplay(selectedSession.referrer, UI_TEXT.labels.direct)}
+                          mono
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <DetailGroup
+                          label={UI_TEXT.aliasTitle}
+                          value={selectedSession.displayVisitor}
+                          action={
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={saveAlias}
+                                className="text-xs text-accent"
+                              >
+                                {UI_TEXT.aliasSave}
+                              </button>
+                              {selectedSession.alias ? (
+                                <button
+                                  type="button"
+                                  onClick={removeAlias}
+                                  className="text-xs text-skin-base/65"
+                                >
+                                  {UI_TEXT.aliasRemove}
+                                </button>
+                              ) : null}
+                            </div>
+                          }
+                        >
+                          <input
+                            value={aliasInput}
+                            onChange={event => setAliasInput(event.target.value)}
+                            placeholder={UI_TEXT.aliasPlaceholder}
+                            className="mt-2 w-full rounded-xl border border-border/40 bg-background/70 px-3 py-2 text-[13px] text-skin-base outline-none ring-accent/40 focus:ring-2"
+                          />
+                        </DetailGroup>
+                        <DetailGroup
+                          label={UI_TEXT.metrics.ip}
+                          value={
+                            revealedIpIds.includes(selectedSession.sessionKey)
+                              ? safeDisplay(selectedSession.ip_address)
+                              : maskIp(selectedSession.ip_address)
+                          }
+                          action={
+                            selectedSession.ip_address ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleIpReveal(selectedSession.sessionKey)}
+                                className="text-xs text-accent"
+                              >
+                                {revealedIpIds.includes(selectedSession.sessionKey)
+                                  ? UI_TEXT.hideIp
+                                  : UI_TEXT.revealIp}
+                              </button>
+                            ) : undefined
+                          }
+                          mono
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       <DetailGroup label={UI_TEXT.metrics.geo} value={selectedSession.locationLabel || "--"} />
                       <DetailGroup
                         label={UI_TEXT.metrics.network}
@@ -1305,11 +1530,6 @@ const VisitorsInfoPanel: React.FC = () => {
                         ]
                           .filter(Boolean)
                           .join(" / ") || "--"}
-                      />
-                      <DetailGroup
-                        label={UI_TEXT.metrics.referrer}
-                        value={safeDisplay(selectedSession.referrer, UI_TEXT.labels.direct)}
-                        mono
                       />
                       <DetailGroup
                         label={UI_TEXT.metrics.environment}
@@ -1353,19 +1573,18 @@ const VisitorsInfoPanel: React.FC = () => {
                       />
                       <DetailGroup label={UI_TEXT.metrics.firstSeen} value={formatTime(selectedSession.visit_started_at)} />
                       <DetailGroup label={UI_TEXT.metrics.lastSeen} value={formatTime(selectedSession.last_seen_at)} />
-                      <DetailGroup label={UI_TEXT.metrics.dwell} value={formatDwell(selectedSession.dwell_seconds)} />
-
-                      <div className="rounded-[1.15rem] border border-border/35 bg-background/55 p-3">
-                        <div className="mb-3 text-xs uppercase tracking-[0.16em] text-skin-base/55">
-                          {UI_TEXT.timelineTitle}
-                        </div>
-                        <JourneyList rows={selectedJourney} />
-                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-skin-base/70">{UI_TEXT.empty}</p>
-                  )}
-                </aside>
+
+                    <div className="rounded-[1.1rem] border border-border/35 bg-background/55 p-3">
+                      <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-skin-base/55">
+                        {UI_TEXT.timelineTitle}
+                      </div>
+                      <JourneyList rows={selectedJourney} />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-skin-base/70">{UI_TEXT.empty}</p>
+                )}
               </section>
             </>
           )}
@@ -1377,9 +1596,9 @@ const VisitorsInfoPanel: React.FC = () => {
 
 function StatCard(props: { label: string; value: string }) {
   return (
-    <div className="rounded-[1.35rem] border border-border/40 bg-background/55 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="text-xs uppercase tracking-[0.18em] text-skin-base/55">{props.label}</div>
-      <div className="mt-2 text-xl font-semibold text-accent">{props.value}</div>
+    <div className="rounded-[1.2rem] border border-border/40 bg-background/55 px-3.5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-skin-base/55">{props.label}</div>
+      <div className="mt-1.5 text-lg font-semibold text-accent">{props.value}</div>
     </div>
   );
 }
@@ -1396,7 +1615,7 @@ function FilterSelect(props: {
       <select
         value={props.value}
         onChange={event => props.onChange(event.target.value)}
-        className="w-full rounded-2xl border border-border/50 bg-background/70 px-3 py-2.5 text-sm outline-none ring-accent/40 focus:ring-2"
+        className="w-full rounded-2xl border border-border/50 bg-background/70 px-3 py-2.5 text-[13px] outline-none ring-accent/40 focus:ring-2"
       >
         {props.options.map(([value, label]) => (
           <option key={value} value={value}>
@@ -1421,7 +1640,7 @@ function FilterInput(props: {
         value={props.value}
         onChange={event => props.onChange(event.target.value)}
         placeholder={props.placeholder}
-        className="w-full rounded-2xl border border-border/50 bg-background/70 px-3 py-2.5 text-sm outline-none ring-accent/40 focus:ring-2"
+        className="w-full rounded-2xl border border-border/50 bg-background/70 px-3 py-2.5 text-[13px] outline-none ring-accent/40 focus:ring-2"
       />
     </label>
   );
@@ -1429,17 +1648,17 @@ function FilterInput(props: {
 
 function InsightPanel(props: { label: string; text: string }) {
   return (
-    <div className="rounded-[1.35rem] border border-border/40 bg-background/50 p-4">
-      <div className="text-xs uppercase tracking-[0.18em] text-accent/70">{props.label}</div>
-      <p className="mt-2 text-sm leading-6 text-skin-base/80">{props.text}</p>
+    <div className="rounded-[1.15rem] border border-border/40 bg-background/50 p-3.5">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-accent/70">{props.label}</div>
+      <p className="mt-1.5 text-[13px] leading-5 text-skin-base/80">{props.text}</p>
     </div>
   );
 }
 
 function ChartCard(props: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[1.5rem] border border-border/40 bg-background/45 p-4">
-      <h4 className="mb-4 text-sm font-semibold text-skin-base">{props.title}</h4>
+    <div className="rounded-[1.25rem] border border-border/40 bg-background/45 p-4">
+      <h4 className="mb-3 text-[13px] font-semibold text-skin-base">{props.title}</h4>
       {props.children}
     </div>
   );
@@ -1449,14 +1668,14 @@ function BarList(props: { data: ChartDatum[]; truncateLabel?: boolean }) {
   const max = props.data[0]?.count ?? 1;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {props.data.map(item => (
         <div key={item.label}>
-          <div className="mb-1 flex items-center justify-between gap-3 text-xs text-skin-base/70">
+          <div className="mb-1 flex items-center justify-between gap-3 text-[12px] text-skin-base/70">
             <span className={props.truncateLabel ? "truncate pr-3" : ""}>{item.label}</span>
             <span>{item.meta ?? item.count}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-border/25">
+          <div className="h-1.5 overflow-hidden rounded-full bg-border/25">
             <div
               className="h-full rounded-full bg-[linear-gradient(90deg,rgba(34,197,94,0.9),rgba(59,130,246,0.9))]"
               style={{ width: `${Math.max((item.count / max) * 100, 8)}%` }}
@@ -1478,13 +1697,13 @@ function HourlyHeatStrip(props: { data: Array<{ hour: number; count: number }> }
         return (
           <div
             key={item.hour}
-            className="rounded-2xl border border-border/30 px-3 py-3 text-center"
+            className="rounded-2xl border border-border/30 px-2.5 py-2.5 text-center"
             style={{ backgroundColor: `rgba(59,130,246,${alpha})` }}
           >
             <div className="text-xs text-skin-base/60">
               {String(item.hour).padStart(2, "0")}:00
             </div>
-            <div className="mt-1 text-sm font-semibold text-skin-base">{item.count}</div>
+            <div className="mt-1 text-[13px] font-semibold text-skin-base">{item.count}</div>
           </div>
         );
       })}
@@ -1548,7 +1767,7 @@ function GeoRadarMap(props: { points: GeoPoint[] }) {
         {props.points.slice(0, 6).map(point => (
           <div
             key={`${point.label}-legend`}
-            className="rounded-xl border border-border/25 bg-background/35 px-3 py-2 text-xs text-skin-base/70"
+            className="rounded-xl border border-border/25 bg-background/35 px-3 py-2 text-[11px] text-skin-base/70"
           >
             <div className="truncate font-medium text-skin-base">{point.label}</div>
             <div>{point.count} {UI_TEXT.metrics.sessions}</div>
@@ -1561,17 +1780,17 @@ function GeoRadarMap(props: { points: GeoPoint[] }) {
 
 function HighlightCard(props: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-[1.4rem] border border-border/40 bg-background/50 p-4">
-      <div className="text-xs uppercase tracking-[0.18em] text-skin-base/55">{props.label}</div>
-      <div className="mt-2 text-lg font-semibold text-accent">{props.value}</div>
-      <p className="mt-2 text-sm text-skin-base/70">{props.detail}</p>
+    <div className="rounded-[1.2rem] border border-border/40 bg-background/50 p-3.5">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-skin-base/55">{props.label}</div>
+      <div className="mt-1.5 text-base font-semibold text-accent">{props.value}</div>
+      <p className="mt-1.5 text-[13px] leading-5 text-skin-base/70">{props.detail}</p>
     </div>
   );
 }
 
 function Pill(props: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-border/40 bg-background/70 px-2.5 py-1 text-xs text-skin-base/75">
+    <span className="rounded-full border border-border/40 bg-background/70 px-2.5 py-1 text-[11px] text-skin-base/75">
       {props.children}
     </span>
   );
@@ -1586,7 +1805,7 @@ function RiskPill(props: { suspicion: SuspicionResult }) {
         : "Low";
 
   return (
-    <span className={`rounded-full border px-2.5 py-1 text-xs ${getRiskTone(props.suspicion.level)}`}>
+    <span className={`rounded-full border px-2.5 py-1 text-[11px] ${getRiskTone(props.suspicion.level)}`}>
       {label}
     </span>
   );
@@ -1597,20 +1816,22 @@ function DetailGroup(props: {
   value: string;
   action?: React.ReactNode;
   mono?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[1.15rem] border border-border/35 bg-background/55 p-3">
+    <div className="rounded-[1.05rem] border border-border/35 bg-background/55 p-3">
       <div className="mb-1 flex items-center justify-between gap-3">
-        <div className="text-xs uppercase tracking-[0.16em] text-skin-base/55">{props.label}</div>
+        <div className="text-[11px] uppercase tracking-[0.16em] text-skin-base/55">{props.label}</div>
         {props.action}
       </div>
       <div
-        className={`text-sm leading-6 text-skin-base/85 ${
-          props.mono ? "break-all font-mono text-[13px]" : ""
+        className={`text-[13px] leading-5 text-skin-base/85 ${
+          props.mono ? "break-all font-mono text-[12px]" : ""
         }`}
       >
         {props.value}
       </div>
+      {props.children}
     </div>
   );
 }
@@ -1627,9 +1848,9 @@ function JourneyList(props: { rows: DecoratedSession[] }) {
           key={row.sessionKey}
           className="rounded-xl border border-border/25 bg-background/35 px-3 py-2"
         >
-          <div className="text-xs text-skin-base/60">{formatTime(row.last_seen_at)}</div>
-          <div className="mt-1 text-sm text-skin-base">{row.decodedPath}</div>
-          <div className="mt-1 text-xs text-skin-base/60">
+          <div className="text-[11px] text-skin-base/60">{formatTime(row.last_seen_at)}</div>
+          <div className="mt-1 text-[13px] text-skin-base">{row.decodedPath}</div>
+          <div className="mt-1 text-[11px] text-skin-base/60">
             {formatDwell(row.dwell_seconds)} • {formatPercent(row.max_scroll_percent ?? 0)} scroll
           </div>
         </div>
