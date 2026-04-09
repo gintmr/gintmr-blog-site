@@ -78,7 +78,16 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
     visitorHash: string;
     sessionId: string;
     startedAt: number;
+    hiddenStartedAt: number | null;
+    hiddenDurationMs: number;
+    lastSentDwellSeconds: number;
+    sentAtLeastOnce: boolean;
+    maxScrollPercent: number;
+    interactionCount: number;
+    heartbeatCount: number;
+    lastInteractionAt: number;
     intervalId?: number;
+    firstHeartbeatId?: number;
     cleanup?: () => void;
   } | null>(null);
 
@@ -88,6 +97,10 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
 
     if (tracker.intervalId) {
       window.clearInterval(tracker.intervalId);
+    }
+
+    if (tracker.firstHeartbeatId) {
+      window.clearTimeout(tracker.firstHeartbeatId);
     }
 
     if (tracker.cleanup) {
@@ -103,18 +116,92 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
 
       const sessionId = generateSessionId("astro-obsidian-blog:visitor");
       const startedAt = Date.now();
-      const environment = detectVisitorEnvironment();
       const geoPromise = getVisitorGeoInfo();
 
-      const sendHeartbeat = async () => {
+      const getScrollPercent = () => {
+        if (typeof document === "undefined") return 0;
+
+        const root = document.documentElement;
+        const body = document.body;
+        const scrollTop = window.scrollY || root.scrollTop || body?.scrollTop || 0;
+        const scrollHeight = Math.max(
+          root.scrollHeight,
+          body?.scrollHeight || 0,
+          root.offsetHeight,
+          body?.offsetHeight || 0
+        );
+        const viewport = window.innerHeight || root.clientHeight || 0;
+        const maxScrollable = Math.max(scrollHeight - viewport, 0);
+        if (maxScrollable <= 0) return 100;
+
+        return Math.min(100, Math.max(0, (scrollTop / maxScrollable) * 100));
+      };
+
+      const computeDwellSeconds = () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return 0;
+
+        const now = Date.now();
+        const hiddenDurationMs =
+          tracker.hiddenDurationMs +
+          (tracker.hiddenStartedAt ? now - tracker.hiddenStartedAt : 0);
+        const activeMs = Math.max(0, now - tracker.startedAt - hiddenDurationMs);
+
+        if (activeMs < 800) return 0;
+        if (activeMs < 5000) {
+          return Math.max(1, Math.round(activeMs / 1000));
+        }
+
+        return Math.floor(activeMs / 1000);
+      };
+
+      const computeVisibleSeconds = () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return 0;
+
+        const now = Date.now();
+        const hiddenDurationMs =
+          tracker.hiddenDurationMs +
+          (tracker.hiddenStartedAt ? now - tracker.hiddenStartedAt : 0);
+        return Math.max(0, Math.floor((now - tracker.startedAt - hiddenDurationMs) / 1000));
+      };
+
+      const computeHiddenSeconds = () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return 0;
+
+        const now = Date.now();
+        const hiddenDurationMs =
+          tracker.hiddenDurationMs +
+          (tracker.hiddenStartedAt ? now - tracker.hiddenStartedAt : 0);
+        return Math.max(0, Math.floor(hiddenDurationMs / 1000));
+      };
+
+      const buildEnvironment = () => {
+        const tracker = trackerRef.current;
+        return detectVisitorEnvironment({
+          maxScrollPercent: tracker?.maxScrollPercent ?? getScrollPercent(),
+          interactionCount: tracker?.interactionCount ?? 0,
+          heartbeatCount: tracker?.heartbeatCount ?? 0,
+          visibleSeconds: computeVisibleSeconds(),
+          hiddenSeconds: computeHiddenSeconds(),
+        });
+      };
+
+      const sendHeartbeat = async (keepalive = false) => {
         const tracker = trackerRef.current;
         if (!tracker || tracker.sessionId !== sessionId) return;
 
-        const dwellSeconds = Math.max(
-          0,
-          Math.floor((Date.now() - tracker.startedAt) / 1000)
-        );
+        const dwellSeconds = computeDwellSeconds();
+        const shouldSkip =
+          !keepalive &&
+          (!tracker.sentAtLeastOnce || dwellSeconds <= tracker.lastSentDwellSeconds);
+
+        if (shouldSkip) return;
+
         const geo = await geoPromise;
+        tracker.heartbeatCount += 1;
+        const environment = buildEnvironment();
 
         await upsertVisitorSession({
           pagePath: tracker.path,
@@ -123,7 +210,12 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
           dwellSeconds,
           environment,
           geo,
-        });
+        }, { keepalive });
+
+        if (trackerRef.current?.sessionId === sessionId) {
+          trackerRef.current.lastSentDwellSeconds = dwellSeconds;
+          trackerRef.current.sentAtLeastOnce = true;
+        }
       };
 
       trackerRef.current = {
@@ -131,32 +223,81 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
         visitorHash,
         sessionId,
         startedAt,
+        hiddenStartedAt: document.visibilityState === "hidden" ? startedAt : null,
+        hiddenDurationMs: 0,
+        lastSentDwellSeconds: 0,
+        sentAtLeastOnce: false,
+        maxScrollPercent: getScrollPercent(),
+        interactionCount: 0,
+        heartbeatCount: 0,
+        lastInteractionAt: startedAt,
       };
-
-      await sendHeartbeat();
 
       const intervalId = window.setInterval(() => {
         void sendHeartbeat();
-      }, 20000);
+      }, 15000);
+
+      const recordInteraction = () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return;
+
+        const now = Date.now();
+        if (now - tracker.lastInteractionAt < 600) return;
+        tracker.lastInteractionAt = now;
+        tracker.interactionCount += 1;
+      };
+
+      const onScroll = () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return;
+
+        tracker.maxScrollPercent = Math.max(
+          tracker.maxScrollPercent,
+          getScrollPercent()
+        );
+      };
 
       const onPageHide = () => {
-        void sendHeartbeat();
+        void sendHeartbeat(true);
       };
       const onVisibilityChange = () => {
+        const tracker = trackerRef.current;
+        if (!tracker || tracker.sessionId !== sessionId) return;
+
         if (document.visibilityState === "hidden") {
-          void sendHeartbeat();
+          if (!tracker.hiddenStartedAt) {
+            tracker.hiddenStartedAt = Date.now();
+          }
+          void sendHeartbeat(true);
+          return;
+        }
+
+        if (tracker.hiddenStartedAt) {
+          tracker.hiddenDurationMs += Date.now() - tracker.hiddenStartedAt;
+          tracker.hiddenStartedAt = null;
         }
       };
 
       window.addEventListener("pagehide", onPageHide);
       window.addEventListener("beforeunload", onPageHide);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("pointerdown", recordInteraction, { passive: true });
+      window.addEventListener("keydown", recordInteraction);
+      window.addEventListener("touchstart", recordInteraction, { passive: true });
       document.addEventListener("visibilitychange", onVisibilityChange);
 
       if (trackerRef.current && trackerRef.current.sessionId === sessionId) {
         trackerRef.current.intervalId = intervalId;
+        trackerRef.current.firstHeartbeatId = window.setTimeout(() => {
+          void sendHeartbeat();
+        }, 5000);
         trackerRef.current.cleanup = () => {
           window.removeEventListener("pagehide", onPageHide);
           window.removeEventListener("beforeunload", onPageHide);
+          window.removeEventListener("scroll", onScroll);
+          window.removeEventListener("pointerdown", recordInteraction);
+          window.removeEventListener("keydown", recordInteraction);
+          window.removeEventListener("touchstart", recordInteraction);
           document.removeEventListener("visibilitychange", onVisibilityChange);
         };
       }

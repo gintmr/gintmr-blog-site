@@ -52,12 +52,35 @@ export interface VisitorEnvironment {
   language: string;
   timezone: string;
   referrer: string;
+  pageTitle: string;
+  screenWidth: number | null;
+  screenHeight: number | null;
+  viewportWidth: number | null;
+  viewportHeight: number | null;
+  colorScheme: string;
+  touchPoints: number | null;
+  hardwareConcurrency: number | null;
+  deviceMemory: number | null;
+  networkType: string;
+  maxScrollPercent: number | null;
+  interactionCount: number | null;
+  heartbeatCount: number | null;
+  visibleSeconds: number | null;
+  hiddenSeconds: number | null;
 }
 
 export interface VisitorGeoInfo {
   country?: string;
   region?: string;
   city?: string;
+  countryCode?: string;
+  regionCode?: string;
+  postal?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  asn?: string;
+  org?: string;
+  ipTimezone?: string;
 }
 
 export interface VisitorSessionPayload {
@@ -79,12 +102,36 @@ export interface VisitorSessionRow {
   device_type: string | null;
   os: string | null;
   browser: string | null;
+  user_agent: string | null;
   language: string | null;
   timezone: string | null;
   referrer: string | null;
   country: string | null;
   region: string | null;
   city: string | null;
+  page_title: string | null;
+  country_code: string | null;
+  region_code: string | null;
+  postal: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  asn: string | null;
+  org: string | null;
+  ip_timezone: string | null;
+  screen_width: number | null;
+  screen_height: number | null;
+  viewport_width: number | null;
+  viewport_height: number | null;
+  color_scheme: string | null;
+  touch_points: number | null;
+  hardware_concurrency: number | null;
+  device_memory: number | null;
+  network_type: string | null;
+  max_scroll_percent: number | null;
+  interaction_count: number | null;
+  heartbeat_count: number | null;
+  visible_seconds: number | null;
+  hidden_seconds: number | null;
   ip_address: string | null;
 }
 
@@ -93,6 +140,9 @@ export interface VisitorsOverview {
   total_visitors: number;
   total_sessions: number;
   last_visit_at: string | null;
+  avg_dwell_seconds: number;
+  returning_visitors: number;
+  new_visitors_7d: number;
 }
 
 // 环境判断 & 小工具
@@ -121,6 +171,116 @@ function normalizePagePath(path: string): string {
 
 function safeTrim(value: string | null | undefined): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function toNullableInt(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.floor(value));
+}
+
+function toNullableFloat(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, value);
+}
+
+function buildVisitorSessionRpcPayload(payload: VisitorSessionPayload) {
+  const pagePath = normalizePagePath(payload.pagePath);
+  const visitorHash = safeTrim(payload.visitorHash);
+  const sessionId = safeTrim(payload.sessionId);
+  const dwellSeconds = Math.max(0, Math.floor(payload.dwellSeconds ?? 0));
+  const env = payload.environment;
+  const geo = payload.geo;
+
+  return {
+    pagePath,
+    visitorHash,
+    sessionId,
+    dwellSeconds,
+    rpcPayload: {
+      p_page_path: pagePath,
+      p_visitor_hash: visitorHash,
+      p_session_id: sessionId,
+      p_dwell_seconds: dwellSeconds,
+      p_device_type: env?.deviceType ?? null,
+      p_os: env?.os ?? null,
+      p_browser: env?.browser ?? null,
+      p_user_agent: env?.userAgent ?? null,
+      p_language: env?.language ?? null,
+      p_timezone: env?.timezone ?? null,
+      p_referrer: env?.referrer ?? null,
+      p_country: geo?.country ?? null,
+      p_region: geo?.region ?? null,
+      p_city: geo?.city ?? null,
+      p_page_title: env?.pageTitle ?? null,
+      p_country_code: geo?.countryCode ?? null,
+      p_region_code: geo?.regionCode ?? null,
+      p_postal: geo?.postal ?? null,
+      p_latitude: toNullableFloat(geo?.latitude),
+      p_longitude: toNullableFloat(geo?.longitude),
+      p_asn: geo?.asn ?? null,
+      p_org: geo?.org ?? null,
+      p_ip_timezone: geo?.ipTimezone ?? null,
+      p_screen_width: toNullableInt(env?.screenWidth),
+      p_screen_height: toNullableInt(env?.screenHeight),
+      p_viewport_width: toNullableInt(env?.viewportWidth),
+      p_viewport_height: toNullableInt(env?.viewportHeight),
+      p_color_scheme: env?.colorScheme ?? null,
+      p_touch_points: toNullableInt(env?.touchPoints),
+      p_hardware_concurrency: toNullableInt(env?.hardwareConcurrency),
+      p_device_memory: toNullableFloat(env?.deviceMemory),
+      p_network_type: env?.networkType ?? null,
+      p_max_scroll_percent: toNullableFloat(env?.maxScrollPercent),
+      p_interaction_count: toNullableInt(env?.interactionCount),
+      p_heartbeat_count: toNullableInt(env?.heartbeatCount),
+      p_visible_seconds: toNullableInt(env?.visibleSeconds),
+      p_hidden_seconds: toNullableInt(env?.hiddenSeconds),
+    },
+  };
+}
+
+async function callVisitorSessionRpc(
+  rpcPayload: Record<string, unknown>,
+  keepalive = false
+): Promise<boolean> {
+  if (
+    keepalive &&
+    isBrowser &&
+    supabaseUrl &&
+    supabaseKey &&
+    typeof fetch === "function"
+  ) {
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/upsert_visitor_session`, {
+        method: "POST",
+        keepalive: true,
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(rpcPayload),
+      });
+
+      if (response.ok) return true;
+    } catch {
+      // Fall through to regular rpc call below.
+    }
+  }
+
+  if (!checkSupabaseAvailable()) {
+    return false;
+  }
+
+  const { error } = await supabase!.rpc("upsert_visitor_session", rpcPayload);
+
+  if (error) {
+    console.error("Error upserting visitor session:", error);
+    return false;
+  }
+
+  return true;
 }
 
 // 将 rows 以 content_id 分组
@@ -404,47 +564,16 @@ export async function getPageVisitStats(
 }
 
 export async function upsertVisitorSession(
-  payload: VisitorSessionPayload
+  payload: VisitorSessionPayload,
+  options?: { keepalive?: boolean }
 ): Promise<boolean> {
-  if (!checkSupabaseAvailable()) {
-    return false;
-  }
-
-  const pagePath = normalizePagePath(payload.pagePath);
-  const visitorHash = safeTrim(payload.visitorHash);
-  const sessionId = safeTrim(payload.sessionId);
+  const { visitorHash, sessionId, rpcPayload } = buildVisitorSessionRpcPayload(payload);
 
   if (!visitorHash || !sessionId) {
     return false;
   }
 
-  const dwellSeconds = Math.max(0, Math.floor(payload.dwellSeconds ?? 0));
-  const env = payload.environment;
-  const geo = payload.geo;
-
-  const { error } = await supabase!.rpc("upsert_visitor_session", {
-    p_page_path: pagePath,
-    p_visitor_hash: visitorHash,
-    p_session_id: sessionId,
-    p_dwell_seconds: dwellSeconds,
-    p_device_type: env?.deviceType ?? null,
-    p_os: env?.os ?? null,
-    p_browser: env?.browser ?? null,
-    p_user_agent: env?.userAgent ?? null,
-    p_language: env?.language ?? null,
-    p_timezone: env?.timezone ?? null,
-    p_referrer: env?.referrer ?? null,
-    p_country: geo?.country ?? null,
-    p_region: geo?.region ?? null,
-    p_city: geo?.city ?? null,
-  });
-
-  if (error) {
-    console.error("Error upserting visitor session:", error);
-    return false;
-  }
-
-  return true;
+  return callVisitorSessionRpc(rpcPayload, options?.keepalive === true);
 }
 
 export async function getVisitorsOverviewSecure(
@@ -475,6 +604,9 @@ export async function getVisitorsOverviewSecure(
       total_visitors: 0,
       total_sessions: 0,
       last_visit_at: null,
+      avg_dwell_seconds: 0,
+      returning_visitors: 0,
+      new_visitors_7d: 0,
     };
   }
 
@@ -493,6 +625,12 @@ export async function getVisitorsOverviewSecure(
     total_sessions: toInt(row.total_sessions),
     last_visit_at:
       typeof row.last_visit_at === "string" ? row.last_visit_at : null,
+    avg_dwell_seconds:
+      typeof row.avg_dwell_seconds === "number"
+        ? row.avg_dwell_seconds
+        : Number.parseFloat(String(row.avg_dwell_seconds ?? "0")) || 0,
+    returning_visitors: toInt(row.returning_visitors),
+    new_visitors_7d: toInt(row.new_visitors_7d),
   };
 }
 
@@ -509,7 +647,7 @@ export async function getVisitorSessionsSecure(
 
   const limit = Math.min(
     Math.max(Math.floor(options?.limit ?? 300), 1),
-    1000
+    2000
   );
   const pagePath = safeTrim(options?.pagePath);
 
@@ -584,7 +722,18 @@ function detectBrowser(userAgent: string): string {
   return "Unknown";
 }
 
-export function detectVisitorEnvironment(): VisitorEnvironment {
+export function detectVisitorEnvironment(
+  runtimeMetrics?: Partial<
+    Pick<
+      VisitorEnvironment,
+      | "maxScrollPercent"
+      | "interactionCount"
+      | "heartbeatCount"
+      | "visibleSeconds"
+      | "hiddenSeconds"
+    >
+  >
+): VisitorEnvironment {
   if (!isBrowser) {
     return {
       deviceType: "Unknown",
@@ -594,6 +743,21 @@ export function detectVisitorEnvironment(): VisitorEnvironment {
       language: "",
       timezone: "",
       referrer: "",
+      pageTitle: "",
+      screenWidth: null,
+      screenHeight: null,
+      viewportWidth: null,
+      viewportHeight: null,
+      colorScheme: "unknown",
+      touchPoints: null,
+      hardwareConcurrency: null,
+      deviceMemory: null,
+      networkType: "",
+      maxScrollPercent: null,
+      interactionCount: null,
+      heartbeatCount: null,
+      visibleSeconds: null,
+      hiddenSeconds: null,
     };
   }
 
@@ -605,6 +769,18 @@ export function detectVisitorEnvironment(): VisitorEnvironment {
   const timezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const referrer = document.referrer || "";
+  const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+  const colorScheme = mediaQuery ? (mediaQuery.matches ? "dark" : "light") : "unknown";
+  const connection = (
+    navigator as Navigator & {
+      connection?: { effectiveType?: string };
+      mozConnection?: { effectiveType?: string };
+      webkitConnection?: { effectiveType?: string };
+      deviceMemory?: number;
+    }
+  ).connection
+    || (navigator as Navigator & { mozConnection?: { effectiveType?: string } }).mozConnection
+    || (navigator as Navigator & { webkitConnection?: { effectiveType?: string } }).webkitConnection;
 
   return {
     deviceType: detectDeviceType(userAgent),
@@ -614,6 +790,28 @@ export function detectVisitorEnvironment(): VisitorEnvironment {
     language,
     timezone,
     referrer,
+    pageTitle: document.title || "",
+    screenWidth: typeof window.screen?.width === "number" ? window.screen.width : null,
+    screenHeight: typeof window.screen?.height === "number" ? window.screen.height : null,
+    viewportWidth: typeof window.innerWidth === "number" ? window.innerWidth : null,
+    viewportHeight: typeof window.innerHeight === "number" ? window.innerHeight : null,
+    colorScheme,
+    touchPoints:
+      typeof navigator.maxTouchPoints === "number" ? navigator.maxTouchPoints : null,
+    hardwareConcurrency:
+      typeof navigator.hardwareConcurrency === "number"
+        ? navigator.hardwareConcurrency
+        : null,
+    deviceMemory:
+      typeof (navigator as Navigator & { deviceMemory?: number }).deviceMemory === "number"
+        ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? null
+        : null,
+    networkType: safeTrim(connection?.effectiveType ?? ""),
+    maxScrollPercent: toNullableFloat(runtimeMetrics?.maxScrollPercent),
+    interactionCount: toNullableInt(runtimeMetrics?.interactionCount),
+    heartbeatCount: toNullableInt(runtimeMetrics?.heartbeatCount),
+    visibleSeconds: toNullableInt(runtimeMetrics?.visibleSeconds),
+    hiddenSeconds: toNullableInt(runtimeMetrics?.hiddenSeconds),
   };
 }
 
@@ -639,6 +837,14 @@ export async function getVisitorGeoInfo(): Promise<VisitorGeoInfo> {
           country: safeTrim(cached.country),
           region: safeTrim(cached.region),
           city: safeTrim(cached.city),
+          countryCode: safeTrim(cached.countryCode),
+          regionCode: safeTrim(cached.regionCode),
+          postal: safeTrim(cached.postal),
+          latitude: toNullableFloat(cached.latitude),
+          longitude: toNullableFloat(cached.longitude),
+          asn: safeTrim(cached.asn),
+          org: safeTrim(cached.org),
+          ipTimezone: safeTrim(cached.ipTimezone),
         };
       }
     }
@@ -662,6 +868,20 @@ export async function getVisitorGeoInfo(): Promise<VisitorGeoInfo> {
       country: safeTrim(String(data.country_name ?? "")),
       region: safeTrim(String(data.region ?? "")),
       city: safeTrim(String(data.city ?? "")),
+      countryCode: safeTrim(String(data.country_code ?? "")),
+      regionCode: safeTrim(String(data.region_code ?? "")),
+      postal: safeTrim(String(data.postal ?? "")),
+      latitude:
+        typeof data.latitude === "number"
+          ? data.latitude
+          : Number.parseFloat(String(data.latitude ?? "")) || null,
+      longitude:
+        typeof data.longitude === "number"
+          ? data.longitude
+          : Number.parseFloat(String(data.longitude ?? "")) || null,
+      asn: safeTrim(String(data.asn ?? "")),
+      org: safeTrim(String(data.org ?? "")),
+      ipTimezone: safeTrim(String(data.timezone ?? "")),
     };
 
     try {
