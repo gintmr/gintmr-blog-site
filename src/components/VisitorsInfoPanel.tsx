@@ -88,6 +88,7 @@ const UI_TEXT =
         paginationSummary: "第 {current} / {total} 页",
         jumpToPage: "跳转",
         selectedHint: "当前选中记录",
+        filterSummaryTitle: "当前筛选结果",
         revealIp: "显示完整 IP",
         hideIp: "隐藏完整 IP",
         overview: {
@@ -106,6 +107,8 @@ const UI_TEXT =
           device: "设备",
           visitor: "用户",
           deviceId: "设备标识",
+          dwellMin: "最短停留（秒）",
+          dwellMax: "最长停留（秒）",
           visitorType: "访客类型",
           sort: "排序",
           keyword: "关键词",
@@ -218,6 +221,7 @@ const UI_TEXT =
         paginationSummary: "Page {current} / {total}",
         jumpToPage: "Jump",
         selectedHint: "Selected record",
+        filterSummaryTitle: "Filtered audience",
         revealIp: "Reveal full IP",
         hideIp: "Hide full IP",
         overview: {
@@ -236,6 +240,8 @@ const UI_TEXT =
           device: "Device",
           visitor: "Visitor",
           deviceId: "Device identifier",
+          dwellMin: "Min dwell (s)",
+          dwellMax: "Max dwell (s)",
           visitorType: "Visitor Type",
           sort: "Sort",
           keyword: "Keyword",
@@ -673,6 +679,8 @@ const VisitorsInfoPanel: React.FC = () => {
   const [locationKeyword, setLocationKeyword] = React.useState("");
   const [deviceIdentifierKeyword, setDeviceIdentifierKeyword] = React.useState("");
   const [aliasKeyword, setAliasKeyword] = React.useState("");
+  const [dwellMin, setDwellMin] = React.useState("");
+  const [dwellMax, setDwellMax] = React.useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = React.useState(false);
   const [selectedSessionId, setSelectedSessionId] = React.useState<
     string | null
@@ -767,12 +775,15 @@ const VisitorsInfoPanel: React.FC = () => {
     });
   }, [rows, visitorAliases, visitorFirstSeenMap, visitorSessionCountMap]);
 
-  const filteredRows = React.useMemo(() => {
+  const baseFilteredRows = React.useMemo(() => {
     const now = Date.now();
     const keywordLower = keyword.trim().toLowerCase();
     const locationLower = locationKeyword.trim().toLowerCase();
     const deviceIdentifierLower = deviceIdentifierKeyword.trim().toLowerCase();
     const aliasLower = aliasKeyword.trim().toLowerCase();
+    const dwellMinValue = dwellMin.trim() === "" ? null : Math.max(Number.parseInt(dwellMin, 10) || 0, 0);
+    const dwellMaxValue =
+      dwellMax.trim() === "" ? null : Math.max(Number.parseInt(dwellMax, 10) || 0, 0);
 
     const result = decoratedRows.filter(row => {
       const seenAt = new Date(row.last_seen_at).getTime();
@@ -782,10 +793,11 @@ const VisitorsInfoPanel: React.FC = () => {
 
       if (pageType !== "all" && row.pageType !== pageType) return false;
       if (deviceFilter !== "all" && row.device_type !== deviceFilter) return false;
-      if (visitorFilter !== "all" && row.visitor_hash !== visitorFilter) return false;
       if (visitorType === "new" && !row.isNewVisitor) return false;
       if (visitorType === "returning" && !row.isReturning) return false;
       if (visitorType === "suspicious" && row.suspicion.score < 3) return false;
+      if (dwellMinValue != null && (row.dwell_seconds ?? 0) < dwellMinValue) return false;
+      if (dwellMaxValue != null && (row.dwell_seconds ?? 0) > dwellMaxValue) return false;
 
       if (keywordLower) {
         const haystack = [
@@ -841,16 +853,38 @@ const VisitorsInfoPanel: React.FC = () => {
   }, [
     decoratedRows,
     deviceFilter,
-    visitorFilter,
     deviceIdentifierKeyword,
     keyword,
     aliasKeyword,
+    dwellMin,
+    dwellMax,
     locationKeyword,
     pageType,
     sortMode,
     timeRange,
     visitorType,
   ]);
+
+  const visitorFilterOptions = React.useMemo(
+    () => [
+      ["all", UI_TEXT.filterOptions.all] as [string, string],
+      ...[...new Map(
+        baseFilteredRows.map(row => [
+          row.visitor_hash,
+          row.displayVisitor,
+        ])
+      ).entries()].map(([value, label]) => [value, label] as [string, string]),
+    ],
+    [baseFilteredRows]
+  );
+
+  const filteredRows = React.useMemo(
+    () =>
+      visitorFilter === "all"
+        ? baseFilteredRows
+        : baseFilteredRows.filter(row => row.visitor_hash === visitorFilter),
+    [baseFilteredRows, visitorFilter]
+  );
 
   React.useEffect(() => {
     if (!selectedSessionId && filteredRows[0]) {
@@ -876,7 +910,13 @@ const VisitorsInfoPanel: React.FC = () => {
 
   React.useEffect(() => {
     setSessionPage(1);
-  }, [timeRange, pageType, deviceFilter, visitorFilter, visitorType, sortMode, keyword, locationKeyword, deviceIdentifierKeyword, aliasKeyword]);
+  }, [timeRange, pageType, deviceFilter, visitorFilter, visitorType, sortMode, keyword, locationKeyword, deviceIdentifierKeyword, aliasKeyword, dwellMin, dwellMax]);
+
+  React.useEffect(() => {
+    if (visitorFilter !== "all" && !visitorFilterOptions.some(([value]) => value === visitorFilter)) {
+      setVisitorFilter("all");
+    }
+  }, [visitorFilter, visitorFilterOptions]);
 
   React.useEffect(() => {
     setAliasInput(selectedSession?.alias ?? "");
@@ -898,19 +938,6 @@ const VisitorsInfoPanel: React.FC = () => {
     const start = (sessionPage - 1) * SESSION_PAGE_SIZE;
     return filteredRows.slice(start, start + SESSION_PAGE_SIZE);
   }, [filteredRows, sessionPage]);
-
-  const visitorFilterOptions = React.useMemo(
-    () => [
-      ["all", UI_TEXT.filterOptions.all] as [string, string],
-      ...[...new Map(
-        decoratedRows.map(row => [
-          row.visitor_hash,
-          row.displayVisitor,
-        ])
-      ).entries()].map(([value, label]) => [value, label] as [string, string]),
-    ],
-    [decoratedRows]
-  );
 
   const averageViews =
     overview && overview.total_visitors > 0
@@ -1097,6 +1124,14 @@ const VisitorsInfoPanel: React.FC = () => {
     const start = (journeyPage - 1) * SESSION_PAGE_SIZE;
     return selectedJourney.slice(start, start + SESSION_PAGE_SIZE);
   }, [journeyPage, selectedJourney]);
+
+  const filteredVisitorSummary = React.useMemo(() => {
+    const uniqueVisitors = [...new Map(baseFilteredRows.map(row => [row.visitor_hash, row.displayVisitor])).entries()];
+    return {
+      count: uniqueVisitors.length,
+      labels: uniqueVisitors.map(([, label]) => label),
+    };
+  }, [baseFilteredRows]);
 
   const toggleIpReveal = (sessionKey: string) => {
     setRevealedIpIds(current =>
@@ -1294,7 +1329,7 @@ const VisitorsInfoPanel: React.FC = () => {
             </div>
 
             {showAdvancedFilters && (
-              <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-6">
                 <FilterInput
                   label={UI_TEXT.filters.keyword}
                   value={keyword}
@@ -1319,8 +1354,43 @@ const VisitorsInfoPanel: React.FC = () => {
                   onChange={setAliasKeyword}
                   placeholder="Me / iPhone / Test device"
                 />
+                <FilterInput
+                  label={UI_TEXT.filters.dwellMin}
+                  value={dwellMin}
+                  onChange={setDwellMin}
+                  placeholder="0"
+                />
+                <FilterInput
+                  label={UI_TEXT.filters.dwellMax}
+                  value={dwellMax}
+                  onChange={setDwellMax}
+                  placeholder="∞"
+                />
               </div>
             )}
+          </div>
+
+          <div className="mb-8 rounded-[1.2rem] border border-border/35 bg-background/35 px-4 py-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-skin-base/55">
+              {UI_TEXT.filterSummaryTitle}
+            </div>
+            <div className="mt-2 text-sm text-skin-base/82">
+              {filteredVisitorSummary.count} {UI_TEXT.filters.visitor}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {filteredVisitorSummary.labels.length > 0 ? (
+                filteredVisitorSummary.labels.map(label => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-border/35 bg-background/65 px-3 py-1 text-[11px] text-skin-base/78"
+                  >
+                    {label}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[12px] text-skin-base/60">{UI_TEXT.empty}</span>
+              )}
+            </div>
           </div>
 
           {filteredRows.length === 0 ? (
