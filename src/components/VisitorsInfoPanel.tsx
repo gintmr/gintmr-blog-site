@@ -10,7 +10,7 @@ import { UI_LOCALE } from "@/i18n/ui";
 const STORAGE_KEY = "visitors-info-password";
 const VISITOR_ALIAS_STORAGE_KEY = "visitors-info-aliases";
 const ROW_LIMIT = 1400;
-const SESSION_PAGE_SIZE = 20;
+const SESSION_PAGE_SIZE = 10;
 
 type TimeRange = "all" | "today" | "7d" | "30d";
 type PageType = "all" | "blog" | "story" | "diary" | "visitors" | "other";
@@ -86,6 +86,7 @@ const UI_TEXT =
         paginationPrev: "上一页",
         paginationNext: "下一页",
         paginationSummary: "第 {current} / {total} 页",
+        jumpToPage: "跳转",
         selectedHint: "当前选中记录",
         revealIp: "显示完整 IP",
         hideIp: "隐藏完整 IP",
@@ -103,6 +104,7 @@ const UI_TEXT =
           period: "时间范围",
           pageType: "页面类型",
           device: "设备",
+          visitor: "用户",
           deviceId: "设备标识",
           visitorType: "访客类型",
           sort: "排序",
@@ -214,6 +216,7 @@ const UI_TEXT =
         paginationPrev: "Previous",
         paginationNext: "Next",
         paginationSummary: "Page {current} / {total}",
+        jumpToPage: "Jump",
         selectedHint: "Selected record",
         revealIp: "Reveal full IP",
         hideIp: "Hide full IP",
@@ -231,6 +234,7 @@ const UI_TEXT =
           period: "Period",
           pageType: "Page Type",
           device: "Device",
+          visitor: "Visitor",
           deviceId: "Device identifier",
           visitorType: "Visitor Type",
           sort: "Sort",
@@ -376,6 +380,12 @@ function writeVisitorAliases(next: Record<string, string>) {
 function getVisitorDisplayName(visitorHash: string, aliasMap: Record<string, string>) {
   const alias = aliasMap[visitorHash]?.trim();
   return alias || maskVisitorHash(visitorHash);
+}
+
+function clampPage(value: string, totalPages: number) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.min(Math.max(parsed, 1), Math.max(totalPages, 1));
 }
 
 function maskIp(ip: string | null) {
@@ -655,6 +665,7 @@ const VisitorsInfoPanel: React.FC = () => {
   const [timeRange, setTimeRange] = React.useState<TimeRange>("all");
   const [pageType, setPageType] = React.useState<PageType>("all");
   const [deviceFilter, setDeviceFilter] = React.useState<DeviceFilter>("all");
+  const [visitorFilter, setVisitorFilter] = React.useState("all");
   const [visitorType, setVisitorType] =
     React.useState<VisitorTypeFilter>("all");
   const [sortMode, setSortMode] = React.useState<SortMode>("latest");
@@ -670,6 +681,9 @@ const VisitorsInfoPanel: React.FC = () => {
   const [visitorAliases, setVisitorAliases] = React.useState<Record<string, string>>({});
   const [aliasInput, setAliasInput] = React.useState("");
   const [sessionPage, setSessionPage] = React.useState(1);
+  const [sessionPageInput, setSessionPageInput] = React.useState("1");
+  const [journeyPage, setJourneyPage] = React.useState(1);
+  const [journeyPageInput, setJourneyPageInput] = React.useState("1");
 
   const loadData = React.useCallback(
     async (pass: string) => {
@@ -768,6 +782,7 @@ const VisitorsInfoPanel: React.FC = () => {
 
       if (pageType !== "all" && row.pageType !== pageType) return false;
       if (deviceFilter !== "all" && row.device_type !== deviceFilter) return false;
+      if (visitorFilter !== "all" && row.visitor_hash !== visitorFilter) return false;
       if (visitorType === "new" && !row.isNewVisitor) return false;
       if (visitorType === "returning" && !row.isReturning) return false;
       if (visitorType === "suspicious" && row.suspicion.score < 3) return false;
@@ -826,6 +841,7 @@ const VisitorsInfoPanel: React.FC = () => {
   }, [
     decoratedRows,
     deviceFilter,
+    visitorFilter,
     deviceIdentifierKeyword,
     keyword,
     aliasKeyword,
@@ -860,13 +876,17 @@ const VisitorsInfoPanel: React.FC = () => {
 
   React.useEffect(() => {
     setSessionPage(1);
-  }, [timeRange, pageType, deviceFilter, visitorType, sortMode, keyword, locationKeyword, deviceIdentifierKeyword, aliasKeyword]);
+  }, [timeRange, pageType, deviceFilter, visitorFilter, visitorType, sortMode, keyword, locationKeyword, deviceIdentifierKeyword, aliasKeyword]);
 
   React.useEffect(() => {
     setAliasInput(selectedSession?.alias ?? "");
   }, [selectedSession]);
 
   const totalSessionPages = Math.max(1, Math.ceil(filteredRows.length / SESSION_PAGE_SIZE));
+
+  React.useEffect(() => {
+    setSessionPageInput(String(sessionPage));
+  }, [sessionPage]);
 
   React.useEffect(() => {
     if (sessionPage > totalSessionPages) {
@@ -878,6 +898,19 @@ const VisitorsInfoPanel: React.FC = () => {
     const start = (sessionPage - 1) * SESSION_PAGE_SIZE;
     return filteredRows.slice(start, start + SESSION_PAGE_SIZE);
   }, [filteredRows, sessionPage]);
+
+  const visitorFilterOptions = React.useMemo(
+    () => [
+      ["all", UI_TEXT.filterOptions.all] as [string, string],
+      ...[...new Map(
+        decoratedRows.map(row => [
+          row.visitor_hash,
+          row.displayVisitor,
+        ])
+      ).entries()].map(([value, label]) => [value, label] as [string, string]),
+    ],
+    [decoratedRows]
+  );
 
   const averageViews =
     overview && overview.total_visitors > 0
@@ -1044,6 +1077,27 @@ const VisitorsInfoPanel: React.FC = () => {
     [filteredRows, selectedSession]
   );
 
+  React.useEffect(() => {
+    setJourneyPage(1);
+  }, [selectedSessionId]);
+
+  const totalJourneyPages = Math.max(1, Math.ceil(selectedJourney.length / SESSION_PAGE_SIZE));
+
+  React.useEffect(() => {
+    if (journeyPage > totalJourneyPages) {
+      setJourneyPage(totalJourneyPages);
+    }
+  }, [journeyPage, totalJourneyPages]);
+
+  React.useEffect(() => {
+    setJourneyPageInput(String(journeyPage));
+  }, [journeyPage]);
+
+  const pagedJourney = React.useMemo(() => {
+    const start = (journeyPage - 1) * SESSION_PAGE_SIZE;
+    return selectedJourney.slice(start, start + SESSION_PAGE_SIZE);
+  }, [journeyPage, selectedJourney]);
+
   const toggleIpReveal = (sessionKey: string) => {
     setRevealedIpIds(current =>
       current.includes(sessionKey)
@@ -1174,7 +1228,7 @@ const VisitorsInfoPanel: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-6">
               <FilterSelect
                 label={UI_TEXT.filters.period}
                 value={timeRange}
@@ -1209,6 +1263,12 @@ const VisitorsInfoPanel: React.FC = () => {
                   ["Mobile", UI_TEXT.filterOptions.mobile],
                   ["Tablet", UI_TEXT.filterOptions.tablet],
                 ]}
+              />
+              <FilterSelect
+                label={UI_TEXT.filters.visitor}
+                value={visitorFilter}
+                onChange={setVisitorFilter}
+                options={visitorFilterOptions}
               />
               <FilterSelect
                 label={UI_TEXT.filters.visitorType}
@@ -1374,7 +1434,7 @@ const VisitorsInfoPanel: React.FC = () => {
                       {filteredRows.length} / {rows.length}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-skin-base/65">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-skin-base/65">
                     <button
                       type="button"
                       onClick={() => setSessionPage(page => Math.max(1, page - 1))}
@@ -1389,6 +1449,21 @@ const VisitorsInfoPanel: React.FC = () => {
                         total: totalSessionPages,
                       })}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <span>{UI_TEXT.jumpToPage}</span>
+                      <input
+                        inputMode="numeric"
+                        value={sessionPageInput}
+                        onChange={event => setSessionPageInput(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === "Enter") {
+                            setSessionPage(clampPage(sessionPageInput, totalSessionPages));
+                          }
+                        }}
+                        onBlur={() => setSessionPage(clampPage(sessionPageInput, totalSessionPages))}
+                        className="w-16 rounded-full border border-border/40 bg-background/70 px-3 py-1.5 text-center text-xs outline-none ring-accent/40 focus:ring-2"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => setSessionPage(page => Math.min(totalSessionPages, page + 1))}
@@ -1400,63 +1475,78 @@ const VisitorsInfoPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-[1.15rem] border border-border/30 bg-background/40">
-                  <div className="hidden grid-cols-[170px_minmax(320px,1.8fr)_180px_170px_90px_120px] gap-4 border-b border-border/25 bg-background/70 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-skin-base/45 xl:grid">
-                    <span>{UI_TEXT.metrics.lastSeen}</span>
-                    <span>{UI_TEXT.metrics.visitPath}</span>
-                    <span>{UI_TEXT.filters.device}</span>
-                    <span>{UI_TEXT.filters.deviceId}</span>
-                    <span>{UI_TEXT.metrics.dwell}</span>
-                    <span>{UI_TEXT.metrics.ip}</span>
-                  </div>
+                <div className="overflow-x-auto rounded-[1.15rem] border border-border/30 bg-background/40">
+                  <div className="min-w-[1180px]">
+                    <div className="grid grid-cols-[170px_minmax(320px,1.8fr)_180px_170px_90px_120px] gap-4 border-b border-border/25 bg-background/70 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-skin-base/45">
+                      <span>{UI_TEXT.metrics.lastSeen}</span>
+                      <span>{UI_TEXT.metrics.visitPath}</span>
+                      <span>{UI_TEXT.filters.device}</span>
+                      <span>{UI_TEXT.filters.deviceId}</span>
+                      <span>{UI_TEXT.metrics.dwell}</span>
+                      <span>{UI_TEXT.metrics.ip}</span>
+                    </div>
 
-                  <div className="divide-y divide-border/20">
-                    {pagedRows.map(row => (
-                      <button
-                        key={row.sessionKey}
-                        type="button"
-                        onClick={() => setSelectedSessionId(row.sessionKey)}
-                        className={`grid w-full gap-3 px-4 py-3 text-left transition xl:grid-cols-[170px_minmax(320px,1.8fr)_180px_170px_90px_120px] xl:items-center xl:gap-4 ${
-                          selectedSessionId === row.sessionKey
-                            ? "bg-accent/10"
-                            : "bg-transparent hover:bg-background/70"
-                        }`}
-                      >
-                        <div className="text-[12px] text-skin-base/62">{formatTime(row.last_seen_at)}</div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-skin-base">{row.decodedPath}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-skin-base/55">
-                            <span>{row.locationLabel || "--"}</span>
-                            <span>{formatPercent(row.max_scroll_percent ?? 0)} scroll</span>
-                            <span>{formatNumber(row.interaction_count)} interactions</span>
-                            {selectedSessionId === row.sessionKey ? <span className="text-accent">{UI_TEXT.selectedHint}</span> : null}
+                    <div className="divide-y divide-border/20">
+                      {pagedRows.map(row => (
+                        <button
+                          key={row.sessionKey}
+                          type="button"
+                          onClick={() => setSelectedSessionId(row.sessionKey)}
+                          className={`grid w-full grid-cols-[170px_minmax(320px,1.8fr)_180px_170px_90px_120px] gap-4 px-4 py-3 text-left transition ${
+                            selectedSessionId === row.sessionKey
+                              ? "bg-accent/10"
+                              : "bg-transparent hover:bg-background/70"
+                          }`}
+                        >
+                          <div className="text-[12px] text-skin-base/62">{formatTime(row.last_seen_at)}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-skin-base">{row.decodedPath}</div>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-skin-base/55">
+                              <span>{row.locationLabel || "--"}</span>
+                              <span>{formatPercent(row.max_scroll_percent ?? 0)} scroll</span>
+                              <span>{formatNumber(row.interaction_count)} interactions</span>
+                              {selectedSessionId === row.sessionKey ? <span className="text-accent">{UI_TEXT.selectedHint}</span> : null}
+                            </div>
                           </div>
-                        </div>
-                        <div className="min-w-0 text-[12px] text-skin-base/72">
-                          <div className="truncate">{[
-                            safeDisplay(row.device_type, ""),
-                            safeDisplay(row.os, ""),
-                            safeDisplay(row.browser, ""),
-                          ].filter(Boolean).join(" / ") || "--"}</div>
-                          <div className="mt-1 truncate text-[11px] text-skin-base/52">{row.network_type || row.timezone || "--"}</div>
-                        </div>
-                        <div className="min-w-0 text-[12px] text-skin-base/72">
-                          <div className="truncate">{row.displayVisitor}</div>
-                          <div className="mt-1 truncate text-[11px] text-skin-base/52">{maskVisitorHash(row.visitor_hash)}</div>
-                        </div>
-                        <div className="text-[12px] text-skin-base/72">
-                          <div>{formatDwell(row.dwell_seconds)}</div>
-                          <div className="mt-1"><RiskPill suspicion={row.suspicion} compact /></div>
-                        </div>
-                        <div className="text-[12px] text-skin-base/72">{maskIp(row.ip_address)}</div>
-                      </button>
-                    ))}
+                          <div className="min-w-0 text-[12px] text-skin-base/72">
+                            <div className="truncate">{[
+                              safeDisplay(row.device_type, ""),
+                              safeDisplay(row.os, ""),
+                              safeDisplay(row.browser, ""),
+                            ].filter(Boolean).join(" / ") || "--"}</div>
+                            <div className="mt-1 truncate text-[11px] text-skin-base/52">{row.network_type || row.timezone || "--"}</div>
+                          </div>
+                          <div className="min-w-0 text-[12px] text-skin-base/72">
+                            <div className="truncate">{row.displayVisitor}</div>
+                            <div className="mt-1 truncate text-[11px] text-skin-base/52">{maskVisitorHash(row.visitor_hash)}</div>
+                          </div>
+                          <div className="text-[12px] text-skin-base/72">
+                            <div>{formatDwell(row.dwell_seconds)}</div>
+                            <div className="mt-1"><RiskPill suspicion={row.suspicion} compact /></div>
+                          </div>
+                          <div className="text-[12px] text-skin-base/72">{maskIp(row.ip_address)}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/20 pt-3 text-xs text-skin-base/60">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/20 pt-3 text-xs text-skin-base/60">
                   <span>{formatTemplate(UI_TEXT.paginationSummary, { current: sessionPage, total: totalSessionPages })}</span>
                   <div className="flex items-center gap-2">
+                    <span>{UI_TEXT.jumpToPage}</span>
+                    <input
+                      inputMode="numeric"
+                      value={sessionPageInput}
+                      onChange={event => setSessionPageInput(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === "Enter") {
+                          setSessionPage(clampPage(sessionPageInput, totalSessionPages));
+                        }
+                      }}
+                      onBlur={() => setSessionPage(clampPage(sessionPageInput, totalSessionPages))}
+                      className="w-16 rounded-full border border-border/40 bg-background/70 px-3 py-1.5 text-center text-xs outline-none ring-accent/40 focus:ring-2"
+                    />
                     <button
                       type="button"
                       onClick={() => setSessionPage(page => Math.max(1, page - 1))}
@@ -1607,10 +1697,44 @@ const VisitorsInfoPanel: React.FC = () => {
                     </div>
 
                     <div className="rounded-[1.1rem] border border-border/35 bg-background/55 p-3">
-                      <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-skin-base/55">
-                        {UI_TEXT.timelineTitle}
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-skin-base/55">
+                          {UI_TEXT.timelineTitle}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-skin-base/60">
+                          <span>{formatTemplate(UI_TEXT.paginationSummary, { current: journeyPage, total: totalJourneyPages })}</span>
+                          <span>{UI_TEXT.jumpToPage}</span>
+                          <input
+                            inputMode="numeric"
+                            value={journeyPageInput}
+                            onChange={event => setJourneyPageInput(event.target.value)}
+                            onKeyDown={event => {
+                              if (event.key === "Enter") {
+                                setJourneyPage(clampPage(journeyPageInput, totalJourneyPages));
+                              }
+                            }}
+                            onBlur={() => setJourneyPage(clampPage(journeyPageInput, totalJourneyPages))}
+                            className="w-16 rounded-full border border-border/40 bg-background/70 px-3 py-1.5 text-center text-xs outline-none ring-accent/40 focus:ring-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setJourneyPage(page => Math.max(1, page - 1))}
+                            disabled={journeyPage <= 1}
+                            className="rounded-full border border-border/40 px-3 py-1.5 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {UI_TEXT.paginationPrev}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setJourneyPage(page => Math.min(totalJourneyPages, page + 1))}
+                            disabled={journeyPage >= totalJourneyPages}
+                            className="rounded-full border border-border/40 px-3 py-1.5 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {UI_TEXT.paginationNext}
+                          </button>
+                        </div>
                       </div>
-                      <JourneyList rows={selectedJourney} />
+                      <JourneyList rows={pagedJourney} />
                     </div>
                   </div>
                 ) : (
