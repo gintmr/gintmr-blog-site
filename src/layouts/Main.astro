@@ -3,21 +3,24 @@ import Breadcrumb from "@/components/Breadcrumb.astro";
 interface StringTitleProp {
   pageTitle: string;
   pageDesc?: string;
+  wide?: boolean;
 }
 
 interface ArrayTitleProp {
   pageTitle: [string, string];
   titleTransition: string;
   pageDesc?: string;
+  wide?: boolean;
 }
 
 export type Props = StringTitleProp | ArrayTitleProp;
 
 const { props } = Astro;
+const mainWidthClass = props.wide ? "max-w-[118rem]" : "max-w-app";
 ---
 
 <Breadcrumb />
-<main id="main-content" class="mx-auto mt-4 w-full max-w-app px-4 pb-4">
+<main id="main-content" class:list={["mx-auto mt-4 w-full px-4 pb-4", mainWidthClass]}>
   {
     "titleTransition" in props ? (
       <h1 class="text-2xl font-semibold sm:text-3xl">

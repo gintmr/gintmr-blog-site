@@ -1401,12 +1401,12 @@ const VisitorsInfoPanel: React.FC = () => {
                 </div>
 
                 <div className="overflow-hidden rounded-[1.15rem] border border-border/30 bg-background/40">
-                  <div className="hidden grid-cols-[170px_minmax(0,1.7fr)_110px_110px_150px_110px] gap-3 border-b border-border/25 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-skin-base/45 lg:grid">
+                  <div className="hidden grid-cols-[170px_minmax(320px,1.8fr)_180px_170px_90px_120px] gap-4 border-b border-border/25 bg-background/70 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-skin-base/45 xl:grid">
                     <span>{UI_TEXT.metrics.lastSeen}</span>
-                    <span>{UI_TEXT.metrics.fullUrl}</span>
+                    <span>{UI_TEXT.metrics.visitPath}</span>
                     <span>{UI_TEXT.filters.device}</span>
-                    <span>{UI_TEXT.metrics.dwell}</span>
                     <span>{UI_TEXT.filters.deviceId}</span>
+                    <span>{UI_TEXT.metrics.dwell}</span>
                     <span>{UI_TEXT.metrics.ip}</span>
                   </div>
 
@@ -1416,7 +1416,7 @@ const VisitorsInfoPanel: React.FC = () => {
                         key={row.sessionKey}
                         type="button"
                         onClick={() => setSelectedSessionId(row.sessionKey)}
-                        className={`grid w-full gap-2 px-4 py-3 text-left transition lg:grid-cols-[170px_minmax(0,1.7fr)_110px_110px_150px_110px] lg:items-center lg:gap-3 ${
+                        className={`grid w-full gap-3 px-4 py-3 text-left transition xl:grid-cols-[170px_minmax(320px,1.8fr)_180px_170px_90px_120px] xl:items-center xl:gap-4 ${
                           selectedSessionId === row.sessionKey
                             ? "bg-accent/10"
                             : "bg-transparent hover:bg-background/70"
@@ -1425,23 +1425,54 @@ const VisitorsInfoPanel: React.FC = () => {
                         <div className="text-[12px] text-skin-base/62">{formatTime(row.last_seen_at)}</div>
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-skin-base">{row.decodedPath}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-skin-base/58">
-                            <Pill>{row.displayVisitor}</Pill>
-                            {row.locationLabel ? <Pill>{row.locationLabel}</Pill> : null}
-                            <Pill>{formatPercent(row.max_scroll_percent ?? 0)} scroll</Pill>
-                            <Pill>{formatNumber(row.interaction_count)} interactions</Pill>
-                            <RiskPill suspicion={row.suspicion} />
-                            {selectedSessionId === row.sessionKey ? (
-                              <span className="text-accent">{UI_TEXT.selectedHint}</span>
-                            ) : null}
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-skin-base/55">
+                            <span>{row.locationLabel || "--"}</span>
+                            <span>{formatPercent(row.max_scroll_percent ?? 0)} scroll</span>
+                            <span>{formatNumber(row.interaction_count)} interactions</span>
+                            {selectedSessionId === row.sessionKey ? <span className="text-accent">{UI_TEXT.selectedHint}</span> : null}
                           </div>
                         </div>
-                        <div className="text-[12px] text-skin-base/72">{safeDisplay(row.device_type)}</div>
-                        <div className="text-[12px] text-skin-base/72">{formatDwell(row.dwell_seconds)}</div>
-                        <div className="text-[12px] text-skin-base/72">{row.displayVisitor}</div>
+                        <div className="min-w-0 text-[12px] text-skin-base/72">
+                          <div className="truncate">{[
+                            safeDisplay(row.device_type, ""),
+                            safeDisplay(row.os, ""),
+                            safeDisplay(row.browser, ""),
+                          ].filter(Boolean).join(" / ") || "--"}</div>
+                          <div className="mt-1 truncate text-[11px] text-skin-base/52">{row.network_type || row.timezone || "--"}</div>
+                        </div>
+                        <div className="min-w-0 text-[12px] text-skin-base/72">
+                          <div className="truncate">{row.displayVisitor}</div>
+                          <div className="mt-1 truncate text-[11px] text-skin-base/52">{maskVisitorHash(row.visitor_hash)}</div>
+                        </div>
+                        <div className="text-[12px] text-skin-base/72">
+                          <div>{formatDwell(row.dwell_seconds)}</div>
+                          <div className="mt-1"><RiskPill suspicion={row.suspicion} compact /></div>
+                        </div>
                         <div className="text-[12px] text-skin-base/72">{maskIp(row.ip_address)}</div>
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/20 pt-3 text-xs text-skin-base/60">
+                  <span>{formatTemplate(UI_TEXT.paginationSummary, { current: sessionPage, total: totalSessionPages })}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSessionPage(page => Math.max(1, page - 1))}
+                      disabled={sessionPage <= 1}
+                      className="rounded-full border border-border/40 px-3 py-1.5 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {UI_TEXT.paginationPrev}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionPage(page => Math.min(totalSessionPages, page + 1))}
+                      disabled={sessionPage >= totalSessionPages}
+                      className="rounded-full border border-border/40 px-3 py-1.5 transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {UI_TEXT.paginationNext}
+                    </button>
                   </div>
                 </div>
               </section>
@@ -1788,15 +1819,7 @@ function HighlightCard(props: { label: string; value: string; detail: string }) 
   );
 }
 
-function Pill(props: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-full border border-border/40 bg-background/70 px-2.5 py-1 text-[11px] text-skin-base/75">
-      {props.children}
-    </span>
-  );
-}
-
-function RiskPill(props: { suspicion: SuspicionResult }) {
+function RiskPill(props: { suspicion: SuspicionResult; compact?: boolean }) {
   const label =
     props.suspicion.level === "high"
       ? "High"
@@ -1805,7 +1828,11 @@ function RiskPill(props: { suspicion: SuspicionResult }) {
         : "Low";
 
   return (
-    <span className={`rounded-full border px-2.5 py-1 text-[11px] ${getRiskTone(props.suspicion.level)}`}>
+    <span
+      className={`inline-flex rounded-full border ${
+        props.compact ? "px-2 py-0.5" : "px-2.5 py-1"
+      } text-[11px] ${getRiskTone(props.suspicion.level)}`}
+    >
       {label}
     </span>
   );
