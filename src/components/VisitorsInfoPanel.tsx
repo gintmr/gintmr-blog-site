@@ -1133,7 +1133,7 @@ const VisitorsInfoPanel: React.FC = () => {
   }, [selectedSession]);
 
   return (
-    <section className="visitors-panel rounded-[2rem] border border-border/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 shadow-[0_25px_90px_rgba(15,23,42,0.12)] backdrop-blur sm:p-6">
+    <section className="visitors-panel !mx-0 !max-w-none !px-0 w-full rounded-[2rem] border border-border/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 shadow-[0_25px_90px_rgba(15,23,42,0.12)] backdrop-blur sm:p-6">
       <header className="mb-6">
         <h2 className="text-2xl font-semibold tracking-tight text-accent sm:text-3xl">
           {UI_TEXT.title}
