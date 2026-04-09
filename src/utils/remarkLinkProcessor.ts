@@ -48,18 +48,10 @@ export const remarkLinkProcessor: Plugin<
         }
         node.url = processedUrl;
 
-        // 如果是内部博客链接，添加 target="_blank" 属性在新标签页打开
-        if (processedUrl.startsWith("/blog/")) {
-          // 为链接节点添加 data 属性，用于在渲染时设置 target="_blank"
-          if (!node.data) {
-            node.data = {};
-          }
-          if (!node.data.hProperties) {
-            node.data.hProperties = {};
-          }
-          (node.data.hProperties as Record<string, string>).target = "_blank";
-          (node.data.hProperties as Record<string, string>).rel =
-            "noopener noreferrer";
+        // 对站内文章链接保持站内跳转，不强制新开标签。
+        if (/^\/(blog|story|diary)\//.test(processedUrl) && node.data?.hProperties) {
+          delete (node.data.hProperties as Record<string, string>).target;
+          delete (node.data.hProperties as Record<string, string>).rel;
         }
       }
     });

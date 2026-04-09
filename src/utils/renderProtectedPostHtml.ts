@@ -8,6 +8,7 @@ import rehypeSlug from "rehype-slug";
 import remarkWrap from "./remarkWrap";
 import { remarkMediaCard } from "./remarkMediaCard";
 import { remarkLinkProcessor } from "./remarkLinkProcessor";
+import { remarkWikiLinks } from "./remarkWikiLinks";
 import { remarkObsidianEmbeds } from "./remarkObsidianEmbeds";
 import { remarkAudioCard } from "./remarkAudioCard";
 import { remarkObsidianCallout } from "./remarkObsidianCallout";
@@ -53,6 +54,7 @@ export async function renderProtectedPostHtml(
       .use(remarkParse)
       .use(remarkObsidianCallout, { enableDebug: false })
       .use(remarkObsidianEmbeds, { enableDebug: false })
+      .use(remarkWikiLinks, { enableDebug: false })
       .use(remarkLinkProcessor, { enableDebug: false })
       .use(remarkAudioCard, { enableDebug: false })
       .use(remarkMediaCard, { enableDebug: false })

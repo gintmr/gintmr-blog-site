@@ -1,56 +1,325 @@
-import fs from "fs";
-import path from "path";
-import { BLOG_PATH } from "../config";
+import fs from "node:fs";
+import path from "node:path";
+import { BLOG_PATH, DIARY_PATH, STORY_PATH } from "../config";
+import { parseDiaryIdentifier } from "./diaryIdentifier";
+import { slugifyStr } from "./slugify";
 
-/**
- * 从markdown文件中提取slug字段
- * @param filePath 文件路径
- * @returns slug值或undefined
- */
-function extractSlugFromFile(filePath: string): string | undefined {
+type ContentKind = "blog" | "story" | "diary";
+
+interface ContentRecord {
+  kind: ContentKind;
+  filePath: string;
+  href: string;
+  keys: string[];
+}
+
+interface ResolvedWikiLink {
+  href: string;
+  label: string;
+}
+
+const MARKDOWN_EXT_REGEX = /\.(md|mdx)$/i;
+const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n---/;
+const WIKI_LINK_REGEX = /(!)?\[\[([^[\]]+)\]\]/g;
+
+let contentIndexCache: Map<string, ContentRecord[]> | null = null;
+
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeSlashes(value: string): string {
+  return value.replace(/\\/g, "/");
+}
+
+function trimMarkdownExtension(value: string): string {
+  return value.replace(MARKDOWN_EXT_REGEX, "");
+}
+
+function normalizeLookupKey(value: string): string {
+  return trimMarkdownExtension(normalizeSlashes(decodeURIComponentSafe(value)))
+    .trim()
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function toHeadingAnchor(heading: string): string {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/['".,!?()[\]{}:;，。！？：；“”‘’`~@#$%^&*=+\\/<>|]/g, "")
+    .replace(/\s+/g, "-");
+}
+
+function getBlogPath(id: string, filePath: string): string {
+  const pathSegments = normalizeSlashes(filePath)
+    .replace(BLOG_PATH, "")
+    .split("/")
+    .filter(segment => segment !== "")
+    .filter(segment => !segment.startsWith("_"))
+    .slice(0, -1)
+    .map(segment => slugifyStr(segment));
+
+  const blogId = id.split("/");
+  const slug = blogId.length > 0 ? blogId.slice(-1) : blogId;
+  return pathSegments.length < 1
+    ? ["/blog", slug].join("/")
+    : ["/blog", ...pathSegments, slug].join("/");
+}
+
+function getStoryUrl(id: string, filePath: string): string {
+  const normalized = normalizeSlashes(filePath);
+  const marker = `${STORY_PATH}/`;
+  const markerIndex = normalized.indexOf(marker);
+  const sourceRelative =
+    markerIndex >= 0
+      ? normalized.slice(markerIndex + marker.length)
+      : normalizeSlashes(id).replace(/^story\//i, "");
+
+  const pathSegments = trimMarkdownExtension(sourceRelative)
+    .replace(/^\/+|\/+$/g, "")
+    .split("/")
+    .filter(Boolean)
+    .filter(segment => !segment.startsWith("_"))
+    .map(segment => slugifyStr(segment) || segment.trim())
+    .filter(Boolean);
+
+  return ["/story", ...(pathSegments.length > 0 ? pathSegments : ["story-item"])].join("/");
+}
+
+function readFrontmatter(filePath: string): string {
   try {
     const content = fs.readFileSync(filePath, "utf-8");
-
-    // 匹配frontmatter中的slug字段
-    const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
-    if (!frontmatterMatch) return undefined;
-
-    const frontmatter = frontmatterMatch[1];
-    const slugMatch = frontmatter.match(/^slug:[ \t]*([^\r\n]*)$/m);
-
-    return slugMatch ? slugMatch[1].trim() : undefined;
+    const match = content.match(FRONTMATTER_REGEX);
+    return match?.[1] ?? "";
   } catch {
-    return undefined;
+    return "";
   }
 }
 
-/**
- * 解析相对路径并转换为绝对路径
- * @param relativePath 相对路径
- * @param basePath 基础路径（当前文件所在目录）
- * @returns 解析后的绝对路径
- */
-function resolveRelativePath(relativePath: string, basePath: string): string {
-  // 如果是绝对路径，直接返回
-  if (path.isAbsolute(relativePath)) return relativePath;
+function extractFrontmatterField(frontmatter: string, field: string): string {
+  const match = frontmatter.match(new RegExp(`^${field}:[ \\t]*(.+)$`, "m"));
+  return match?.[1]?.trim().replace(/^['"]|['"]$/g, "") ?? "";
+}
 
-  // 解析相对路径
-  return path.resolve(basePath, relativePath);
+function listMarkdownFiles(dirPath: string): string[] {
+  if (!fs.existsSync(dirPath)) return [];
+
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+
+    const absolutePath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listMarkdownFiles(absolutePath));
+      continue;
+    }
+
+    if (MARKDOWN_EXT_REGEX.test(entry.name)) {
+      files.push(absolutePath);
+    }
+  }
+
+  return files;
+}
+
+function buildRecord(kind: ContentKind, filePath: string): ContentRecord {
+  const projectRoot = process.cwd();
+  const normalizedFilePath = normalizeSlashes(filePath);
+  const relativePath = normalizeSlashes(path.relative(projectRoot, filePath));
+  const frontmatter = readFrontmatter(filePath);
+  const title = extractFrontmatterField(frontmatter, "title");
+  const slug = extractFrontmatterField(frontmatter, "slug");
+  const fileStem = trimMarkdownExtension(path.basename(filePath));
+
+  if (kind === "blog") {
+    const id = slug || fileStem;
+    const blogRelative = trimMarkdownExtension(
+      normalizeSlashes(path.relative(path.resolve(projectRoot, BLOG_PATH), filePath))
+    );
+    return {
+      kind,
+      filePath: normalizedFilePath,
+      href: getBlogPath(id, relativePath),
+      keys: [
+        `blog/${blogRelative}`,
+        `blog/${fileStem}`,
+        `blog/${title}`,
+        `blog/${slug}`,
+        blogRelative,
+        fileStem,
+        title,
+        slug,
+      ]
+        .map(normalizeLookupKey)
+        .filter(Boolean),
+    };
+  }
+
+  if (kind === "story") {
+    const storyRelative = trimMarkdownExtension(
+      normalizeSlashes(path.relative(path.resolve(projectRoot, STORY_PATH), filePath))
+    );
+    return {
+      kind,
+      filePath: normalizedFilePath,
+      href: getStoryUrl(storyRelative, relativePath),
+      keys: [
+        `story/${storyRelative}`,
+        `story/${fileStem}`,
+        `story/${title}`,
+        storyRelative,
+        fileStem,
+        title,
+      ]
+        .map(normalizeLookupKey)
+        .filter(Boolean),
+    };
+  }
+
+  const diaryRelative = trimMarkdownExtension(
+    normalizeSlashes(path.relative(path.resolve(projectRoot, DIARY_PATH), filePath))
+  );
+  const diaryMeta = parseDiaryIdentifier(diaryRelative);
+  return {
+    kind,
+    filePath: normalizedFilePath,
+    href: `/diary/${diaryMeta.quarterKey}#date-${diaryMeta.rawId}`,
+    keys: [
+      `diary/${diaryRelative}`,
+      `diary/${fileStem}`,
+      diaryRelative,
+      fileStem,
+    ]
+      .map(normalizeLookupKey)
+      .filter(Boolean),
+  };
+}
+
+function getContentIndex(): Map<string, ContentRecord[]> {
+  if (contentIndexCache) return contentIndexCache;
+
+  const projectRoot = process.cwd();
+  const index = new Map<string, ContentRecord[]>();
+  const roots: Array<{ kind: ContentKind; dirPath: string }> = [
+    { kind: "blog", dirPath: path.resolve(projectRoot, BLOG_PATH) },
+    { kind: "story", dirPath: path.resolve(projectRoot, STORY_PATH) },
+    { kind: "diary", dirPath: path.resolve(projectRoot, DIARY_PATH) },
+  ];
+
+  for (const { kind, dirPath } of roots) {
+    const files = listMarkdownFiles(dirPath);
+    for (const filePath of files) {
+      const record = buildRecord(kind, filePath);
+      for (const key of record.keys) {
+        const existing = index.get(key) ?? [];
+        existing.push(record);
+        index.set(key, existing);
+      }
+    }
+  }
+
+  contentIndexCache = index;
+  return index;
+}
+
+function resolveFileReference(
+  href: string,
+  currentFilePath?: string
+): ContentRecord | null {
+  const decodedHref = decodeURIComponentSafe(href);
+  const projectRoot = process.cwd();
+  const baseDir = currentFilePath
+    ? path.dirname(currentFilePath)
+    : projectRoot;
+
+  const candidates = [
+    path.resolve(baseDir, decodedHref),
+    path.resolve(projectRoot, decodedHref),
+  ];
+
+  for (const absolutePath of candidates) {
+    if (!fs.existsSync(absolutePath)) continue;
+    const normalized = normalizeSlashes(absolutePath);
+
+    if (normalized.includes(`/${normalizeSlashes(BLOG_PATH)}/`)) {
+      return buildRecord("blog", absolutePath);
+    }
+    if (normalized.includes(`/${normalizeSlashes(STORY_PATH)}/`)) {
+      return buildRecord("story", absolutePath);
+    }
+    if (normalized.includes(`/${normalizeSlashes(DIARY_PATH)}/`)) {
+      return buildRecord("diary", absolutePath);
+    }
+  }
+
+  return null;
+}
+
+function resolveWikiRecord(target: string): ContentRecord | null {
+  const normalizedTarget = normalizeLookupKey(target);
+  if (!normalizedTarget) return null;
+
+  const exactMatches = getContentIndex().get(normalizedTarget) ?? [];
+  if (exactMatches.length === 1) return exactMatches[0];
+
+  const [kindPrefix] = normalizedTarget.split("/", 1);
+  if (
+    exactMatches.length > 1 &&
+    (kindPrefix === "blog" || kindPrefix === "story" || kindPrefix === "diary")
+  ) {
+    const preferred = exactMatches.find(record => record.kind === kindPrefix);
+    if (preferred) return preferred;
+  }
+
+  return exactMatches[0] ?? null;
+}
+
+function parseWikiTarget(rawTarget: string): {
+  target: string;
+  heading: string;
+  label: string;
+} {
+  const [targetPart, ...labelParts] = rawTarget.split("|");
+  const [targetOnly, headingPart = ""] = targetPart.split("#");
+  const target = targetOnly.trim();
+  const heading = headingPart.trim();
+  const label =
+    labelParts.join("|").trim() ||
+    heading ||
+    path.basename(target).trim();
+  return { target, heading, label };
+}
+
+export function resolveWikiLink(
+  rawTarget: string
+): ResolvedWikiLink | null {
+  const { target, heading, label } = parseWikiTarget(rawTarget);
+  const record = resolveWikiRecord(target);
+  if (!record) return null;
+
+  const anchor = heading ? `#${toHeadingAnchor(heading)}` : "";
+
+  return {
+    href: `${record.href}${anchor}`,
+    label: label || target,
+  };
 }
 
 /**
- * 处理链接，将相对路径的blog文件链接转换为/blog/[slug]格式
- * @param href 原始链接
- * @param currentFilePath 当前文件路径（用于解析相对路径）
- * @returns 处理后的链接
+ * 处理链接，将相对路径或内容文件引用转换为站内链接
  */
 export function processLink(href: string, currentFilePath?: string): string {
-  // 如果是绝对URL（http/https），直接返回
-  if (/^https?:\/\//.test(href)) {
-    return href;
-  }
+  if (/^https?:\/\//.test(href)) return href;
 
-  // 如果是锚点链接或其他特殊链接，直接返回
   if (
     href.startsWith("#") ||
     href.startsWith("mailto:") ||
@@ -59,71 +328,23 @@ export function processLink(href: string, currentFilePath?: string): string {
     return href;
   }
 
-  // 检查是否为md文件
-  if (!/\.(md|mdx)$/i.test(href)) {
+  if (!MARKDOWN_EXT_REGEX.test(href)) {
     return href;
   }
 
-  try {
-    let targetFilePath: string;
-
-    if (currentFilePath) {
-      // 如果提供了当前文件路径，解析相对路径
-      const currentDir = path.dirname(currentFilePath);
-      // 对href进行URL解码，处理空格等特殊字符
-      const decodedHref = decodeURIComponent(href);
-      targetFilePath = resolveRelativePath(decodedHref, currentDir);
-    } else {
-      // 否则假设是相对于项目根目录的路径
-      const projectRoot = process.cwd();
-      const decodedHref = decodeURIComponent(href);
-      targetFilePath = path.resolve(projectRoot, decodedHref);
-    }
-
-    // 标准化路径分隔符
-    targetFilePath = targetFilePath.replace(/\\/g, "/");
-
-    // 检查文件是否存在
-    if (!fs.existsSync(targetFilePath)) {
-      // 如果文件不存在，尝试在blog目录中查找
-      const blogDir = path.resolve(process.cwd(), BLOG_PATH);
-      // 文件名已经在上面解码过了，这里直接使用
-      const fileName = path.basename(targetFilePath);
-      const blogFilePath = path.join(blogDir, fileName);
-
-      if (fs.existsSync(blogFilePath)) {
-        targetFilePath = blogFilePath;
-      } else {
-        // 文件不存在，返回原链接
-        return href;
-      }
-    }
-
-    // 提取slug
-    const slug = extractSlugFromFile(targetFilePath);
-    if (slug) {
-      return `/blog/${slug}`;
-    }
-
-    // 如果没有slug，使用文件名
-    const fileName = path
-      .basename(targetFilePath, path.extname(targetFilePath))
-      .replace(/\s/g, "-")
-      .toLowerCase();
-
-    return `/blog/${fileName}`;
-  } catch {
-    // 出错时返回原链接
-    return href;
+  const resolvedByPath = resolveFileReference(href, currentFilePath);
+  if (resolvedByPath) {
+    return resolvedByPath.href;
   }
+
+  const resolvedByIndex = resolveWikiRecord(href);
+  if (resolvedByIndex) {
+    return resolvedByIndex.href;
+  }
+
+  return href;
 }
 
-/**
- * 批量处理文本中的所有markdown链接
- * @param text 包含markdown链接的文本
- * @param currentFilePath 当前文件路径
- * @returns 处理后的文本
- */
 export function processMarkdownLinks(
   text: string,
   currentFilePath?: string
@@ -131,5 +352,16 @@ export function processMarkdownLinks(
   return text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, linkText, href) => {
     const processedHref = processLink(href, currentFilePath);
     return `[${linkText}](${processedHref})`;
+  });
+}
+
+export function processObsidianLinks(text: string): string {
+  return text.replace(WIKI_LINK_REGEX, (match, bang, rawTarget) => {
+    if (bang) return match;
+
+    const resolved = resolveWikiLink(rawTarget);
+    if (!resolved) return match;
+
+    return `[${resolved.label}](${resolved.href})`;
   });
 }

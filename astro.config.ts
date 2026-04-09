@@ -20,6 +20,7 @@ import rehypeHeadingLinks from "./src/utils/rehypeHeadingLinks";
 import rehypeFigureEnhanced from "./src/utils/rehypeFigureEnhanced";
 import { remarkMediaCard } from "./src/utils/remarkMediaCard";
 import { remarkLinkProcessor } from "./src/utils/remarkLinkProcessor";
+import { remarkWikiLinks } from "./src/utils/remarkWikiLinks";
 import { remarkObsidianEmbeds } from "./src/utils/remarkObsidianEmbeds";
 import { remarkAudioCard } from "./src/utils/remarkAudioCard";
 import { remarkObsidianCallout } from "./src/utils/remarkObsidianCallout";
@@ -66,6 +67,7 @@ export default defineConfig({
     remarkPlugins: [
       [remarkObsidianCallout, { enableDebug: false }],
       [remarkObsidianEmbeds, { enableDebug: false }],
+      [remarkWikiLinks, { enableDebug: false }],
       [remarkLinkProcessor, { enableDebug: false }],
       [remarkAudioCard, { enableDebug: false }],
       [remarkMediaCard, { enableDebug: false }],

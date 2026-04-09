@@ -3,7 +3,7 @@ import {
   type ImageOptimizeOptions,
 } from "@/utils/optimizeImages";
 import { getVideoPath } from "@/utils/videoUtils";
-import { processLink } from "@/utils/linkProcessor";
+import { processLink, processObsidianLinks } from "@/utils/linkProcessor";
 import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import type { CollectionEntry } from "astro:content";
 
@@ -402,6 +402,7 @@ function buildDiaryVideoEmbedHtml(video: ParsedObsidianImageEmbed): string {
 export async function parseEntry(entry: CollectionEntry<"diary">) {
   const diaryMeta = parseDiaryIdentifier(entry.id);
   const date = diaryMeta.startDate;
+  const currentFilePath = entry.filePath ?? undefined;
 
   // 解析markdown内容，提取时间段和内容
   const rawContent = entry.body || "";
@@ -556,6 +557,10 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     // 清理空行，避免解析后出现过大的空白
     text = processedTextLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 
+    // 先把 Obsidian 风格的文章引用转换成标准 Markdown 链接，
+    // 这样后面的统一链接解析可以复用同一套逻辑。
+    text = processObsidianLinks(text);
+
     // 解析 Markdown 行内代码为 HTML code 标签
     text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
 
@@ -574,9 +579,13 @@ export async function parseEntry(entry: CollectionEntry<"diary">) {
     text = text.replace(
       /\[([^\]]+)\]\(([^\)]+)\)/g,
       (match, linkText, href) => {
-        const processedHref = processLink(href);
-        console.log(href, processedHref);
-        return `<a href="${processedHref}" target="_blank" rel="noopener noreferrer" class="text-skin-accent font-semibold underline decoration-2 underline-offset-2 hover:decoration-4 hover:text-skin-accent-2 transition-all duration-200">${linkText}</a>`;
+        const resolvedHref = processLink(href, currentFilePath);
+        const isInternalContentLink = /^\/(blog|story|diary)\//.test(resolvedHref);
+        const externalAttrs = isInternalContentLink
+          ? ""
+          : ' target="_blank" rel="noopener noreferrer"';
+
+        return `<a href="${escapeHtmlAttr(resolvedHref)}"${externalAttrs} class="text-skin-accent font-semibold underline decoration-2 underline-offset-2 hover:decoration-4 hover:text-skin-accent-2 transition-all duration-200">${linkText}</a>`;
       }
     );
 
