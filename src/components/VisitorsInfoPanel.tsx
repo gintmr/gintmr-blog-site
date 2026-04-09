@@ -1216,7 +1216,7 @@ const VisitorsInfoPanel: React.FC = () => {
             <StatCard label={UI_TEXT.overview.lastVisit} value={formatTime(overview?.last_visit_at ?? null)} />
           </div>
 
-          <section className="mb-8 rounded-[1.35rem] border border-border/40 bg-background/40 p-4">
+          <div className="mb-8 rounded-[1.35rem] border border-border/40 bg-background/40 p-4">
             <div className="mb-4 flex items-center justify-between gap-4">
               <h3 className="text-base font-semibold text-skin-base">{UI_TEXT.filtersTitle}</h3>
               <button
@@ -1321,22 +1321,22 @@ const VisitorsInfoPanel: React.FC = () => {
                 />
               </div>
             )}
-          </section>
+          </div>
 
           {filteredRows.length === 0 ? (
             <p className="text-sm text-skin-base/75">{UI_TEXT.empty}</p>
           ) : (
             <>
-              <section className="mb-8">
+              <div className="mb-8">
                 <h3 className="mb-4 text-base font-semibold text-skin-base">{UI_TEXT.insightsTitle}</h3>
                 <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
                   {insights.map(card => (
                     <InsightPanel key={card.label} label={card.label} text={card.text} />
                   ))}
                 </div>
-              </section>
+              </div>
 
-              <section className="mb-8">
+              <div className="mb-8">
                 <h3 className="mb-4 text-base font-semibold text-skin-base">{UI_TEXT.chartsTitle}</h3>
                 <div className="grid gap-3 xl:grid-cols-2">
                   <ChartCard title={UI_TEXT.charts.countries}>
@@ -1358,9 +1358,9 @@ const VisitorsInfoPanel: React.FC = () => {
                     <HourlyHeatStrip data={hourlyBuckets} />
                   </ChartCard>
                 </div>
-              </section>
+              </div>
 
-              <section className="mb-8 grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
+              <div className="mb-8 grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
                 <ChartCard title={UI_TEXT.geoTitle}>
                   <p className="mb-3 text-xs text-skin-base/65">{UI_TEXT.metrics.mapHint}</p>
                   <GeoRadarMap points={geoPoints} />
@@ -1385,9 +1385,9 @@ const VisitorsInfoPanel: React.FC = () => {
                     />
                   </div>
                 </ChartCard>
-              </section>
+              </div>
 
-              <section className="mb-8 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mb-8 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                 <HighlightCard
                   label={UI_TEXT.labels.suspiciousSessions}
                   value={String(highlightStats.suspiciousCount)}
@@ -1424,9 +1424,9 @@ const VisitorsInfoPanel: React.FC = () => {
                       : "--"
                   }
                 />
-              </section>
+              </div>
 
-              <section className="mb-8 rounded-[1.35rem] border border-border/40 bg-background/45 p-4">
+              <div className="mb-8 rounded-[1.35rem] border border-border/40 bg-background/45 p-4">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <h3 className="text-base font-semibold text-skin-base">{UI_TEXT.sessionsTitle}</h3>
@@ -1565,9 +1565,9 @@ const VisitorsInfoPanel: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              </section>
+              </div>
 
-              <section className="rounded-[1.35rem] border border-border/40 bg-background/45 p-4">
+              <div className="rounded-[1.35rem] border border-border/40 bg-background/45 p-4">
                 <h3 className="mb-4 text-base font-semibold text-skin-base">{UI_TEXT.detailsTitle}</h3>
 
                 {selectedSession ? (
@@ -1740,7 +1740,7 @@ const VisitorsInfoPanel: React.FC = () => {
                 ) : (
                   <p className="text-sm text-skin-base/70">{UI_TEXT.empty}</p>
                 )}
-              </section>
+              </div>
             </>
           )}
         </>
