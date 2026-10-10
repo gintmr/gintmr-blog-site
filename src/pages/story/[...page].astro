@@ -1,12 +1,11 @@
 ---
 import type { GetStaticPaths } from "astro";
 import { getCollection } from "astro:content";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import Shell from "@/layouts/Shell.astro";
 import Pagination from "@/components/Pagination.astro";
 import StoryCard from "@/components/StoryCard.astro";
 import getSortedStories from "@/utils/getSortedStories";
+import { getStoryTitle } from "@/utils/getStoryPath";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
 
@@ -16,26 +15,37 @@ export const getStaticPaths = (async ({ paginate }) => {
 }) satisfies GetStaticPaths;
 
 const { page } = Astro.props;
+
+// 右侧目录：这一页展示的每一期图文，锚点由 StoryCard 落到卡片上
+const outlineItems = page.data.map((story, index) => ({
+  id: `story-${index + 1}`,
+  label: getStoryTitle(story.data.title, story.id, story.filePath),
+}));
+const anchors = page.data.map((story, index) => ({
+  story,
+  anchor: `story-${index + 1}`,
+}));
 ---
 
-<Layout title={`${UI.pages.storiesTitle} | ${SITE.title}`}>
-  <Header />
-  <main id="main-content" class="mx-auto mt-4 w-full max-w-[88rem] px-4 pb-6">
-    <h1 class="text-3xl font-semibold">{UI.pages.storiesTitle}</h1>
-    <p class="mt-2 text-sm italic text-foreground/72">{UI.pages.storiesDesc}</p>
-    <div class="subtle-page-note mt-5 mb-6">
-      <div class="subtle-page-note__label">Memory Wall</div>
-      <p class="text-sm leading-7 text-foreground/72">
-        Short vertical memories, arranged by time and kept light enough to browse quickly.
-      </p>
-    </div>
-    <ul class="story-wall grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {page.data.map(data => <StoryCard {...data} />)}
-    </ul>
-  </main>
+<Shell
+  title={`${UI.pages.storiesTitle} | ${SITE.title}`}
+  pageTitle={UI.pages.storiesTitle}
+  pageDesc={UI.pages.storiesDesc}
+  outline={{ label: UI.pages.storiesTitle, items: outlineItems }}
+>
+  <div class="subtle-page-note mt-5 mb-6">
+    <div class="subtle-page-note__label">Memory Wall</div>
+    <p class="text-sm leading-7 text-foreground/72">
+      Short vertical memories, arranged by time and kept light enough to browse quickly.
+    </p>
+  </div>
+  <ul class="story-wall grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {anchors.map(({ story, anchor }) => (
+      <StoryCard {...story} {anchor} />
+    ))}
+  </ul>
   <Pagination {page} />
-  <Footer noMarginTop={page.lastPage > 1} />
-</Layout>
+</Shell>
 
 <script is:inline>
   (() => {

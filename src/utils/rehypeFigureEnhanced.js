@@ -116,8 +116,9 @@ function toRootNodes(nodes, originalParagraphProperties = {}) {
 }
 
 export default function rehypeFigureEnhanced(options = {}) {
-  const className = options.className || "rehype-figure";
-  const containerClass = `${className}-container`;
+  // 交给组件库：单图用 .gintmr_ui-figure--standalone，多图用 .gintmr_ui-gallery
+  const className = options.className || "gintmr_ui-figure";
+  const containerClass = options.containerClass || "gintmr_ui-gallery";
 
   return tree => {
     visit(tree, "element", (node, index, parent) => {
@@ -132,6 +133,8 @@ export default function rehypeFigureEnhanced(options = {}) {
         if (imageBuffer.length === 0) return;
 
         const figures = imageBuffer.map(img => buildImageFigure(img, className));
+        // 单图独立成段：居中、限宽、限高，不把正文挤成窄缝
+        if (figures.length === 1) figures[0].properties.class = `${className} ${className}--standalone`;
         transformedChildren.push(
           figures.length === 1
             ? figures[0]

@@ -43,8 +43,15 @@ export default function Comments() {
     };
   }, []);
 
+  const missingConfig = [
+    !PUBLIC_GISCUS_REPO ? "PUBLIC_GISCUS_REPO" : null,
+    !PUBLIC_GISCUS_REPO_ID ? "PUBLIC_GISCUS_REPO_ID" : null,
+    !PUBLIC_GISCUS_CATEGORY ? "PUBLIC_GISCUS_CATEGORY" : null,
+    !PUBLIC_GISCUS_CATEGORY_ID ? "PUBLIC_GISCUS_CATEGORY_ID" : null,
+  ].filter(Boolean) as string[];
+
   // 检查必填字段是否都已配置
-  if (PUBLIC_GISCUS_REPO && PUBLIC_GISCUS_REPO_ID) {
+  if (missingConfig.length === 0) {
     return (
       <section className="discussion-shell">
         <div className="discussion-shell__head">
@@ -61,9 +68,9 @@ export default function Comments() {
           <Giscus
             host={PUBLIC_GISCUS_HOST || "https://giscus.app"}
             repo={PUBLIC_GISCUS_REPO as `${string}/${string}`}
-            repoId={PUBLIC_GISCUS_REPO_ID}
-            category={PUBLIC_GISCUS_CATEGORY}
-            categoryId={PUBLIC_GISCUS_CATEGORY_ID}
+            repoId={PUBLIC_GISCUS_REPO_ID!}
+            category={PUBLIC_GISCUS_CATEGORY!}
+            categoryId={PUBLIC_GISCUS_CATEGORY_ID!}
             mapping="pathname"
             strict="0"
             reactionsEnabled="1"
@@ -92,9 +99,14 @@ export default function Comments() {
       </div>
       <div className="discussion-shell__body discussion-shell__body--empty">
         <p>
-          Comments require Giscus configuration. Set these environment variables:
+          Comments require a complete Giscus configuration. Set these
+          environment variables:
           <br />
-          <code>PUBLIC_GISCUS_REPO, PUBLIC_GISCUS_REPO_ID</code>
+          <code>
+            {missingConfig.length > 0
+              ? missingConfig.join(", ")
+              : "PUBLIC_GISCUS_REPO, PUBLIC_GISCUS_REPO_ID, PUBLIC_GISCUS_CATEGORY, PUBLIC_GISCUS_CATEGORY_ID"}
+          </code>
         </p>
       </div>
     </section>

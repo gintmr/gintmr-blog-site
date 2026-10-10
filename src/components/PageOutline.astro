@@ -1,0 +1,301 @@
+---
+/**
+ * 本页目录。外观、轨道、滚动跟踪来自 vendor/gintmr-ui 的目录原语：
+ * 宽屏留白足够时是内容列右侧的常驻轨道，不够时收成吸顶栏下方的折叠面板。
+ *
+ * 两种数据来源，二选一：
+ *   staticItems  页面在构建期算好条目，这里直接渲染（列表类页面用）
+ *   headingSelector  交给脚本从 DOM 里收集标题（正文类页面用）
+ * 模板（Shell.astro）两种都给，页面按自己有什么来传。
+ */
+import { UI_LOCALE } from "@/i18n/ui";
+
+interface OutlineItem {
+  id: string;
+  label: string;
+  depth?: 0 | 1;
+}
+
+interface Props {
+  /** 构建期算好的条目；给了它就不再从 DOM 收集 */
+  staticItems?: OutlineItem[];
+  headingSelector?: string;
+  containerSelector?: string;
+  /** 判断两侧是否有空间放常驻轨道时，以哪一列为内容列 */
+  measureSelector?: string;
+  label?: string;
+  /** 把标题按月份归并成更粗的索引（左侧时间轴用） */
+  groupBy?: "month";
+  observeMutations?: boolean;
+  meta?: Array<{ label: string; value: string }>;
+  metaScope?: "diary";
+}
+
+const {
+  staticItems,
+  headingSelector,
+  containerSelector = "#main-content",
+  measureSelector = "#main-content",
+  label = UI_LOCALE === "zh-CN" ? "本页目录" : "On this page",
+  groupBy,
+  observeMutations = true,
+  meta = [],
+  metaScope,
+} = Astro.props;
+
+const isStatic = Array.isArray(staticItems) && staticItems.length > 0;
+const hasList = isStatic || Boolean(headingSelector);
+const hasMeta = meta.length > 0 || metaScope === "diary";
+/** 既没有条目也没有标题来源、连「本页信息」都没有时整块不渲染，免得留一条空轨道 */
+const renderable = hasList || hasMeta;
+const toggleText = UI_LOCALE === "zh-CN" ? "展开或收起目录" : "Toggle page outline";
+---
+
+{
+  renderable && (
+    <aside
+      class="gintmr_ui-outline"
+      aria-label={label}
+      data-gintmr_ui-form="inline"
+      data-gintmr-ui-outline
+      data-gintmr_ui-static={isStatic ? "true" : "false"}
+      data-gintmr-ui-headings={headingSelector}
+      data-gintmr-ui-container={containerSelector}
+      data-gintmr_ui-measure={measureSelector}
+      data-gintmr-ui-observe={observeMutations ? "true" : "false"}
+      data-gintmr-ui-group={groupBy}
+      data-gintmr-ui-meta-scope={metaScope}
+    >
+      <div class="gintmr_ui-outline-shell">
+        <button
+          class="gintmr_ui-outline-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="page-outline-panel"
+          aria-label={toggleText}
+        >
+          <svg
+            class="gintmr_ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+            ><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg
+          >
+          <span>{label}</span>
+          <span class="gintmr_ui-outline-current" aria-hidden="true" />
+          <svg
+            class="gintmr_ui-icon gintmr_ui-icon-chevron"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+            ><path d="m6 9 6 6 6-6" /></svg
+          >
+        </button>
+        <nav
+          class="gintmr_ui-outline-panel"
+          id="page-outline-panel"
+          aria-labelledby="page-outline-heading"
+          data-gintmr_ui-open="false"
+        >
+          <p class="gintmr_ui-outline-heading" id="page-outline-heading">
+            <svg
+              class="gintmr_ui-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              aria-hidden="true"
+              ><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg
+            >
+            {label}
+          </p>
+          {
+            hasList && (
+              <div class="gintmr_ui-outline-scroll">
+                <div class="gintmr_ui-outline-items">
+                  <svg class="gintmr_ui-outline-track" width="24" aria-hidden="true"
+                    ><path class="gintmr_ui-outline-rail" /><path
+                      class="gintmr_ui-outline-segment"
+                    /><circle class="gintmr_ui-outline-dot" r="2" /></svg
+                  >
+                  <ol class="gintmr_ui-outline-list" data-gintmr-ui-list>
+                    {isStatic &&
+                      staticItems.map(item => (
+                        <li data-depth={String(item.depth ?? 0)}>
+                          <a href={`#${item.id}`}>{item.label}</a>
+                        </li>
+                      ))}
+                  </ol>
+                </div>
+              </div>
+            )
+          }
+          {hasMeta && (
+            <dl class="gintmr_ui-outline-meta" data-gintmr-ui-meta>
+              {meta.map(item => (
+                <div>
+                  <dt>{item.label}</dt>
+                  <dd>{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </nav>
+      </div>
+    </aside>
+  )
+}
+
+<script>
+  import { initOutline } from "../../vendor/gintmr-ui/src/primitives/outline.js";
+
+  const SUB_LEVEL = new Set(["H3", "H4"]);
+
+  const scopeFor = (outline: HTMLElement) =>
+    document.querySelector(outline.dataset.gintmrUiContainer || "") || document;
+
+  const headingsOf = (outline: HTMLElement) => {
+    const selector = outline.dataset.gintmrUiHeadings || "";
+    if (!selector) return [];
+    return Array.from(
+      scopeFor(outline).querySelectorAll<HTMLElement>(selector)
+    ).filter(heading => heading.id);
+  };
+
+  const monthOf = (id: string) => id.slice(5, 12); // date-2026-03-13 → 2026-03
+
+  /** 按月份归并：每个月只留一条，指向该月第一条 */
+  function monthEntries(headings: HTMLElement[]) {
+    const seen = new Map<string, HTMLElement>();
+    headings.forEach(heading => {
+      const month = monthOf(heading.id);
+      if (!seen.has(month)) seen.set(month, heading);
+    });
+    return [...seen.entries()].map(([month, heading]) => ({
+      id: heading.id,
+      label: `${month.slice(0, 4)} 年 ${Number(month.slice(5))} 月`,
+    }));
+  }
+
+  function entriesFor(outline: HTMLElement) {
+    const headings = headingsOf(outline);
+    if (outline.dataset.gintmrUiGroup === "month") {
+      return monthEntries(headings).map(entry => ({
+        id: entry.id,
+        label: entry.label,
+        depth: 0,
+      }));
+    }
+    return headings.map(heading => ({
+      id: heading.id,
+      // rehypeHeadingLinks 会在标题末尾塞一个 "#" 锚，别带进目录
+      label: (heading.textContent || "").replace(/#\s*$/, "").trim(),
+      depth: SUB_LEVEL.has(heading.tagName) ? 1 : 0,
+    }));
+  }
+
+  /** 左侧时间轴的「本页信息」由页面现算，不依赖构建期数据 */
+  function fillDiaryMeta(outline: HTMLElement) {
+    const list = outline.querySelector("[data-gintmr-ui-meta]");
+    if (!list || outline.dataset.gintmrUiMetaScope !== "diary") return;
+    const headings = headingsOf(outline);
+    if (!headings.length) return;
+    const months = new Set(headings.map(heading => monthOf(heading.id)));
+    const rows: Array<[string, string]> = [
+      ["条目", String(headings.length)],
+      ["覆盖", `${months.size} 个月`],
+      ["最近", headings[0].id.slice(5).replace(/-/g, ".")],
+    ];
+    list.textContent = "";
+    rows.forEach(([label, value]) => {
+      const row = document.createElement("div");
+      const dt = document.createElement("dt");
+      const dd = document.createElement("dd");
+      dt.textContent = label;
+      dd.textContent = value;
+      row.append(dt, dd);
+      list.append(row);
+    });
+  }
+
+  /** 把容器里的标题收集成目录项；没有标题时整块收起来 */
+  function build(outline: HTMLElement) {
+    const list = outline.querySelector<HTMLElement>("[data-gintmr-ui-list]");
+    if (!list) return false;
+    const entries = entriesFor(outline);
+    if (entries.length === 0) {
+      outline.hidden = true;
+      return false;
+    }
+    outline.hidden = false;
+    list.textContent = "";
+    entries.forEach(entry => {
+      const item = document.createElement("li");
+      item.dataset.depth = String(entry.depth);
+      const link = document.createElement("a");
+      link.href = `#${entry.id}`;
+      link.textContent = entry.label;
+      item.append(link);
+      list.append(item);
+    });
+    fillDiaryMeta(outline);
+    return true;
+  }
+
+  function run() {
+    document
+      .querySelectorAll<HTMLElement>("[data-gintmr-ui-outline]")
+      .forEach(outline => {
+        // 条目由页面在构建期渲染好的，或者这块只有「本页信息」：
+        // 都只交给轨道原语，不要用 build() 把内容清掉
+        const hasHeadings = Boolean(outline.dataset.gintmrUiHeadings);
+        if (outline.dataset.gintmr_uiStatic === "true" || !hasHeadings) {
+          outline.hidden = false;
+          initOutline();
+          return;
+        }
+        if (build(outline)) initOutline();
+      });
+  }
+
+  // 日记流是客户端渲染的，标题会在首屏之后才出现
+  const observed = new WeakSet<Element>();
+  function observe(outline: HTMLElement) {
+    if (outline.dataset.gintmr_uiStatic === "true") return;
+    if (!outline.dataset.gintmrUiHeadings) return;
+    if (outline.dataset.gintmrUiObserve !== "true" || observed.has(outline))
+      return;
+    observed.add(outline);
+    const scope = scopeFor(outline);
+    let frame = 0;
+    new MutationObserver(() => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (build(outline)) initOutline();
+      });
+    }).observe(scope, { childList: true, subtree: true });
+  }
+
+  const start = () => {
+    run();
+    document
+      .querySelectorAll<HTMLElement>("[data-gintmr-ui-outline]")
+      .forEach(observe);
+  };
+
+  document.addEventListener("astro:after-swap", start);
+  document.addEventListener("astro:page-load", start);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, { once: true });
+  } else {
+    start();
+  }
+</script>

@@ -1,8 +1,6 @@
 ---
-import Main from "@/layouts/Main.astro";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import { getCollection } from "astro:content";
+import Shell from "@/layouts/Shell.astro";
 import PagefindSearch from "astro-pagefind/components/Search";
 import { SITE } from "@/config";
 import { UI, UI_LOCALE } from "@/i18n/ui";
@@ -10,26 +8,43 @@ import { UI, UI_LOCALE } from "@/i18n/ui";
 const searchNote = UI_LOCALE === "zh-CN"
   ? "这里适合直接搜标题、关键词、地点、书签内容，速度会比翻时间线更高。"
   : "Search works best for titles, keywords, places, and embedded references when you want a faster route than browsing.";
+
+// 搜索页本身没有分节，右侧就放「本页信息」：索引里到底有多少东西可搜
+const [posts, stories, diary] = await Promise.all([
+  getCollection("blog", ({ data }) => !data.draft),
+  getCollection("story", ({ data }) => !data.draft),
+  getCollection("diary", ({ data }) => !data.draft),
+]);
+const indexMeta = [
+  { label: UI.nav.blog, value: String(posts.length) },
+  { label: UI.nav.stories, value: String(stories.length) },
+  { label: UI_LOCALE === "zh-CN" ? "日记" : "Diary", value: String(diary.length) },
+];
 ---
 
-<Layout title={`Search | ${SITE.title}`}>
-  <Header />
-  <Main pageTitle={UI.pages.searchTitle} pageDesc={UI.pages.searchDesc}>
-    <section class="subtle-page-note mb-6">
-      <div class="subtle-page-note__label">Search</div>
-      <p class="text-sm leading-7 text-foreground/72">{searchNote}</p>
-    </section>
+<Shell
+  title={`Search | ${SITE.title}`}
+  pageTitle={UI.pages.searchTitle}
+  pageDesc={UI.pages.searchDesc}
+  outline={{
+    label: UI.pages.searchTitle,
+    items: [{ id: "search", label: UI.pages.searchTitle }],
+    meta: indexMeta,
+  }}
+>
+  <section class="subtle-page-note mb-6">
+    <div class="subtle-page-note__label">Search</div>
+    <p class="text-sm leading-7 text-foreground/72">{searchNote}</p>
+  </section>
 
-    <section class="search-shell">
-      <PagefindSearch
-        id="search"
-        className="pagefind-ui"
-        uiOptions={{ showImages: false, showSubResults: true }}
-      />
-    </section>
-  </Main>
-  <Footer />
-</Layout>
+  <section class="search-shell">
+    <PagefindSearch
+      id="search"
+      className="pagefind-ui"
+      uiOptions={{ showImages: false, showSubResults: true }}
+    />
+  </section>
+</Shell>
 
 <script>
   // 浏览器端处理URL参数和搜索状态保持

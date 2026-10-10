@@ -1,0 +1,150 @@
+---
+/**
+ * 全站唯一的页面模板。
+ *
+ * 导航栏里的每一个子界面 —— Top、Blog、Story、About、Links，以及它们的子页 ——
+ * 都从这里渲染。顶栏、左侧归档/标签栏、内容列、右侧目录、页脚的位置与容器
+ * 全在这一个文件里定死，页面只负责往默认 slot 里放自己的正文，
+ * 靠参数区分差异：
+ *
+ *   pageTitle / pageDesc   标题区文案
+ *   width                  内容列宽，只有 standard / wide 两档
+ *   outline                右侧目录的来源：服务端算好的条目，或从 DOM 收集的标题
+ *   sidenav                左侧归档/标签栏，默认在
+ *   hero slot              需要更复杂标题区的页面（文章详情）用它替换默认标题区
+ *
+ * 这样「换页」永远只是换 slot 里的内容，外壳不动，切换才是自然的。
+ */
+import { getCollection } from "astro:content";
+import Layout from "./Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
+import SideBar from "@/components/SideBar.astro";
+import PageOutline from "@/components/PageOutline.astro";
+import { SITE } from "@/config";
+
+export interface OutlineItem {
+  /** 目标元素的 id，必须真的存在于本页 DOM 里，否则目录整条不渲染 */
+  id: string;
+  label: string;
+  depth?: 0 | 1;
+}
+
+export interface OutlineSpec {
+  label?: string;
+  /** 二选一：items 由页面算好；headings 交给脚本从 DOM 里收集 */
+  items?: OutlineItem[];
+  headings?: string;
+  container?: string;
+  groupBy?: "month";
+  observe?: boolean;
+  metaScope?: "diary";
+  meta?: Array<{ label: string; value: string }>;
+}
+
+export interface Props {
+  title?: string;
+  pageTitle?: string;
+  pageDesc?: string;
+  width?: "standard" | "wide";
+  breadcrumb?: boolean;
+  sidenav?: boolean;
+  outline?: OutlineSpec | false;
+  /** 文章详情要标 pagefind 权重 */
+  pagefindBody?: boolean;
+  scrollSmooth?: boolean;
+  description?: string;
+  ogImage?: string;
+  canonicalURL?: string;
+  pubDatetime?: Date;
+  modDatetime?: Date | null;
+}
+
+const {
+  title = `${SITE.title}`,
+  pageTitle,
+  pageDesc,
+  width = "standard",
+  breadcrumb = true,
+  sidenav = true,
+  outline = {},
+  pagefindBody = false,
+  scrollSmooth = false,
+  description,
+  ogImage,
+  canonicalURL,
+  pubDatetime,
+  modDatetime,
+} = Astro.props;
+
+// 左侧栏的数据在这里取一次，所有页面共享，页面不必各传一遍
+const diaryEntries = await getCollection("diary");
+const blogEntries = await getCollection("blog");
+
+// 当前季度高亮：从 URL 解析，例如 /diary/2026-Q1/
+const currentQuarter = Astro.url.pathname.match(/(\d{4}-Q[1-4])/)?.[1];
+
+const outlineEnabled = outline !== false;
+/** 左右两栏都锚在同一列上，所以它们永远成对出现或成对收起 */
+const measureSelector = "#main-content";
+---
+
+<Layout
+  title={title}
+  description={description}
+  ogImage={ogImage}
+  canonicalURL={canonicalURL}
+  pubDatetime={pubDatetime}
+  modDatetime={modDatetime}
+  scrollSmooth={scrollSmooth}
+  pageWidth={width}
+>
+  <Header />
+
+  {sidenav && <SideBar {diaryEntries} {blogEntries} {currentQuarter} />}
+
+  {
+    outlineEnabled && (
+      <PageOutline
+        staticItems={outline.items}
+        headingSelector={outline.headings}
+        containerSelector={outline.container}
+        label={outline.label}
+        groupBy={outline.groupBy}
+        observeMutations={outline.observe ?? !outline.items}
+        meta={outline.meta}
+        metaScope={outline.metaScope}
+        measureSelector={measureSelector}
+      />
+    )
+  }
+
+  {breadcrumb && <Breadcrumb />}
+
+  <main
+    id="main-content"
+    class:list={[
+      "mx-auto mt-4 w-full max-w-[var(--gintmr_ui-page-width)] px-4 pb-12",
+      { relative: pagefindBody },
+    ]}
+    data-pagefind-body={pagefindBody ? "" : undefined}
+    data-pagefind-weight={pagefindBody ? "5" : undefined}
+  >
+    {
+      (pageTitle || pageDesc) && (
+        <section class="px-0">
+          {pageTitle && (
+            <h1 class="text-2xl font-semibold sm:text-3xl">{pageTitle}</h1>
+          )}
+          {pageDesc && <p class="mt-2 mb-6 italic">{pageDesc}</p>}
+        </section>
+      )
+    }
+
+    <slot name="hero" />
+    <slot />
+  </main>
+
+  <Footer />
+</Layout>

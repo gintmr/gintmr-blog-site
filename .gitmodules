@@ -1,3 +1,6 @@
 [submodule "src/data"]
 	path = src/data
 	url = git@github.com:gintmr/gintmr-blog-content.git
+[submodule "vendor/gintmr-ui"]
+	path = vendor/gintmr-ui
+	url = git@github.com:gintmr/gintmr-ui.git

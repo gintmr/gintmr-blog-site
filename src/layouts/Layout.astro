@@ -2,6 +2,7 @@
 import { ClientRouter } from "astro:transitions";
 import { PUBLIC_GOOGLE_SITE_VERIFICATION, PUBLIC_GOOGLE_ANALYTICS_ID } from "astro:env/client";
 import { SITE } from "@/config";
+import themePreload from "../../vendor/gintmr-ui/src/primitives/theme-preload.js?raw";
 import { UI_COLORS, UI_EFFECTS, UI_FONTS, UI_THEME } from "@/ui.config";
 import "@/styles/global.css";
 
@@ -18,6 +19,8 @@ export interface Props {
   pubDatetime?: Date;
   modDatetime?: Date | null;
   scrollSmooth?: boolean;
+  /** 内容列宽。所有页面共用同一套取值，左右两栏才不会在换页时跳位。 */
+  pageWidth?: "standard" | "wide";
 }
 
 const {
@@ -30,7 +33,13 @@ const {
   pubDatetime,
   modDatetime,
   scrollSmooth = false,
+  pageWidth = "standard",
 } = Astro.props;
+
+// 内容列宽：只有两档，全站共用，页面之间不出现第三个数。
+// 实际取值写在 global.css 的 :root 规则里（那里能保证排在库的令牌之后），
+// 这里只负责把档位挂到 <html> 上。
+const pageWidthValue = pageWidth;
 
 const socialImageURL = new URL(ogImage, Astro.url);
 const faviconURL = `/${SITE.favicon}?v=${SITE.faviconVersion}`;
@@ -103,13 +112,11 @@ const structuredData = {
 };
 
 const currentPath = Astro.url.pathname;
-const isHeavyMediaRoute =
-  currentPath === "/" ||
-  currentPath.startsWith("/story") ||
-  currentPath.startsWith("/blog/") ||
-  currentPath.startsWith("/diary");
-const enableClientRouter = !isHeavyMediaRoute;
-const enablePageTransition = UI_EFFECTS.pageTransition && enableClientRouter;
+// 所有页面共用同一套导航与转场：不再按「重媒体页」分叉。
+// 分叉会让同样的点击在不同页面表现不一致（有的整页刷新、有的软跳转），
+// 而且软跳转那一侧还会丢掉脚本写在 <html> 上的标记（主题、js 标记）。
+const enableClientRouter = true;
+const enablePageTransition = UI_EFFECTS.pageTransition;
 ---
 
 <!doctype html>
@@ -119,9 +126,22 @@ const enablePageTransition = UI_EFFECTS.pageTransition && enableClientRouter;
   class={`${scrollSmooth && "scroll-smooth"}`}
   data-force-dark={UI_THEME.forceDarkMode ? "true" : "false"}
   data-theme={UI_THEME.forceDarkMode ? "dark" : undefined}
+  data-gintmr_ui-page-width={pageWidthValue}
   data-effect-page-transition={enablePageTransition ? "on" : "off"}
+  data-gintmr_ui-effects={UI_EFFECTS.ambientGlow ? "on" : "off"}
+  data-gintmr_ui-grid={UI_EFFECTS.gridOverlay ? "on" : "off"}
+  data-gintmr_ui-aurora={UI_EFFECTS.auroraRibbon ? "on" : "off"}
+  data-gintmr_ui-beam={UI_EFFECTS.headingBeam ? "on" : "off"}
+  data-gintmr_ui-cursor={UI_EFFECTS.cursorGlow ? "on" : "off"}
 >
   <head>
+    <!-- 组件库的防闪烁片段：必须在任何样式表之前内联，否则主题会闪一下。
+         data-astro-rerun 是必需的：客户端路由换页时 Astro 会把 <html> 的属性
+         同步成新文档那一份，脚本写上去的 data-gintmr_ui-theme（主题）与
+         data-gintmr_ui-js（顶栏工具按钮的显示开关）都会被抹掉，
+         中间那段新页面就会掉成浅色、顶栏右侧图标消失。标上 rerun 让这段
+         在每次换页时重跑，主题与开关在新页面绘制之前就落回去。 -->
+    <script is:inline data-astro-rerun set:html={themePreload}></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/png" href={faviconURL} />
@@ -221,10 +241,21 @@ const enablePageTransition = UI_EFFECTS.pageTransition && enableClientRouter;
 
     <script is:inline src="/app-controls.js"></script>
     <script is:inline src="/site-effects.js"></script>
+    <script>
+      // 共用组件库。它自己会在 DOM 就绪时启动一次；
+      // 这里负责在客户端路由换页的每个阶段让它重新初始化新插入的 DOM。
+      // astro:after-swap 早于新页面绘制，先跑一遍才不会掉主题；
+      // astro:page-load 晚于岛的 hydration，用来兜住之后才出现的元素。
+      import { refresh } from "../../vendor/gintmr-ui/src/index.js";
+      document.addEventListener("astro:after-swap", refresh);
+      document.addEventListener("astro:page-load", refresh);
+      document.addEventListener("post:decrypted", refresh);
+    </script>
     <style is:inline set:html={designTokenCss}></style>
   </head>
   <body
     data-site-watermark="Gintmr"
+    data-gintmr_ui-watermark="Gintmr"
     data-effect-ambient={UI_EFFECTS.ambientGlow ? "on" : "off"}
     data-effect-grid={UI_EFFECTS.gridOverlay ? "on" : "off"}
     data-effect-cursor={UI_EFFECTS.cursorGlow ? "on" : "off"}
@@ -232,7 +263,6 @@ const enablePageTransition = UI_EFFECTS.pageTransition && enableClientRouter;
     data-effect-card-glow={UI_EFFECTS.cardHoverGlow ? "on" : "off"}
     data-effect-nav-glass={UI_EFFECTS.navGlass ? "on" : "off"}
     data-effect-heading-beam={UI_EFFECTS.headingBeam ? "on" : "off"}
-    data-effect-image-neon={UI_EFFECTS.imageNeonBorder ? "on" : "off"}
     data-effect-image-lift={UI_EFFECTS.imageLift ? "on" : "off"}
   >
     <slot />

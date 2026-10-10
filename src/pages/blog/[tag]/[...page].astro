@@ -1,24 +1,32 @@
 ---
+/**
+ * 某个标签下的文章。
+ * 条目观感与 Blog 时间线完全一致（同一个 ArchiveEntry），
+ * 只是这里按标签筛选、并且带分页。
+ */
 import { getCollection } from "astro:content";
 import type { GetStaticPathsOptions } from "astro";
-import Main from "@/layouts/Main.astro";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
-import Card from "@/components/Card.astro";
+import Shell from "@/layouts/Shell.astro";
+import ArchiveEntry from "@/components/ArchiveEntry.astro";
 import Pagination from "@/components/Pagination.astro";
 import Tag from "@/components/Tag.astro";
 import getUniqueTags from "@/utils/getUniqueTags";
-import getPostsByTag from "@/utils/getPostsByTag";
+import { getArchiveItems, sortByTimeline } from "@/utils/archiveItems";
+import { slugifyStr } from "@/utils/slugify";
 import { SITE } from "@/config";
 import { UI, UI_LOCALE } from "@/i18n/ui";
 
 export async function getStaticPaths({ paginate }: GetStaticPathsOptions) {
   const posts = await getCollection("blog");
   const tags = getUniqueTags(posts);
+  const items = sortByTimeline(await getArchiveItems()).filter(
+    item => item.kind === "blog"
+  );
 
   return tags.flatMap(({ tag, tagName }) => {
-    const tagPosts = getPostsByTag(posts, tag);
+    const tagPosts = items.filter(item =>
+      item.tags.some(name => slugifyStr(name) === tag)
+    );
 
     return paginate(tagPosts, {
       params: { tag },
@@ -28,34 +36,38 @@ export async function getStaticPaths({ paginate }: GetStaticPathsOptions) {
   });
 }
 
-const params = Astro.params;
-const { tag } = params;
+const { tag } = Astro.params;
 const { page, tagName } = Astro.props;
-const sectionLabel =
-  UI_LOCALE === "zh-CN" ? "当前主题" : "Current topic";
+const sectionLabel = UI_LOCALE === "zh-CN" ? "当前主题" : "Current topic";
+
+const anchored = page.data.map((item, index) => ({
+  item,
+  anchor: `tag-${index + 1}`,
+}));
 ---
 
-<Layout title={`${UI.pages.tags}: ${tagName} | ${SITE.title}`}>
-  <Header />
-  <Main
-    pageTitle={[`${UI.pages.tags}:`, `${tagName}`]}
-    titleTransition={tag}
-    pageDesc={UI.pages.taggedPosts(tagName)}
-  >
-    <h1 slot="title" transition:name={tag}>{`${UI.pages.tags}:${tag}`}</h1>
-    <section class="subtle-page-note">
-      <div class="subtle-page-note__label">{sectionLabel}</div>
-      <ul class="tag-rail mt-3">
-        <Tag tag={tag} tagName={tagName} size="lg" />
-      </ul>
-    </section>
-
-    <ul class="mt-8 space-y-1">
-      {page.data.map(data => <Card {...data} />)}
+<Shell
+  title={`${UI.pages.tags}: ${tagName} | ${SITE.title}`}
+  pageTitle={`${UI.pages.tags}: ${tagName}`}
+  pageDesc={UI.pages.taggedPosts(tagName)}
+  outline={{
+    label: tagName,
+    items: anchored.map(({ item, anchor }) => ({
+      id: anchor,
+      label: item.title,
+    })),
+  }}
+>
+  <section class="subtle-page-note">
+    <div class="subtle-page-note__label">{sectionLabel}</div>
+    <ul class="tag-rail mt-3">
+      <Tag tag={tag} tagName={tagName} size="lg" />
     </ul>
-  </Main>
+  </section>
+
+  <ul class="mt-8 space-y-4">
+    {anchored.map(({ item, anchor }) => <ArchiveEntry {item} {anchor} />)}
+  </ul>
 
   <Pagination {page} />
-
-  <Footer noMarginTop={page.lastPage > 1} />
-</Layout>
+</Shell>

@@ -1,19 +1,16 @@
 ---
-import Main from "@/layouts/Main.astro";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import Shell from "@/layouts/Shell.astro";
 import VisitorsInfoPanel from "@/components/VisitorsInfoPanel";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
 ---
 
-<Layout title={`${UI.pages.visitorsInfoTitle} | ${SITE.title}`}>
-  <Header />
-  <Main pageTitle={UI.pages.visitorsInfoTitle} pageDesc={UI.pages.visitorsInfoDesc} wide={true}>
-    <div class="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 xl:px-8">
-      <VisitorsInfoPanel client:load />
-    </div>
-  </Main>
-  <Footer />
-</Layout>
+<Shell
+  title={`${UI.pages.visitorsInfoTitle} | ${SITE.title}`}
+  pageTitle={UI.pages.visitorsInfoTitle}
+  pageDesc={UI.pages.visitorsInfoDesc}
+  width="wide"
+  outline={false}
+>
+  <VisitorsInfoPanel client:load />
+</Shell>

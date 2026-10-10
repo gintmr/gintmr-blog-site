@@ -1,15 +1,12 @@
 ---
-import Footer from "@/components/Footer.astro";
-import Header from "@/components/Header.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
 import { SITE } from "@/config";
-import Layout from "@/layouts/Layout.astro";
+import Shell from "@/layouts/Shell.astro";
 import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
 import { getCollection } from "astro:content";
 import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
 import { parseEntry } from "@/utils/parseEntry";
 import DiaryTimeline from "@/components/DiaryTimeline.tsx";
-import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import { UI, UI_LOCALE } from "@/i18n/ui";
 import getSortedPosts from "@/utils/getSortedPosts";
 import getSortedStories from "@/utils/getSortedStories";
@@ -165,40 +162,22 @@ const timelinePrelude = UI_LOCALE === "zh-CN"
     };
 ---
 
-<Layout title={`${UI.pages.timelineTitle} | ${SITE.title}`}>
-  <Header />
-
-  <main
-    id="main-content"
-    data-pagefind-ignore
-    role="main"
-    aria-label={`${UI.pages.timelineTitle} main content`}
+<Shell
+  title={`${UI.pages.timelineTitle} | ${SITE.title}`}
+  pageTitle={UI.pages.timelineTitle}
+  outline={{
+    headings: "#diary-content h2[id^='date-']",
+    container: "#diary-content",
+    groupBy: "month",
+    metaScope: "diary",
+  }}
+>
+  <section
+    id="diary"
+    class="from-skin-fill via-skin-card to-skin-fill bg-gradient-to-br"
+    role="region"
+    aria-label={UI.pages.timelineTitle}
   >
-    <!-- 跳转到主要内容的链接 -->
-    <a
-      href="#diary-content"
-      class="focus:bg-skin-accent focus:text-skin-inverted sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded focus:px-4 focus:py-2 focus:no-underline"
-    >
-      Skip to main content
-    </a>
-
-    <section
-      id="diary"
-      class="from-skin-fill via-skin-card to-skin-fill mx-auto min-h-screen max-w-app bg-gradient-to-br px-4 pt-4"
-      role="region"
-      aria-labelledby="diary-heading"
-    >
-      <div class="min-h-screen">
-        <!-- 页面标题 -->
-        <header class="py-0">
-          <h1 id="diary-heading" class="sr-only">{UI.pages.timelineTitle}</h1>
-          <p class="sr-only">
-            Diary entries in reverse chronological order with infinite loading.
-          </p>
-        </header>
-
-        <!-- 主要内容区域 -->
-        <div class="py-8">
           <QuoteSpotlight />
 
           {leadDispatch && (
@@ -282,17 +261,8 @@ const timelinePrelude = UI_LOCALE === "zh-CN"
               paginationInfo={paginationInfo}
             />
           </div>
-          <QuickJumpNav
-            mode="diary"
-            headingSelector="#diary-content h2[id^='date-']"
-            containerSelector="#diary-content"
-          />
-        </div>
 
-        <BackToTopButton />
-      </div>
-    </section>
-  </main>
+  </section>
 
-  <Footer />
-</Layout>
+  <BackToTopButton />
+</Shell>

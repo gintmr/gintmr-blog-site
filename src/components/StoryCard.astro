@@ -7,12 +7,15 @@ import { SITE } from "@/config";
 import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
 import { resolveStoryVideoUrlByEntry } from "@/utils/storyVideo";
 
-export interface Props extends CollectionEntry<"story"> {}
+export interface Props extends CollectionEntry<"story"> {
+  /** 锚点 id：右侧目录要能跳到这一期 */
+  anchor?: string;
+}
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const { data, id, filePath } = Astro.props;
+const { data, id, filePath, anchor } = Astro.props;
 const { title, description, pubDatetime } = data;
 
 const storyTitle = getStoryTitle(title, id, filePath);
@@ -23,7 +26,7 @@ const dateLabel = dayjs(pubDatetime)
   .format("YYYY-MM-DD");
 ---
 
-<li class="story-wall__item">
+<li class="story-wall__item" id={anchor}>
   <a
     href={storyPath}
     class="story-wall-card group block overflow-hidden rounded-[1.15rem] border border-border/62 bg-card/28 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/34"

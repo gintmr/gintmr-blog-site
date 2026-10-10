@@ -5,12 +5,15 @@ export interface Props {
   tag: string;
   tagName: string;
   size?: "sm" | "lg";
+  /** 锚点 id：右侧目录要能跳到这个标签上 */
+  id?: string;
 }
 
-const { tag, tagName, size = "sm" } = Astro.props;
+const { tag, tagName, size = "sm", id } = Astro.props;
 ---
 
 <li
+  {id}
   class:list={[
     "group inline-block group-hover:cursor-pointer",
     size === "sm" ? "my-1 underline-offset-4" : "my-0",

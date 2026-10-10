@@ -1,0 +1,92 @@
+---
+/**
+ * 归档里的一个条目（一篇 blog 或一期 story）。
+ * Top 页与 Blog 时间线共用这一个组件，两页的条目观感因此不会漂移。
+ */
+import Datetime from "./Datetime.astro";
+import { UI } from "@/i18n/ui";
+import type { ArchiveItem } from "@/utils/archiveItems";
+
+interface Props {
+  item: ArchiveItem;
+  /** 锚点 id：右侧目录要跳到这里，所以必须真的落在 DOM 上 */
+  anchor: string;
+  showDate?: boolean;
+  /** 时间线里不再重复「置顶」标记 */
+  showPinnedChip?: boolean;
+}
+
+const { item, anchor, showDate = true, showPinnedChip = true } = Astro.props;
+
+const sourceLabel = {
+  blog: UI.nav.blog,
+  story: UI.nav.stories,
+} satisfies Record<ArchiveItem["kind"], string>;
+---
+
+<li class="archive-entry" id={anchor}>
+  <div class="flex flex-col gap-3 md:flex-row md:gap-4">
+    {
+      item.kind === "blog" && item.imageSrc && (
+        <div class="h-40 w-full overflow-hidden rounded-xl md:mb-0 md:h-[96px] md:w-[96px] md:flex-shrink-0">
+          <img
+            src={item.imageSrc}
+            alt={item.title}
+            width={720}
+            height={480}
+            class="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )
+    }
+
+    <div
+      class:list={[
+        "w-full",
+        item.kind === "blog" && item.imageSrc
+          ? "md:w-[calc(100%-96px)]"
+          : "",
+      ]}
+    >
+      <div class="flex items-center gap-2">
+        <a
+          href={item.url}
+          class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
+        >
+          <h2 class="text-lg font-medium decoration-dashed hover:underline">
+            {item.title}
+          </h2>
+        </a>
+        {
+          showPinnedChip && item.pinned && (
+            <span class="rounded-full border border-accent/55 px-2 py-0.5 text-[11px] leading-none text-accent">
+              {UI.common.top}
+            </span>
+          )
+        }
+        <span
+          class:list={[
+            "rounded-full border px-2 py-0.5 text-[11px] leading-none",
+            item.kind === "blog"
+              ? "border-accent/45 text-accent"
+              : "border-foreground/30 text-foreground/80",
+          ]}
+        >
+          {sourceLabel[item.kind]}
+        </span>
+      </div>
+      {
+        showDate && item.date && (
+          <Datetime
+            pubDatetime={item.date}
+            modDatetime={item.modDatetime}
+            timezone={item.timezone}
+          />
+        )
+      }
+      {item.description && <p>{item.description}</p>}
+    </div>
+  </div>
+</li>

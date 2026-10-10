@@ -1,9 +1,6 @@
 ---
 import { getCollection } from "astro:content";
-import Layout from "@/layouts/Layout.astro";
-import Main from "@/layouts/Main.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import Shell from "@/layouts/Shell.astro";
 import { SITE } from "@/config";
 import { UI } from "@/i18n/ui";
 import { parseLinkCards } from "@/utils/parseLinkCards";
@@ -41,26 +38,40 @@ const sections = (
 ).filter(section => section.cards.length > 0);
 
 const hasMultipleSections = sections.length > 1;
+
+// 右侧目录：直接列卡片本身（分组多数没有标题，列分组会得到一片空）
+const anchoredCards = sections.flatMap((section, sectionIndex) =>
+  section.cards.map((card, cardIndex) => ({
+    card,
+    anchor: `link-${sectionIndex + 1}-${cardIndex + 1}`,
+  }))
+);
+const outlineItems = anchoredCards.map(({ card, anchor }) => ({
+  id: anchor,
+  label: card.title,
+}));
 ---
 
-<Layout title={`${UI.pages.linksTitle} | ${SITE.title}`}>
-  <Header />
-  <Main pageTitle={UI.pages.linksTitle} pageDesc={UI.pages.linksDesc}>
-    {
-      sections.length === 0 ? (
-        <p class="text-skin-base/70">{UI.pages.linksEmpty}</p>
-      ) : (
-        <div class="space-y-10">
-          <section class="subtle-page-note">
-            <div class="subtle-page-note__label">Directory</div>
-            <p class="text-sm leading-7 text-foreground/72">
-              A small set of people, projects, and places on the web that feel
-              worth revisiting.
-            </p>
-          </section>
-          {
-            sections.map(section => (
-              <section>
+<Shell
+  title={`${UI.pages.linksTitle} | ${SITE.title}`}
+  pageTitle={UI.pages.linksTitle}
+  pageDesc={UI.pages.linksDesc}
+  outline={{ label: UI.pages.linksTitle, items: outlineItems }}
+>
+  {
+    sections.length === 0 ? (
+      <p class="text-skin-base/70">{UI.pages.linksEmpty}</p>
+    ) : (
+      <div class="space-y-10">
+        <section class="subtle-page-note">
+          <div class="subtle-page-note__label">Directory</div>
+          <p class="text-sm leading-7 text-foreground/72">
+            A small set of people, projects, and places on the web that feel
+            worth revisiting.
+          </p>
+        </section>
+        {sections.map((section, index) => (
+          <section id={`links-${index + 1}`}>
                 {(() => {
                   const sectionTitle = section.title?.trim();
                   const sectionDesc = section.description?.trim();
@@ -88,8 +99,8 @@ const hasMultipleSections = sections.length > 1;
                 })()}
 
                 <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {section.cards.map(card => (
-                    <li>
+                  {section.cards.map((card, cardIndex) => (
+                    <li id={`link-${index + 1}-${cardIndex + 1}`}>
                       <a
                         href={card.url}
                         target="_blank"
@@ -120,11 +131,8 @@ const hasMultipleSections = sections.length > 1;
                   ))}
                 </ul>
               </section>
-            ))
-          }
+            ))}
         </div>
       )
     }
-  </Main>
-  <Footer />
-</Layout>
+</Shell>

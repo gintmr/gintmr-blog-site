@@ -1,13 +1,16 @@
 ---
-import type { Page } from "astro";
-import type { CollectionEntry } from "astro:content";
 import IconArrowLeft from "@/assets/icons/IconArrowLeft.svg";
 import IconArrowRight from "@/assets/icons/IconArrowRight.svg";
 import LinkButton from "./LinkButton.astro";
 import { UI } from "@/i18n/ui";
 
+/** 只用到分页元信息，不关心这一页装的是什么类型的数据 */
 export interface Props {
-  page: Page<CollectionEntry<"blog"> | CollectionEntry<"story">>;
+  page: {
+    url: { prev?: string; next?: string };
+    currentPage: number;
+    lastPage: number;
+  };
 }
 
 const { page } = Astro.props;

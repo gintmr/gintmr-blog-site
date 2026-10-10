@@ -1,0 +1,116 @@
+---
+/**
+ * Blog —— 完整时间线。
+ *
+ * 收录全部文章与图文（blog + story），按年 → 月分组。
+ * 置顶文章不做提升：它照常出现在自己日期所在的那个月里，
+ * 置顶的专属视图是 Top（/archives）。
+ */
+import { getCollection } from "astro:content";
+import Shell from "@/layouts/Shell.astro";
+import ArchiveEntry from "@/components/ArchiveEntry.astro";
+import Tag from "@/components/Tag.astro";
+import getUniqueTags from "@/utils/getUniqueTags";
+import {
+  getArchiveItems,
+  groupByYearMonth,
+  sortByTimeline,
+} from "@/utils/archiveItems";
+import { SITE } from "@/config";
+import { MONTHS, UI, UI_LOCALE } from "@/i18n/ui";
+
+const timeline = sortByTimeline(await getArchiveItems());
+const years = groupByYearMonth(timeline);
+/** 没有日期的置顶条目在时间轴上没有落点，单独放在末尾 */
+const undated = timeline.filter(item => !item.date);
+
+const posts = await getCollection("blog", ({ data }) => !data.draft);
+const tags = getUniqueTags(posts);
+
+const pageDesc =
+  UI_LOCALE === "zh-CN"
+    ? "长文、旅行、工具和一些留下来的念头，按时间倒序。"
+    : "Long-form notes, travel logs, tools, and whatever stayed with me, newest first.";
+const browseLabel = UI_LOCALE === "zh-CN" ? "按主题浏览" : "Browse by topic";
+
+// 右侧目录：月份为一级、文章为二级，锚点与下面的 DOM 一一对应
+const outlineItems = [
+  ...years.flatMap(year => [
+    ...year.months.flatMap(month => [
+      {
+        id: `m-${month.key}`,
+        label: `${year.year} · ${MONTHS[month.month - 1]}`,
+        depth: 0 as const,
+      },
+      ...month.items.map((item, index) => ({
+        id: `e-${month.key}-${index + 1}`,
+        label: item.title,
+        depth: 1 as const,
+      })),
+    ]),
+  ]),
+  ...undated.map((item, index) => ({
+    id: `e-undated-${index + 1}`,
+    label: item.title,
+    depth: 0 as const,
+  })),
+];
+---
+
+<Shell
+  title={`${UI.pages.blogTitle} | ${SITE.title}`}
+  pageTitle={UI.pages.allPosts}
+  pageDesc={pageDesc}
+  outline={{ label: UI.pages.blogTitle, items: outlineItems }}
+>
+  <section class="subtle-page-note">
+    <div class="subtle-page-note__label">{browseLabel}</div>
+    <ul class="tag-rail mt-3">
+      {tags.map(({ tag, tagName }) => <Tag {tag} {tagName} size="lg" />)}
+    </ul>
+  </section>
+
+  {
+    years.map(year => (
+      <div class="archive-year-block">
+        <span class="text-2xl font-bold">{year.year}</span>
+        <sup class="text-sm">{year.count}</sup>
+        {year.months.map(month => (
+          <div
+            class="archive-month-row flex flex-col sm:flex-row"
+            id={`m-${month.key}`}
+          >
+            <div class="mt-6 min-w-36 text-lg sm:my-6">
+              <span class="font-bold">{MONTHS[month.month - 1]}</span>
+            </div>
+            <ul class="flex-1 space-y-4">
+              {month.items.map((item, index) => (
+                <ArchiveEntry
+                  {item}
+                  anchor={`e-${month.key}-${index + 1}`}
+                  showPinnedChip={false}
+                />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    ))
+  }
+
+  {
+    undated.length > 0 && (
+      <div class="archive-year-block">
+        <ul class="space-y-4">
+          {undated.map((item, index) => (
+            <ArchiveEntry
+              {item}
+              anchor={`e-undated-${index + 1}`}
+              showDate={false}
+            />
+          ))}
+        </ul>
+      </div>
+    )
+  }
+</Shell>

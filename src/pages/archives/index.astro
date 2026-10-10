@@ -1,281 +1,70 @@
 ---
-import { getCollection } from "astro:content";
-import Main from "@/layouts/Main.astro";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
-import Datetime from "@/components/Datetime.astro";
-import { getPath } from "@/utils/getPath";
-import { getStoryPath, getStoryTitle } from "@/utils/getStoryPath";
-import { optimizeImage } from "@/utils/optimizeImages";
-import { isDatePubDatetime, isTopPubDatetime } from "@/utils/pubDatetime";
+/**
+ * Top —— 置顶文章页。
+ *
+ * 这里只渲染被置顶的条目（frontmatter 里 featured: true，或 pubDatetime 写成 "top"）。
+ * 完整时间线在 /blog：同一份取数逻辑，只是那边不按置顶筛选，
+ * 置顶文章会回到它自己日期所在的位置。
+ */
+import Shell from "@/layouts/Shell.astro";
+import ArchiveEntry from "@/components/ArchiveEntry.astro";
+import { getArchiveItems, sortByTimeline } from "@/utils/archiveItems";
 import { SITE } from "@/config";
-import { MONTHS, UI } from "@/i18n/ui";
+import { UI, UI_LOCALE } from "@/i18n/ui";
 
 if (!SITE.showArchives) {
   return Astro.redirect("/404");
 }
 
-type ArchiveKind = "blog" | "story";
+const pinned = sortByTimeline((await getArchiveItems()).filter(item => item.pinned));
 
-interface ArchiveItem {
-  kind: ArchiveKind;
-  title: string;
-  description: string;
-  pubDatetime: Date | "top";
-  modDatetime?: Date | null;
-  timezone?: string;
-  url: string;
-  imageSrc?: string;
-}
-
-type TopArchiveItem = ArchiveItem & { pubDatetime: "top" };
-type TimelineArchiveItem = ArchiveItem & { pubDatetime: Date };
-
-const blogPosts = await getCollection("blog", ({ data }) => !data.draft);
-const storyPosts = await getCollection("story", ({ data }) => !data.draft);
-
-const collator = new Intl.Collator(["en", "zh-Hans-CN-u-co-pinyin"], {
-  sensitivity: "base",
-  numeric: true,
-});
-
-const blogItems: ArchiveItem[] = await Promise.all(
-  blogPosts.map(async post => {
-    let imageSrc: string | undefined;
-    if (typeof post.data.ogImage === "string" && post.data.ogImage.trim()) {
-      const optimized = await optimizeImage(post.data.ogImage, {
-        thumbnailSize: 300,
-      });
-      imageSrc = optimized.thumbnail;
-    } else if (
-      post.data.ogImage &&
-      typeof post.data.ogImage === "object" &&
-      "src" in post.data.ogImage &&
-      typeof post.data.ogImage.src === "string"
-    ) {
-      imageSrc = post.data.ogImage.src;
-    }
-
-    return {
-      kind: "blog" as const,
-      title: post.data.title,
-      description: post.data.description,
-      pubDatetime: post.data.pubDatetime,
-      modDatetime: post.data.modDatetime,
-      timezone: post.data.timezone,
-      url: getPath(post.id, post.filePath),
-      imageSrc,
-    };
-  })
-);
-
-const storyItems: ArchiveItem[] = storyPosts.map(story => ({
-  kind: "story" as const,
-  title: getStoryTitle(story.data.title, story.id, story.filePath),
-  description: story.data.description ?? "",
-  pubDatetime: story.data.pubDatetime,
-  modDatetime: story.data.modDatetime,
-  url: getStoryPath(story.id, story.filePath),
+// 锚点与右侧目录共用同一份顺序，保证目录点得动
+const anchored = pinned.map((item, index) => ({
+  item,
+  anchor: `top-${index + 1}`,
 }));
 
-const mergedArchiveItems: ArchiveItem[] = [...blogItems, ...storyItems];
+const pageDesc =
+  UI_LOCALE === "zh-CN"
+    ? "我挑出来放在最前面的几篇。"
+    : "A short set of pieces I keep at the front.";
 
-const isTopArchiveItem = (item: ArchiveItem): item is TopArchiveItem =>
-  isTopPubDatetime(item.pubDatetime);
+const emptyText =
+  UI_LOCALE === "zh-CN" ? "还没有置顶文章。" : "Nothing pinned yet.";
+const emptyHint =
+  UI_LOCALE === "zh-CN"
+    ? "看完整体时间线请去"
+    : "See the full timeline in";
 
-const isTimelineArchiveItem = (
-  item: ArchiveItem
-): item is TimelineArchiveItem => isDatePubDatetime(item.pubDatetime);
+const outlineLabel = UI.nav.top;
 
-const topArchiveItems = mergedArchiveItems
-  .filter(isTopArchiveItem)
-  .sort((a, b) => collator.compare(a.title, b.title));
-
-const timelineArchiveItems = mergedArchiveItems
-  .filter(isTimelineArchiveItem)
-  .sort(
-    (a, b) =>
-      Math.floor(a.pubDatetime.getTime() / 1000) -
-      Math.floor(b.pubDatetime.getTime() / 1000)
-  )
-  .reverse();
-
-const groupedByYearMonth = timelineArchiveItems.reduce(
-  (acc, item) => {
-    const year = item.pubDatetime.getFullYear();
-    const month = item.pubDatetime.getMonth() + 1;
-
-    if (!acc[year]) acc[year] = {};
-    if (!acc[year][month]) acc[year][month] = [];
-    acc[year][month].push(item);
-
-    return acc;
-  },
-  {} as Record<number, Record<number, ArchiveItem[]>>
-);
-
-const sourceLabel = {
-  blog: UI.nav.blog,
-  story: UI.nav.stories,
-} satisfies Record<ArchiveKind, string>;
+// 右侧目录用的条目：有置顶就是这几篇，一篇都没有时指向空态那一块
+const outlineItems =
+  anchored.length > 0
+    ? anchored.map(({ item, anchor }) => ({ id: anchor, label: item.title }))
+    : [{ id: "top-empty", label: UI.nav.top }];
 ---
 
-<Layout title={`${UI.pages.archivesTitle} | ${SITE.title}`}>
-  <Header />
-  <Main
-    pageTitle={UI.pages.archivesTitle}
-    pageDesc="A single timeline for essays, stories, and the pieces worth keeping."
-  >
-    {
-      topArchiveItems.length > 0 && (
-        <section id="top" class="archive-panel mb-10">
-          <div class="mb-3 flex items-center gap-2">
-            <span class="text-2xl font-bold">{UI.common.top}</span>
-            <sup class="text-sm">{topArchiveItems.length}</sup>
-          </div>
-          <ul class="space-y-4">
-            {topArchiveItems.map(item => (
-              <li class="archive-entry">
-                <div class="flex flex-col gap-3 md:flex-row md:gap-4">
-                  {
-                    item.kind === "blog" && item.imageSrc && (
-                      <div class="h-40 w-full overflow-hidden rounded-xl md:mb-0 md:h-[96px] md:w-[96px] md:flex-shrink-0">
-                        <img
-                          src={item.imageSrc}
-                          alt={item.title}
-                          width={720}
-                          height={480}
-                          class="h-full w-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      </div>
-                    )
-                  }
-
-                    <div
-                      class:list={[
-                        "w-full",
-                        item.kind === "blog" && item.imageSrc
-                        ? "md:w-[calc(100% - 96px)]"
-                        : "",
-                      ]}
-                    >
-                    <div class="flex items-center gap-2">
-                      <a
-                        href={item.url}
-                        class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
-                      >
-                        <h2 class="text-lg font-medium decoration-dashed hover:underline">
-                          {item.title}
-                        </h2>
-                      </a>
-                      <span class="rounded-full border border-accent/55 px-2 py-0.5 text-[11px] leading-none text-accent">
-                        {UI.common.top}
-                      </span>
-                      <span
-                        class:list={[
-                          "rounded-full border px-2 py-0.5 text-[11px] leading-none",
-                          item.kind === "blog"
-                            ? "border-accent/45 text-accent"
-                            : "border-foreground/30 text-foreground/80",
-                        ]}
-                      >
-                        {sourceLabel[item.kind]}
-                      </span>
-                    </div>
-                    {item.description && <p>{item.description}</p>}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    }
-
-    {
-      Object.entries(groupedByYearMonth)
-        .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
-        .map(([year, monthMap]) => {
-          const yearItems = Object.values(monthMap).flat();
-          return (
-            <div class="archive-year-block">
-              <span class="text-2xl font-bold">{year}</span>
-              <sup class="text-sm">{yearItems.length}</sup>
-              {Object.entries(monthMap)
-                .sort(([monthA], [monthB]) => Number(monthB) - Number(monthA))
-                .map(([month, items]) => (
-                  <div class="archive-month-row flex flex-col sm:flex-row">
-                    <div class="mt-6 min-w-36 text-lg sm:my-6">
-                      <span class="font-bold">{MONTHS[Number(month) - 1]}</span>
-                    </div>
-                    <ul class="flex-1 space-y-4">
-                      {items.map(item => (
-                        <li class="archive-entry">
-                          <div class="flex flex-col gap-3 md:flex-row md:gap-4">
-                            {
-                              item.kind === "blog" && item.imageSrc && (
-                                <div class="h-40 w-full overflow-hidden rounded-xl md:mb-0 md:h-[96px] md:w-[96px] md:flex-shrink-0">
-                                  <img
-                                    src={item.imageSrc}
-                                    alt={item.title}
-                                    width={720}
-                                    height={480}
-                                    class="h-full w-full object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                  />
-                                </div>
-                              )
-                            }
-
-                              <div
-                                class:list={[
-                                  "w-full",
-                                  item.kind === "blog" && item.imageSrc
-                                  ? "md:w-[calc(100% - 96px)]"
-                                  : "",
-                                ]}
-                              >
-                              <div class="flex items-center gap-2">
-                                <a
-                                  href={item.url}
-                                  class="inline-block text-lg font-medium text-accent decoration-dashed underline-offset-4 focus-visible:no-underline focus-visible:underline-offset-0"
-                                >
-                                  <h2 class="text-lg font-medium decoration-dashed hover:underline">
-                                    {item.title}
-                                  </h2>
-                                </a>
-                                <span
-                                  class:list={[
-                                    "rounded-full border px-2 py-0.5 text-[11px] leading-none",
-                                    item.kind === "blog"
-                                      ? "border-accent/45 text-accent"
-                                      : "border-foreground/30 text-foreground/80",
-                                  ]}
-                                >
-                                  {sourceLabel[item.kind]}
-                                </span>
-                              </div>
-                              <Datetime
-                                pubDatetime={item.pubDatetime}
-                                modDatetime={item.modDatetime}
-                                timezone={item.timezone}
-                              />
-                              {item.description && <p>{item.description}</p>}
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </div>
-          );
-        })
-    }
-  </Main>
-  <Footer />
-</Layout>
+<Shell
+  title={`${UI.nav.top} | ${SITE.title}`}
+  pageTitle={UI.nav.top}
+  pageDesc={pageDesc}
+  outline={{ label: outlineLabel, items: outlineItems }}
+>
+  {
+    anchored.length > 0 ? (
+      <ul class="space-y-4">
+        {anchored.map(({ item, anchor }) => (
+          <ArchiveEntry {item} {anchor} showPinnedChip={false} />
+        ))}
+      </ul>
+    ) : (
+      <section class="subtle-page-note px-0" id="top-empty">
+        <div class="subtle-page-note__label">{emptyText}</div>
+        <p class="mt-2">
+          {emptyHint} <a href="/blog">{UI.nav.blog}</a>
+        </p>
+      </section>
+    )
+  }
+</Shell>

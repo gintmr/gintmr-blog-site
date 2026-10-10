@@ -1,8 +1,6 @@
 ---
 import { getCollection, render, type CollectionEntry } from "astro:content";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import Shell from "@/layouts/Shell.astro";
 import BackButton from "@/components/BackButton.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
 import Datetime from "@/components/Datetime.astro";
@@ -55,24 +53,26 @@ const nextStory =
     : null;
 ---
 
-<Layout
+<Shell
   title={`${storyTitle} | ${SITE.title}`}
+  pageTitle={storyTitle}
+  pageDesc={storyDescription}
   description={storyDescription}
-  author={author}
   pubDatetime={publishDatetime}
   modDatetime={modifiedDatetime}
   scrollSmooth={true}
+  width="wide"
+  outline={{ headings: ".story-memory-prose :is(h2,h3)" }}
 >
-  <Header />
   <BackButton />
 
-  <main id="main-content" class="mx-auto mt-4 w-full max-w-[92rem] px-4 pb-12">
-    <section class="story-memory-detail">
+  <section class="story-memory-detail">
       <div class="story-memory-stage" data-story-video-stage>
         {
           storyVideoSrc ? (
             <video
               data-story-main-video
+              data-gintmr_ui-video="off"
               class="story-memory-video"
               src={storyVideoSrc}
               controls
@@ -89,9 +89,6 @@ const nextStory =
 
       <aside class="story-memory-panel">
         <p class="story-memory-kicker">Story</p>
-        <h1 class="text-accent text-[1.8rem] font-bold leading-tight md:text-[2rem]">
-          {storyTitle}
-        </h1>
         {
           publishDatetime && (
             <div class="my-2.5">
@@ -103,12 +100,6 @@ const nextStory =
             </div>
           )
         }
-        {
-          storyDescription && (
-            <p class="mb-3 text-[0.82rem] leading-7 text-foreground/68">{storyDescription}</p>
-          )
-        }
-
         <article class="story-memory-prose app-prose text-[0.94rem]">
           <Content />
         </article>
@@ -152,7 +143,4 @@ const nextStory =
         )
       }
     </div>
-  </main>
-
-  <Footer />
-</Layout>
+</Shell>

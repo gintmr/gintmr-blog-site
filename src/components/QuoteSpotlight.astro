@@ -1,118 +1,28 @@
 ---
+/**
+ * 首页好词佳句。外观与「换一句」的行为都来自 vendor/gintmr-ui：
+ * 左侧一条强调竖线 + 引文本身，颜色全部走调色板令牌，明暗主题自动成立。
+ * 这里只负责把引语池传进去。
+ */
 import { UI_LOCALE } from "@/i18n/ui";
-import {
-  SPOTLIGHT_QUOTES,
-  type SpotlightQuote,
-} from "@/content/quoteSpotlight";
+import { SPOTLIGHT_QUOTES } from "@/content/quoteSpotlight";
 
-interface Payload {
-  quotes: SpotlightQuote[];
-  ariaLabel: string;
-  refreshLabel: string;
-}
-
-const payload: Payload = {
-  quotes: SPOTLIGHT_QUOTES,
-  ariaLabel: UI_LOCALE === "zh-CN" ? "好词佳句" : "Spotlight",
-  refreshLabel: UI_LOCALE === "zh-CN" ? "换一句" : "Shuffle",
-};
+const label = UI_LOCALE === "zh-CN" ? "好词佳句" : "Spotlight";
+const shuffleLabel = UI_LOCALE === "zh-CN" ? "换一句" : "Shuffle";
+// 无 JS 时先显示第一句，脚本会换成随机会话里的那一句
+const first = SPOTLIGHT_QUOTES[0] ?? { text: "", source: "" };
 ---
 
-<section
-  class="quote-spotlight mb-8 rounded-2xl border border-border/55 p-5 sm:p-6"
-  aria-label={payload.ariaLabel}
-  data-quote-spotlight
->
-  <div class="quote-spotlight__glow" aria-hidden="true"></div>
-  <div class="quote-spotlight__glow quote-spotlight__glow--secondary" aria-hidden="true"></div>
-  <div class="quote-spotlight__header relative z-10">
-    <button
-      type="button"
-      class="quote-spotlight__shuffle"
-      data-role="shuffle"
-      aria-label={payload.refreshLabel}
-    >
-      <span aria-hidden="true">✦</span>
-      <span>{payload.refreshLabel}</span>
-    </button>
-  </div>
-
-  <blockquote class="quote-spotlight__card relative z-10 mt-2 sm:mt-3">
-    <span class="quote-spotlight__kicker" aria-hidden="true"></span>
-    <p class="quote-spotlight__text" data-role="text"></p>
-    <footer class="quote-spotlight__source" data-role="source"></footer>
-  </blockquote>
-
-  <script type="application/json" data-role="payload" set:html={JSON.stringify(payload)}></script>
-</section>
-
-<script is:inline>
-  (() => {
-    if (window.__quoteSpotlightBound) return;
-    window.__quoteSpotlightBound = true;
-
-    const STORAGE_KEY = "spotlight-quote-last-index";
-
-    const initialize = section => {
-      if (!section || section.dataset.bound === "true") return;
-      section.dataset.bound = "true";
-
-      const payloadScript = section.querySelector('[data-role="payload"]');
-      const textEl = section.querySelector('[data-role="text"]');
-      const sourceEl = section.querySelector('[data-role="source"]');
-      const shuffleBtn = section.querySelector('[data-role="shuffle"]');
-
-      if (!payloadScript || !textEl || !sourceEl || !shuffleBtn) return;
-
-      let payload;
-      try {
-        payload = JSON.parse(payloadScript.textContent || "{}");
-      } catch {
-        return;
-      }
-
-      const quotes = Array.isArray(payload.quotes) ? payload.quotes : [];
-      if (!quotes.length) return;
-
-      const clampIndex = raw => {
-        const index = Number(raw);
-        if (!Number.isInteger(index) || index < 0 || index >= quotes.length) {
-          return null;
-        }
-        return index;
-      };
-
-      const getRandomIndex = lastIndex => {
-        if (quotes.length === 1) return 0;
-        let next = Math.floor(Math.random() * quotes.length);
-        if (lastIndex !== null && next === lastIndex) {
-          next = (next + 1 + Math.floor(Math.random() * (quotes.length - 1))) % quotes.length;
-        }
-        return next;
-      };
-
-      const renderQuote = index => {
-        const quote = quotes[index];
-        textEl.textContent = quote?.text || "";
-        sourceEl.textContent = quote?.source ? `—— ${quote.source}` : "";
-        sessionStorage.setItem(STORAGE_KEY, String(index));
-      };
-
-      const lastIndex = clampIndex(sessionStorage.getItem(STORAGE_KEY));
-      renderQuote(getRandomIndex(lastIndex));
-
-      shuffleBtn.addEventListener("click", () => {
-        const currentIndex = clampIndex(sessionStorage.getItem(STORAGE_KEY));
-        renderQuote(getRandomIndex(currentIndex));
-      });
-    };
-
-    const initAll = () => {
-      document.querySelectorAll("[data-quote-spotlight]").forEach(initialize);
-    };
-
-    document.addEventListener("astro:page-load", initAll);
-    if (document.readyState !== "loading") initAll();
-    else document.addEventListener("DOMContentLoaded", initAll, { once: true });
-  })();
-</script>
+<figure class="gintmr_ui-quote" data-gintmr_ui-quote aria-label={label}>
+  <blockquote class="gintmr_ui-quote__text" data-gintmr_ui-quote-text>{first.text}</blockquote>
+  <figcaption class="gintmr_ui-quote__source" data-gintmr_ui-quote-source>{first.source}</figcaption>
+  <button class="gintmr_ui-quote__shuffle" type="button" data-gintmr_ui-quote-shuffle aria-label={shuffleLabel}>
+    <span aria-hidden="true">↻</span>
+    <span>{shuffleLabel}</span>
+  </button>
+  <script
+    type="application/json"
+    data-gintmr_ui-quote-data
+    set:html={JSON.stringify({ quotes: SPOTLIGHT_QUOTES })}
+  ></script>
+</figure>

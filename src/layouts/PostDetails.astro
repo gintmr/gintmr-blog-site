@@ -1,15 +1,12 @@
 ---
 import { render, type CollectionEntry } from "astro:content";
-import Layout from "@/layouts/Layout.astro";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import Shell from "@/layouts/Shell.astro";
 import Tag from "@/components/Tag.astro";
 import Datetime from "@/components/Datetime.astro";
 import EditPost from "@/components/EditPost.astro";
 import ShareLinks from "@/components/ShareLinks.astro";
 import BackButton from "@/components/BackButton.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
-import QuickJumpNav from "@/components/QuickJumpNav.astro";
 import { getPath } from "@/utils/getPath";
 import { slugifyStr } from "@/utils/slugify";
 import IconChevronLeft from "@/assets/icons/IconChevronLeft.svg";
@@ -25,6 +22,7 @@ import {
   renderProtectedPostHtml,
 } from "@/utils/renderProtectedPostHtml";
 import { isDatePubDatetime } from "@/utils/pubDatetime";
+import { UI_LOCALE } from "@/i18n/ui";
 
 export interface Props {
   post: CollectionEntry<"blog">;
@@ -54,6 +52,22 @@ const {
 
 const publishDatetime = isDatePubDatetime(pubDatetime) ? pubDatetime : undefined;
 const modifiedDatetime = isDatePubDatetime(modDatetime) ? modDatetime : undefined;
+
+// 侧栏「本页信息」：正文字数、按中文速度估算的阅读时长、最后更新时间
+const plainBody = (post.body ?? "")
+  .replace(/```[\s\S]*?```/g, "")
+  .replace(/!\[\[[^\]]*\]\]/g, "")
+  .replace(/\s+/g, "");
+const charCount = plainBody.length;
+const readMinutes = Math.max(1, Math.round(charCount / 350));
+const lastEdited = modifiedDatetime ?? publishDatetime;
+const outlineMeta = [
+  { label: UI_LOCALE === "zh-CN" ? "字数" : "Words", value: charCount.toLocaleString("zh-CN") },
+  { label: UI_LOCALE === "zh-CN" ? "阅读时长" : "Reading", value: UI_LOCALE === "zh-CN" ? `${readMinutes} 分钟` : `${readMinutes} min` },
+  ...(lastEdited
+    ? [{ label: UI_LOCALE === "zh-CN" ? "最后更新" : "Updated", value: lastEdited.toISOString().slice(0, 10) }]
+    : []),
+];
 
 const hasPasswordProtection = Boolean(password?.trim());
 const showAISummary = Boolean(enableAISummary && summary?.trim());
@@ -125,18 +139,19 @@ const nextPost =
     : null;
 ---
 
-<Layout {...layoutProps}>
-  <Header />
+<Shell
+  {...layoutProps}
+  breadcrumb={true}
+  pagefindBody
+  outline={{
+    headings:
+      "#article :is(h1,h2,h3,h4,h5), [data-protected-post] [data-role='decrypted-content'] :is(h1,h2,h3,h4,h5)",
+    container: "#main-content",
+    observe: false,
+    meta: outlineMeta,
+  }}
+>
   <BackButton />
-  <main
-    id="main-content"
-    class:list={[
-      "relative isolate mx-auto mt-4 w-full max-w-app px-4 pb-12",
-      { "mt-8": !SITE.showBackButton },
-    ]}
-    data-pagefind-body
-    data-pagefind-weight="5"
-  >
     <section class="post-intro-shell">
       <div class="post-intro-shell__body">
         <h1
@@ -236,13 +251,6 @@ const nextPost =
       )
     }
 
-    <QuickJumpNav
-      mode="blog"
-      headingSelector="#article :is(h1,h2,h3,h4,h5), [data-protected-post] [data-role='decrypted-content'] :is(h1,h2,h3,h4,h5)"
-      containerSelector="#main-content"
-      observeMutations={false}
-    />
-
     <hr class="my-8 border-dashed" />
 
     <EditPost class="sm:hidden" {hideEditPost} {post} />
@@ -288,9 +296,7 @@ const nextPost =
         )
       }
     </div>
-  </main>
-  <Footer />
-</Layout>
+</Shell>
 
 <script is:inline data-astro-rerun>
   /* Go to page start after page swap */

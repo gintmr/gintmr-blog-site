@@ -11,13 +11,6 @@ currentUrlPath = currentUrlPath.replace(/\.html$/, "");
 // eg: /tags/tailwindcss => ['tags', 'tailwindcss']
 const breadcrumbList = currentUrlPath.split("/").slice(1);
 
-// if breadcrumb is Home > Posts > 1 <etc>
-// replace Posts with Posts (page number)
-if (breadcrumbList[0] === "tags") {
-  breadcrumbList.splice(0, 1);
-  breadcrumbList.unshift("blog");
-}
-
 // switch (breadcrumbList[0]) {
 //   case "tags":
 //     break;
@@ -50,13 +43,18 @@ if (breadcrumbList[0] === "blog" && !isNaN(Number(breadcrumbList[2]))) {
 }
 ---
 
-<nav class="mx-auto mt-8 mb-1 w-full max-w-app px-4" aria-label="breadcrumb">
+<nav
+  class="mx-auto mt-8 mb-1 w-full max-w-[var(--gintmr_ui-page-width)] px-4"
+  aria-label="breadcrumb"
+>
   <ul
     class="font-light [&>li]:inline [&>li:not(:last-child)>a]:hover:opacity-100"
   >
     <li>
       <a href="/" class="opacity-80">{UI.breadcrumb.home}</a>
-      <span aria-hidden="true" class="opacity-80">&raquo;</span>
+      {breadcrumbList.length > 0 && (
+        <span aria-hidden="true" class="opacity-80">&raquo;</span>
+      )}
     </li>
     {
       breadcrumbList.map((breadcrumb, index) =>
@@ -70,10 +68,12 @@ if (breadcrumbList[0] === "blog" && !isNaN(Number(breadcrumbList[2]))) {
               {/* {decodeURIComponent(breadcrumb)} */}
               {breadcrumb === "blog"
                 ? UI.breadcrumb.blog
+                : breadcrumb === "tags"
+                  ? UI.pages.tags
                 : breadcrumb === "diary"
                   ? UI.breadcrumb.diary
                   : breadcrumb === "archives"
-                    ? UI.breadcrumb.archives
+                    ? UI.nav.top
                     : breadcrumb === "about"
                       ? UI.breadcrumb.about
                       : breadcrumb === "search"
@@ -92,10 +92,12 @@ if (breadcrumbList[0] === "blog" && !isNaN(Number(breadcrumbList[2]))) {
             <a href={`/${breadcrumb}/`} class="capitalize opacity-70">
               {breadcrumb === "blog"
                 ? UI.breadcrumb.blog
+                : breadcrumb === "tags"
+                  ? UI.pages.tags
                 : breadcrumb === "diary"
                   ? UI.breadcrumb.diary
                   : breadcrumb === "archives"
-                    ? UI.breadcrumb.archives
+                    ? UI.nav.top
                     : breadcrumb === "about"
                       ? UI.breadcrumb.about
                       : breadcrumb === "search"

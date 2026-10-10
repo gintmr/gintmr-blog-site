@@ -1,6 +1,6 @@
 export const UI_THEME = {
-  // 设为 true 后站点固定深色模式（并隐藏主题切换按钮）。
-  forceDarkMode: true,
+  // 关掉强制深色：顶栏的主题按钮负责切换，没选过时跟随系统。
+  forceDarkMode: false,
 } as const;
 
 export const UI_FONTS = {
@@ -63,6 +63,8 @@ export const UI_EFFECTS = {
   ambientGlow: true,
   // 轻量网格纹理
   gridOverlay: true,
+  // 极光流带：两条斜向光带缓慢横扫（配色与强度见库的 --gintmr_ui-aurora-*）
+  auroraRibbon: true,
   // 鼠标跟随辉光（移动端自动关闭）
   cursorGlow: false,
   // 内容滚动显现动画
@@ -76,7 +78,7 @@ export const UI_EFFECTS = {
   // 标题底部的动态强调线
   headingBeam: true,
   // 图片荧光描边与背光
-  imageNeonBorder: true,
+  imageNeonBorder: false,
   // 图片轻微浮起（桌面端）
   imageLift: true,
 } as const;

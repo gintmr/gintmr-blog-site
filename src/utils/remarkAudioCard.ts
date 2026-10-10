@@ -99,58 +99,41 @@ function buildAudioCardHtml(audioData: AudioCardData): string {
 
   const title = escapeHtml(audioData.title);
   const artist = escapeHtml(audioData.artist || "Unknown Artist");
-  const album = audioData.album ? escapeHtml(audioData.album) : "";
+  const album = audioData.album
+    ? `<p class="gintmr_ui-track__album" title="${escapeHtmlAttr(audioData.album)}">${escapeHtml(audioData.album)}</p>`
+    : "";
 
-  const cardAttrs = [
-    `class="audio-card rehype-figure"`,
-    `data-audio-card="true"`,
-    `data-audio-title="${escapeHtmlAttr(audioData.title)}"`,
-    `data-audio-artist="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}"`,
-  ];
-
+  // 外观与播放行为都由组件库提供：一条描边、一层表面色、自绘播放条。
+  const cardAttrs = ["class=\"gintmr_ui-track\"", "data-gintmr_ui-track"];
   if (lyricSrc) {
-    cardAttrs.push(`data-lrc-src="${escapeHtmlAttr(lyricSrc)}"`);
+    cardAttrs.push(`data-gintmr_ui-lrc="${escapeHtmlAttr(lyricSrc)}"`);
   }
 
-  const backdropStyle = coverSrc
-    ? ` style="--audio-cover-url: url('${escapeHtmlAttr(coverSrc)}');"`
-    : "";
-
   const coverHtml = coverSrc
-    ? `<div class="audio-card__cover-wrap"><img src="${escapeHtmlAttr(coverSrc)}" alt="${escapeHtmlAttr(audioData.title)} cover" loading="lazy" class="audio-card__cover" /></div>`
-    : `<div class="audio-card__cover-wrap audio-card__cover-wrap--empty" aria-hidden="true"><span class="audio-card__cover-fallback">♫</span></div>`;
-
-  const albumHtml = album
-    ? `<p class="audio-card__album" title="${escapeHtmlAttr(audioData.album || "")}">${album}</p>`
-    : "";
+    ? `<div class="gintmr_ui-track__cover"><img src="${escapeHtmlAttr(coverSrc)}" alt="${escapeHtmlAttr(audioData.title)} cover" loading="lazy" /></div>`
+    : `<div class="gintmr_ui-track__cover gintmr_ui-track__cover--empty" aria-hidden="true">♫</div>`;
 
   const lyricsHtml = lyricSrc
-    ? `<div class="audio-card__lyrics" data-audio-lyrics hidden><p class="audio-card__lyrics-empty">歌词加载中...</p></div>`
+    ? `<div class="gintmr_ui-track__lyrics" data-gintmr_ui-lyrics></div>`
     : "";
 
   return `<figure ${cardAttrs.join(" ")}>
-    <div class="audio-card__surface">
-      <div class="audio-card__backdrop"${backdropStyle}></div>
-      <div class="audio-card__scrim" aria-hidden="true"></div>
-      <div class="audio-card__body">
-        <div class="audio-card__main">
-          <div class="audio-card__cover-stage">
-            ${coverHtml}
-          </div>
-          <div class="audio-card__top">
-            <header class="audio-card__head">
-              <p class="audio-card__title" title="${escapeHtmlAttr(audioData.title)}">${title}</p>
-              <p class="audio-card__artist" title="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}">${artist}</p>
-              ${albumHtml}
-            </header>
-            ${lyricsHtml}
-          </div>
-        </div>
-        <div class="audio-card__controls">
-          <audio data-audio-source class="audio-card__player" controls preload="metadata" src="${escapeHtmlAttr(audioSrc)}" aria-label="${escapeHtmlAttr(audioData.title)}"></audio>
-        </div>
+    <div class="gintmr_ui-track__row">
+      ${coverHtml}
+      <div class="gintmr_ui-track__meta">
+        <p class="gintmr_ui-track__title" title="${escapeHtmlAttr(audioData.title)}">${title}</p>
+        <p class="gintmr_ui-track__artist" title="${escapeHtmlAttr(audioData.artist || "Unknown Artist")}">${artist}</p>
+        ${album}
       </div>
+      <button class="gintmr_ui-track__play" type="button" data-gintmr_ui-play aria-label="播放 ${escapeHtmlAttr(audioData.title)}"></button>
+      <span class="gintmr_ui-track__time"><span data-gintmr_ui-time="current">0:00</span><span aria-hidden="true"> / </span><span data-gintmr_ui-time="total">--:--</span></span>
     </div>
+    <div class="gintmr_ui-progress" data-gintmr_ui-progress role="slider" tabindex="0" aria-label="播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="gintmr_ui-progress__fill"></span>
+      <span class="gintmr_ui-progress__thumb"></span>
+    </div>
+    ${lyricsHtml}
+    <audio data-gintmr_ui-source src="${escapeHtmlAttr(audioSrc)}" preload="metadata" aria-label="${escapeHtmlAttr(audioData.title)}"></audio>
   </figure>`;
 }
 

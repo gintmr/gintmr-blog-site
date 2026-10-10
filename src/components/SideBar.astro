@@ -1,0 +1,113 @@
+---
+/**
+ * 内容列左侧的站内导航：日记归档（季度 → 月）与常用标签。
+ * 定位与观感由 vendor/gintmr-ui 的页边导航原语提供，与右侧目录形成左右呼应。
+ */
+import { UI_LOCALE } from "@/i18n/ui";
+import { parseDiaryIdentifier } from "@/utils/diaryIdentifier";
+import { slugifyStr } from "@/utils/slugify";
+
+interface Props {
+  diaryEntries: Array<{ id: string }>;
+  blogEntries: Array<{ data: { tags: string[] } }>;
+  currentQuarter?: string;
+}
+
+const { diaryEntries, blogEntries, currentQuarter } = Astro.props;
+
+const zh = UI_LOCALE === "zh-CN";
+
+// 归档：按季度聚合，季度下列出月份
+const buckets = new Map<string, Map<string, number>>();
+diaryEntries.forEach(entry => {
+  const { startDate, quarterKey } = parseDiaryIdentifier(entry.id);
+  if (!startDate || !quarterKey) return;
+  const month = startDate.slice(0, 7);
+  if (!buckets.has(quarterKey)) buckets.set(quarterKey, new Map());
+  const months = buckets.get(quarterKey)!;
+  months.set(month, (months.get(month) ?? 0) + 1);
+});
+
+const quarters = [...buckets.entries()]
+  .sort((a, b) => b[0].localeCompare(a[0]))
+  .map(([key, months]) => ({
+    key,
+    label: key.replace("-Q", " Q"),
+    count: [...months.values()].reduce((sum, n) => sum + n, 0),
+    months: [...months.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([month, count]) => ({
+        label: zh
+          ? `${Number(month.slice(5))} 月`
+          : new Date(`${month}-01T00:00:00Z`).toLocaleString("en", {
+              month: "short",
+              timeZone: "UTC",
+            }),
+        count,
+      })),
+  }));
+
+// 标签：取出现最多的若干个
+const tagCounts = new Map<string, number>();
+blogEntries.forEach(entry => {
+  (entry.data.tags ?? []).forEach(tag => {
+    tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  });
+});
+const tags = [...tagCounts.entries()]
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  .slice(0, 8)
+  .map(([name, count]) => ({ name, slug: slugifyStr(name), count }));
+---
+
+<aside
+  class="gintmr_ui-sidenav"
+  data-gintmr_ui-sidenav
+  data-gintmr_ui-measure="#main-content"
+  aria-label={zh ? "归档与标签" : "Archive and tags"}
+>
+  <section>
+    <p class="gintmr_ui-sidenav__title">{zh ? "归档" : "Archive"}</p>
+    <ul class="gintmr_ui-sidenav__list">
+      {
+        quarters.map(quarter => (
+          <li data-depth="0">
+            <a
+              href={`/diary/${quarter.key}/`}
+              aria-current={quarter.key === currentQuarter ? "page" : undefined}
+            >
+              <span>{quarter.label}</span>
+              <span class="gintmr_ui-sidenav__count">{quarter.count}</span>
+            </a>
+            <ul class="gintmr_ui-sidenav__list">
+              {quarter.months.map(month => (
+                <li data-depth="1">
+                  <a href={`/diary/${quarter.key}/`}>
+                    <span>{month.label}</span>
+                    <span class="gintmr_ui-sidenav__count">{month.count}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section>
+    <p class="gintmr_ui-sidenav__title">{zh ? "标签" : "Tags"}</p>
+    <ul class="gintmr_ui-sidenav__list">
+      {
+        tags.map(tag => (
+          <li data-depth="0">
+            <a href={`/blog/${tag.slug}/`}>
+              <span>{tag.name}</span>
+              <span class="gintmr_ui-sidenav__count">{tag.count}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</aside>
