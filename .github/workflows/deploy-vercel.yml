@@ -61,18 +61,29 @@ jobs:
           git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "git@github.com:"
           git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
           git submodule sync --recursive
-          git submodule update --init --recursive
 
-          # 拉不到时在这里就报清楚，不要留到后面变成 astro check 的 ts(2307)
-          missing=0
+          # 不让 -e 在这里就中止：先把 git 的原始报错收集起来，
+          # 再连同缺失目录一起做成注解（注解在 Actions 页和 API 上都能看到，
+          # 不用翻完整日志就能知道是哪个仓库没拉到、为什么）
+          set +e
+          log=$(git submodule update --init --recursive 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$log"
+
+          fail=0
+          if [ "$status" -ne 0 ]; then
+            echo "::error::git submodule update 退出码 ${status}：$(printf '%s' "$log" | grep -v '^$' | tail -4 | tr '\n' ' ')"
+            fail=1
+          fi
           for dir in src/data/blog vendor/gintmr-ui/src; do
             if [ ! -d "$dir" ]; then
-              echo "::error::submodule missing: $dir"
-              missing=1
+              echo "::error::submodule 目录缺失：${dir}"
+              fail=1
             fi
           done
-          if [ "$missing" -ne 0 ]; then
-            echo "CONTENT_REPO_TOKEN must cover both gintmr-blog-content and gintmr-ui (Contents: Read)."
+          if [ "$fail" -ne 0 ]; then
+            echo "CONTENT_REPO_TOKEN 需要同时覆盖 gintmr-blog-content 与 gintmr-ui（Contents: Read）"
             exit 1
           fi
 
