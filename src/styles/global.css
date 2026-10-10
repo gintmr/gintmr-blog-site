@@ -791,7 +791,7 @@ body[data-effect-heading-beam="on"] main :is(h1, h2, h3):hover::after {
     filter: saturate(1.05);
   }
 
-  body[data-effect-image-lift="on"] .images-grid .lg-item:hover img {
+  body[data-effect-image-lift="on"] .images-grid img:hover {
     transform: scale(1.04);
   }
 }
@@ -1348,6 +1348,16 @@ h6 {
   max-width: 100%;
   max-height: min(78vh, 54rem);
   background: #000;
+}
+
+/* 视频由组件库接管（自绘播放按钮 + 控件自动隐藏）。库的外壳自带外边距与圆角，
+   这里由 .story-memory-stage 统一做框，所以把库那两层让掉，只留播放按钮。 */
+.story-memory-stage .gintmr_ui-video {
+  margin: 0;
+}
+
+.story-memory-stage .gintmr_ui-video video {
+  border-radius: 0;
 }
 
 .story-memory-video-empty {

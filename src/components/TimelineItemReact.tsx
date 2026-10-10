@@ -91,6 +91,8 @@ const TimelineItemReact: React.FC<TimelineItemProps> = ({
         className={`images-grid mb-4 ${groupImages.length === 1 ? "images-grid-single" : ""}`}
         role="group"
         aria-label={`图片集合，共 ${groupImages.length} 张图片`}
+        /* 交给组件库的图片查看器：点击后可在整篇文档的图之间左右切换 */
+        data-gintmr_ui-viewer
       >
         <div
           className={`grid gap-3 ${
