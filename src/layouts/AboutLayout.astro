@@ -19,7 +19,6 @@ const { frontmatter } = Astro.props;
 <Shell
   title={`${frontmatter.title} | ${SITE.title}`}
   pageTitle={frontmatter.title}
-  pageDesc={frontmatter.description}
   description={frontmatter.description}
   outline={{ headings: "#about :is(h2,h3,h4)" }}
 >

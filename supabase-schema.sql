@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Legacy cleanup for older saved SQL queries and earlier function signatures.
 DROP FUNCTION IF EXISTS public.get_visitors_overview_secure(text);
+DROP FUNCTION IF EXISTS public.get_visitors_summary_public();
 DROP FUNCTION IF EXISTS public.get_visitor_sessions_secure(text, integer, text);
 DROP FUNCTION IF EXISTS public.upsert_visitor_session(
   text, text, text, integer,
@@ -1011,6 +1012,108 @@ GRANT EXECUTE ON FUNCTION public.upsert_visitor_session(
   text, double precision, integer, integer, integer, integer
 ) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_visitors_overview_secure(text) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 访客汇总（公开只读）
+-- 给组件库的访客卡用。只返回聚合数字：不返回任何行级数据、IP 或访客标识。
+-- 每次浏览按「该访客最近一次带国家的会话」归属到国家；历史行若没有国家就落到
+-- 「未知位置」（code 为 null），由卡片单独显示。
+-- 返回体就是卡片的数据契约（version 1），前端几乎可以原样透传。
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_visitors_summary_public()
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_ip text := public.get_request_ip();
+  v_now timestamptz := now();
+  v_result jsonb;
+BEGIN
+  PERFORM public.enforce_rate_limit('visitors_summary_public_ip', v_ip, 60);
+
+  WITH views AS (
+    SELECT
+      pv.visitor_hash,
+      (pv.viewed_at AT TIME ZONE 'UTC')::date AS day,
+      pv.viewed_at,
+      (
+        SELECT CASE
+                 WHEN upper(btrim(s.country_code)) ~ '^[A-Z]{2}$'
+                 THEN upper(btrim(s.country_code))
+               END
+        FROM public.visitor_sessions s
+        WHERE s.visitor_hash = pv.visitor_hash
+          AND NULLIF(btrim(COALESCE(s.country_code, '')), '') IS NOT NULL
+        ORDER BY abs(EXTRACT(EPOCH FROM (s.visit_started_at - pv.viewed_at)))
+        LIMIT 1
+      ) AS code
+    FROM public.page_views pv
+  ),
+  country_rows AS (
+    SELECT
+      code,
+      COUNT(*)::bigint AS pageviews,
+      COUNT(DISTINCT (visitor_hash, day))::bigint AS visitor_days
+    FROM views
+    GROUP BY code
+  ),
+  -- 总计按分国家求和：这样「各国家之和 = 总计」恒成立，
+  -- 卡片端「分项不得超过总计」的校验不会因为跨国家的访客日而失败
+  totals AS (
+    SELECT COALESCE(SUM(pageviews), 0)::bigint AS pageviews,
+           COALESCE(SUM(visitor_days), 0)::bigint AS visitor_days
+    FROM country_rows
+  ),
+  first_seen AS (SELECT MIN(viewed_at) AS at FROM views),
+  last_day AS (
+    SELECT COALESCE(MAX(day), (v_now AT TIME ZONE 'UTC')::date) AS day FROM views
+  ),
+  today_counts AS (
+    SELECT COUNT(*)::bigint AS pageviews,
+           COUNT(DISTINCT v.visitor_hash)::bigint AS visitors
+    FROM views v, last_day d
+    WHERE v.day = d.day
+  )
+  SELECT jsonb_build_object(
+    'version', 1,
+    'generatedAt', to_char(v_now AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+    'since', CASE
+               WHEN f.at IS NULL THEN NULL
+               ELSE to_char(f.at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+             END,
+    'totals', jsonb_build_object('pageviews', t.pageviews, 'visitorDays', t.visitor_days),
+    'today', jsonb_build_object(
+      'date', to_char(l.day, 'YYYY-MM-DD'),
+      'pageviews', c.pageviews,
+      'visitors', c.visitors
+    ),
+    'countries', COALESCE((
+      SELECT jsonb_agg(
+               jsonb_build_object(
+                 'code', cr.code,
+                 'pageviews', cr.pageviews,
+                 'visitorDays', cr.visitor_days
+               )
+               ORDER BY cr.pageviews DESC, cr.code NULLS LAST
+             )
+      FROM country_rows cr
+    ), '[]'::jsonb)
+  )
+  INTO v_result
+  FROM totals t, first_seen f, last_day l, today_counts c;
+
+  RETURN v_result;
+END;
+$$;
+
+COMMENT ON FUNCTION public.get_visitors_summary_public() IS
+  'Aggregate-only visitor summary for the public visitor card. Returns no row-level data, IP addresses, or visitor identifiers.';
+
+GRANT EXECUTE ON FUNCTION public.get_visitors_summary_public() TO anon, authenticated;
+
 GRANT EXECUTE ON FUNCTION public.get_visitor_sessions_secure(text, integer, text) TO anon, authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.enforce_rate_limit(text, text, integer) FROM PUBLIC;

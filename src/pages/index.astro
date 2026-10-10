@@ -1,5 +1,8 @@
 ---
 import BackToTopButton from "@/components/BackToTopButton.astro";
+import worldMap from "../../vendor/gintmr-ui/src/components/assets/world-countries.svg?raw";
+import { visitorCardMarkup } from "../../vendor/gintmr-ui/src/components/visitor-card.js";
+import { SUPABASE_URL, SUPABASE_KEY } from "astro:env/client";
 import { SITE } from "@/config";
 import Shell from "@/layouts/Shell.astro";
 import QuoteSpotlight from "@/components/QuoteSpotlight.astro";
@@ -264,5 +267,36 @@ const timelinePrelude = UI_LOCALE === "zh-CN"
 
   </section>
 
+  <!-- 访客卡：观感、数据契约与渲染都在组件库里，这里只提供取数函数 -->
+  <Fragment set:html={visitorCardMarkup({ mapSvg: worldMap })} />
+
   <BackToTopButton />
 </Shell>
+
+<script is:inline define:vars={{ supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY }}>
+  /* 站点侧的取数：调 Supabase 里的公开聚合函数，转成库要的数据形状。
+     必须内联：内联脚本在解析期就执行，早于延迟加载的库脚本，否则库启动时还没有取数函数。
+     接口只返回聚合数字（总浏览、访客日、今日、按国家分组），不含任何行级数据。 */
+  window.gintmrUIVisitors = {
+    load: async ({ signal } = {}) => {
+      if (!supabaseUrl || !supabaseKey) throw new Error("Supabase is not configured");
+      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_visitors_summary_public`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+        signal,
+      });
+      if (!response.ok) throw new Error(`Visitor summary unavailable (${response.status})`);
+      const summary = await response.json();
+      // 判定不出国家的那一档不展示：它没有信息量，只会占掉一整块
+      if (Array.isArray(summary.countries)) {
+        summary.countries = summary.countries.filter(country => country.code !== null);
+      }
+      return summary;
+    },
+  };
+</script>

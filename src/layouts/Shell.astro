@@ -19,7 +19,6 @@ import { getCollection } from "astro:content";
 import Layout from "./Layout.astro";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
-import Breadcrumb from "@/components/Breadcrumb.astro";
 import SideBar from "@/components/SideBar.astro";
 import PageOutline from "@/components/PageOutline.astro";
 import { SITE } from "@/config";
@@ -48,7 +47,6 @@ export interface Props {
   pageTitle?: string;
   pageDesc?: string;
   width?: "standard" | "wide";
-  breadcrumb?: boolean;
   sidenav?: boolean;
   outline?: OutlineSpec | false;
   /** 文章详情要标 pagefind 权重 */
@@ -66,7 +64,6 @@ const {
   pageTitle,
   pageDesc,
   width = "standard",
-  breadcrumb = true,
   sidenav = true,
   outline = {},
   pagefindBody = false,
@@ -120,8 +117,6 @@ const measureSelector = "#main-content";
     )
   }
 
-  {breadcrumb && <Breadcrumb />}
-
   <main
     id="main-content"
     class:list={[
@@ -133,11 +128,11 @@ const measureSelector = "#main-content";
   >
     {
       (pageTitle || pageDesc) && (
-        <section class="px-0">
+        <section class="mb-6 px-0">
           {pageTitle && (
             <h1 class="text-2xl font-semibold sm:text-3xl">{pageTitle}</h1>
           )}
-          {pageDesc && <p class="mt-2 mb-6 italic">{pageDesc}</p>}
+          {pageDesc && <p class="mt-2 italic">{pageDesc}</p>}
         </section>
       )
     }

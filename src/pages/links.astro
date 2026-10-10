@@ -63,13 +63,6 @@ const outlineItems = anchoredCards.map(({ card, anchor }) => ({
       <p class="text-skin-base/70">{UI.pages.linksEmpty}</p>
     ) : (
       <div class="space-y-10">
-        <section class="subtle-page-note">
-          <div class="subtle-page-note__label">Directory</div>
-          <p class="text-sm leading-7 text-foreground/72">
-            A small set of people, projects, and places on the web that feel
-            worth revisiting.
-          </p>
-        </section>
         {sections.map((section, index) => (
           <section id={`links-${index + 1}`}>
                 {(() => {

@@ -18,7 +18,6 @@ const tagsNoteLabel = UI_LOCALE === "zh-CN" ? "Topics" : "Topics";
 <Shell
   title={`${UI.pages.tags} | ${SITE.title}`}
   pageTitle={UI.pages.tags}
-  pageDesc={tagsDesc}
   outline={{
     label: UI.pages.tags,
     items: tags.map(({ tag, tagName }) => ({ id: `tag-${tag}`, label: tagName })),

@@ -49,7 +49,6 @@ const anchored = page.data.map((item, index) => ({
 <Shell
   title={`${UI.pages.tags}: ${tagName} | ${SITE.title}`}
   pageTitle={`${UI.pages.tags}: ${tagName}`}
-  pageDesc={UI.pages.taggedPosts(tagName)}
   outline={{
     label: tagName,
     items: anchored.map(({ item, anchor }) => ({

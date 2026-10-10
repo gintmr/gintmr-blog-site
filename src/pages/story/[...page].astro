@@ -30,15 +30,8 @@ const anchors = page.data.map((story, index) => ({
 <Shell
   title={`${UI.pages.storiesTitle} | ${SITE.title}`}
   pageTitle={UI.pages.storiesTitle}
-  pageDesc={UI.pages.storiesDesc}
   outline={{ label: UI.pages.storiesTitle, items: outlineItems }}
 >
-  <div class="subtle-page-note mt-5 mb-6">
-    <div class="subtle-page-note__label">Memory Wall</div>
-    <p class="text-sm leading-7 text-foreground/72">
-      Short vertical memories, arranged by time and kept light enough to browse quickly.
-    </p>
-  </div>
   <ul class="story-wall grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {anchors.map(({ story, anchor }) => (
       <StoryCard {...story} {anchor} />
