@@ -51,13 +51,30 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Sync private content submodule
+      - name: Sync private submodules (content + shared UI library)
         env:
           CONTENT_REPO_TOKEN: ${{ secrets.CONTENT_REPO_TOKEN }}
         run: |
+          # 两个 submodule 都是私有仓库，用同一个只读 token 走 HTTPS 拉取。
+          # 两种 URL 形式都改写：.gitmodules 里写成 SSH 或 HTTPS 都能拉到，
+          # 免得以后换个地址形式又在这里静默失败。
           git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
           git submodule sync --recursive
           git submodule update --init --recursive
+
+          # 拉不到时在这里就报清楚，不要留到后面变成 astro check 的 ts(2307)
+          missing=0
+          for dir in src/data/blog vendor/gintmr-ui/src; do
+            if [ ! -d "$dir" ]; then
+              echo "::error::submodule missing: $dir"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "CONTENT_REPO_TOKEN must cover both gintmr-blog-content and gintmr-ui (Contents: Read)."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
