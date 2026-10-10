@@ -62,15 +62,20 @@ jobs:
           git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
           git submodule sync --recursive
 
-          # 先确认 token 本身能不能读这两个仓库（只打印退出码/可读性，不打印 token），
-          # 这样「token 权限问题」和「git 改写没生效」两种失败能一眼分开
-          git config --global --get-regexp '^url\.' | sed "s/${CONTENT_REPO_TOKEN}/***/g" | sed 's/^/    rule: /' || true
+          # 先确认 token 本身能不能读这两个仓库。用 HTTP 状态码区分两种情况，
+          # 这样「token 失效」和「token 没覆盖某个仓库」一眼分开（不打印 token）：
+          #   401 = token 失效/过期   404 = token 有效但范围里没有这个仓库
           for repo in gintmr-blog-content gintmr-ui; do
-            if git ls-remote --exit-code "https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/gintmr/${repo}.git" HEAD >/dev/null 2>&1; then
-              echo "    token 可读 ${repo}"
-            else
-              echo "::error::token 读不到 ${repo}：检查 PAT 是否包含该仓库、是否给 Contents: Read、是否已过期"
-            fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer ${CONTENT_REPO_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/gintmr/${repo}")
+            case "$code" in
+              200) echo "    token 可读 ${repo}" ;;
+              401) echo "::error::CONTENT_REPO_TOKEN 无效或已过期（HTTP 401），读 ${repo} 失败——需要重新生成" ;;
+              404) echo "::error::CONTENT_REPO_TOKEN 有效但范围里没有 ${repo}（HTTP 404）——需要把该仓库加进 PAT" ;;
+              *)   echo "::error::读 ${repo} 返回 HTTP ${code}" ;;
+            esac
           done
 
           # 不让 -e 在这里就中止：先把 git 的原始报错收集起来，
