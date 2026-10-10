@@ -4,33 +4,14 @@ import {
   generateUserHash,
   generateSessionId,
   getVisitorGeoInfo,
-  getPageVisitStats,
   trackPageView,
   upsertVisitorSession,
 } from "@/db/supabase";
-import { UI_LOCALE } from "@/i18n/ui";
 
-interface PageViewCounterProps {
+interface VisitTrackerProps {
   fallbackPath?: string;
   dedupeMinutes?: number;
 }
-
-const UI_TEXT =
-  UI_LOCALE === "zh-CN"
-    ? {
-        viewsLabel: "浏览",
-        visitorsLabel: "访客",
-        averageLabel: "人均",
-        loading: "统计中",
-        unavailable: "--",
-      }
-    : {
-        viewsLabel: "Views",
-        visitorsLabel: "Visitors",
-        averageLabel: "Avg",
-        loading: "Loading",
-        unavailable: "--",
-      };
 
 function normalizePath(path: string): string {
   if (!path) return "/";
@@ -63,16 +44,13 @@ function shouldTrackThisSession(path: string, dedupeMinutes: number): boolean {
   }
 }
 
-const PageViewCounter: React.FC<PageViewCounterProps> = ({
+/* 只记录访问、不渲染任何东西。
+   页脚以前在这里显示每页的浏览/访客/人均，现在这些汇总数字由首页底部的
+   访客卡承担（卡片的数据正来自这里写入的表），所以展示部分整个去掉。 */
+const VisitTracker: React.FC<VisitTrackerProps> = ({
   fallbackPath = "/",
   dedupeMinutes = 30,
 }) => {
-  const [stats, setStats] = React.useState<{
-    viewCount: number;
-    visitorCount: number;
-  } | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [currentPath, setCurrentPath] = React.useState(normalizePath(fallbackPath));
   const trackerRef = React.useRef<{
     path: string;
     visitorHash: string;
@@ -311,8 +289,6 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
         ? window.location.pathname
         : fallbackPath;
     const path = normalizePath(runtimePath);
-    setCurrentPath(path);
-    setIsLoading(true);
 
     const userHash = generateUserHash("astro-obsidian-blog:pageview");
     void startDetailedTracker(path, userHash);
@@ -321,17 +297,6 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
       await trackPageView(path, userHash, dedupeMinutes);
     }
 
-    const nextStats = await getPageVisitStats(path);
-
-    setStats(
-      nextStats
-        ? {
-            viewCount: nextStats.view_count,
-            visitorCount: nextStats.visitor_count,
-          }
-        : null
-    );
-    setIsLoading(false);
   }, [dedupeMinutes, fallbackPath, startDetailedTracker]);
 
   React.useEffect(() => {
@@ -348,52 +313,7 @@ const PageViewCounter: React.FC<PageViewCounterProps> = ({
     };
   }, [loadCounter, stopDetailedTracker]);
 
-  const averageViewsPerVisitor =
-    stats && stats.visitorCount > 0
-      ? (stats.viewCount / stats.visitorCount).toFixed(2)
-      : null;
-
-  return (
-    <span
-      className="page-view-counter"
-      aria-live="polite"
-      title={`${UI_TEXT.viewsLabel}/${UI_TEXT.visitorsLabel}: ${currentPath}`}
-    >
-      <span className="page-view-counter__icon" aria-hidden="true">
-        👁
-      </span>
-      <span className="page-view-counter__label">{UI_TEXT.viewsLabel}</span>
-      <span className="page-view-counter__value">
-        {isLoading
-          ? UI_TEXT.loading
-          : stats !== null
-            ? stats.viewCount.toLocaleString()
-            : UI_TEXT.unavailable}
-      </span>
-      <span className="page-view-counter__separator" aria-hidden="true">
-        ·
-      </span>
-      <span className="page-view-counter__label">{UI_TEXT.visitorsLabel}</span>
-      <span className="page-view-counter__value">
-        {isLoading
-          ? UI_TEXT.loading
-          : stats !== null
-            ? stats.visitorCount.toLocaleString()
-            : UI_TEXT.unavailable}
-      </span>
-      <span className="page-view-counter__separator" aria-hidden="true">
-        ·
-      </span>
-      <span className="page-view-counter__label">{UI_TEXT.averageLabel}</span>
-      <span className="page-view-counter__value">
-        {isLoading
-          ? UI_TEXT.loading
-          : averageViewsPerVisitor !== null
-            ? averageViewsPerVisitor
-            : UI_TEXT.unavailable}
-      </span>
-    </span>
-  );
+  return null;
 };
 
-export default PageViewCounter;
+export default VisitTracker;
