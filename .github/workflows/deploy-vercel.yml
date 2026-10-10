@@ -55,32 +55,32 @@ jobs:
         env:
           CONTENT_REPO_TOKEN: ${{ secrets.CONTENT_REPO_TOKEN }}
         run: |
-          # 两个 submodule 都是私有仓库，用同一个只读 token 走 HTTPS 拉取。
-          # 两种 URL 形式都改写：.gitmodules 里写成 SSH 或 HTTPS 都能拉到，
-          # 免得以后换个地址形式又在这里静默失败。
-          git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "git@github.com:"
-          git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
-          git submodule sync --recursive
+          # 直接把 token 写进每个 submodule 的 URL（落在 .git/config，不进仓库），
+          # 不再依赖 insteadOf 的字符串改写：少一层可能失效的机制。
+          # 注意不要再跑 git submodule sync，它会把 URL 覆盖回 .gitmodules 的值。
+          git config submodule.src/data.url "https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/gintmr/gintmr-blog-content.git"
+          git config submodule.vendor/gintmr-ui.url "https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/gintmr/gintmr-ui.git"
 
-          # 先确认 token 本身能不能读这两个仓库。用 HTTP 状态码区分两种情况，
-          # 这样「token 失效」和「token 没覆盖某个仓库」一眼分开（不打印 token）：
-          #   401 = token 失效/过期   404 = token 有效但范围里没有这个仓库
-          for repo in gintmr-blog-content gintmr-ui; do
+          # 诊断：分别用「需要 Contents: Read 的 git 协议」和「只需要 Metadata 的 REST 接口」
+          # 验证 token。两者结论不一致时，说明 PAT 缺少 Contents 权限：
+          # git 读不到、REST 却返回 200。
+          for entry in "src/data:gintmr-blog-content" "vendor/gintmr-ui:gintmr-ui"; do
+            path="${entry%%:*}"; repo="${entry##*:}"
+            url=$(git config --get "submodule.${path}.url")
+            if git ls-remote --exit-code "$url" HEAD >/dev/null 2>&1; then
+              echo "    git 可读 ${repo}"
+            else
+              echo "::error::git 读不到 ${repo}（需要 PAT 的 Contents: Read，不只是把仓库加进范围）"
+            fi
             code=$(curl -s -o /dev/null -w '%{http_code}' \
               -H "Authorization: Bearer ${CONTENT_REPO_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/gintmr/${repo}")
-            case "$code" in
-              200) echo "    token 可读 ${repo}" ;;
-              401) echo "::error::CONTENT_REPO_TOKEN 无效或已过期（HTTP 401），读 ${repo} 失败——需要重新生成" ;;
-              404) echo "::error::CONTENT_REPO_TOKEN 有效但范围里没有 ${repo}（HTTP 404）——需要把该仓库加进 PAT" ;;
-              *)   echo "::error::读 ${repo} 返回 HTTP ${code}" ;;
-            esac
+            echo "    REST ${repo} → HTTP ${code}（401=token 失效，404=范围里没有该仓库）"
           done
 
-          # 不让 -e 在这里就中止：先把 git 的原始报错收集起来，
-          # 再连同缺失目录一起做成注解（注解在 Actions 页和 API 上都能看到，
-          # 不用翻完整日志就能知道是哪个仓库没拉到、为什么）
+          # 不让 -e 在这里就中止：收集 git 的完整输出做成注解，
+          # 这样定位问题不用再让任何人去翻 Actions 日志
           set +e
           log=$(git submodule update --init --recursive 2>&1)
           status=$?
@@ -89,7 +89,8 @@ jobs:
 
           fail=0
           if [ "$status" -ne 0 ]; then
-            echo "::error::git submodule update 退出码 ${status}：$(printf '%s' "$log" | grep -iE 'fatal|error|denied|rights|not found' | tail -6 | tr '\n' ' ')"
+            redacted=$(printf '%s' "$log" | sed "s/${CONTENT_REPO_TOKEN}/***/g" | tr '\n' '|')
+            echo "::error::git submodule update 退出码 ${status}，完整输出：${redacted}"
             fail=1
           fi
           for dir in src/data/blog vendor/gintmr-ui/src; do
