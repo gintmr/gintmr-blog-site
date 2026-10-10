@@ -62,6 +62,17 @@ jobs:
           git config --global url."https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
           git submodule sync --recursive
 
+          # 先确认 token 本身能不能读这两个仓库（只打印退出码/可读性，不打印 token），
+          # 这样「token 权限问题」和「git 改写没生效」两种失败能一眼分开
+          git config --global --get-regexp '^url\.' | sed "s/${CONTENT_REPO_TOKEN}/***/g" | sed 's/^/    rule: /' || true
+          for repo in gintmr-blog-content gintmr-ui; do
+            if git ls-remote --exit-code "https://x-access-token:${CONTENT_REPO_TOKEN}@github.com/gintmr/${repo}.git" HEAD >/dev/null 2>&1; then
+              echo "    token 可读 ${repo}"
+            else
+              echo "::error::token 读不到 ${repo}：检查 PAT 是否包含该仓库、是否给 Contents: Read、是否已过期"
+            fi
+          done
+
           # 不让 -e 在这里就中止：先把 git 的原始报错收集起来，
           # 再连同缺失目录一起做成注解（注解在 Actions 页和 API 上都能看到，
           # 不用翻完整日志就能知道是哪个仓库没拉到、为什么）
@@ -73,7 +84,7 @@ jobs:
 
           fail=0
           if [ "$status" -ne 0 ]; then
-            echo "::error::git submodule update 退出码 ${status}：$(printf '%s' "$log" | grep -v '^$' | tail -4 | tr '\n' ' ')"
+            echo "::error::git submodule update 退出码 ${status}：$(printf '%s' "$log" | grep -iE 'fatal|error|denied|rights|not found' | tail -6 | tr '\n' ' ')"
             fail=1
           fi
           for dir in src/data/blog vendor/gintmr-ui/src; do
