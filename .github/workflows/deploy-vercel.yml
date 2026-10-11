@@ -69,13 +69,15 @@ jobs:
           # 诊断：分别用「需要 Contents: Read 的 git 协议」和「只需要 Metadata 的 REST 接口」
           # 验证 token。两者结论不一致时，说明 PAT 缺少 Contents 权限：
           # git 读不到、REST 却返回 200。
+          # 这里只用 notice：真正的判据是下面的 git submodule update 与目录检查，
+          # 写成 error 会在一切正常时也留下红色注解，反而误导。
           for entry in "src/data:gintmr-blog-content" "vendor/gintmr-ui:gintmr-ui"; do
             path="${entry%%:*}"; repo="${entry##*:}"
             url=$(git config --get "submodule.${path}.url")
             if git ls-remote --exit-code "$url" HEAD >/dev/null 2>&1; then
               echo "    git 可读 ${repo}"
             else
-              echo "::error::git 读不到 ${repo}（需要 PAT 的 Contents: Read，不只是把仓库加进范围）"
+              echo "::notice::git ls-remote 读不到 ${repo}（若下面的 submodule update 通过，此处可忽略）"
             fi
             code=$(curl -s -o /dev/null -w '%{http_code}' \
               -H "Authorization: Bearer ${CONTENT_REPO_TOKEN}" \
@@ -197,7 +199,11 @@ jobs:
               except urllib.error.HTTPError as error:
                   failed += 1
                   print("  删除失败 %s：HTTP %s %s" % (d["uid"], error.code, error.reason))
-          print("已删除 %d 个旧部署，失败 %d 个" % (removed, failed))
+          # 做成注解，好让结果不必登录也能核验
+          print(
+              "::notice::Deployment Storage 清理：原有 %d 次部署，保留最近 %d 次，已删除 %d 次，失败 %d 次"
+              % (len(items), len(keep_ids), removed, failed)
+          )
           if failed:
               print("::warning::有 %d 个旧部署没删掉，Deployment Storage 可能仍偏高" % failed)
           PY
