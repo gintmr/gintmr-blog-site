@@ -4,7 +4,7 @@
   "version": "5.5.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build && node scripts/copy-attachment-assets.mjs",
+    "build": "astro check && astro build && node scripts/copy-attachment-assets.mjs && node scripts/prune-unreferenced-assets.mjs",
     "preview": "astro preview",
     "sync": "astro sync",
     "astro": "astro",

@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      keep:
+        description: "保留最近几次部署（更早的会被删除以释放 Deployment Storage）"
+        required: false
+        default: "3"
 
 jobs:
   deploy:
@@ -121,9 +126,79 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
 
+      # npm run build 里已经剪过一遍，这里对 Vercel 自己的输出目录再剪一次：
+      # 不管 Vercel 用哪条构建命令，上传的都只有被引用到的资源。
+      - name: Prune unreferenced assets before upload
+        run: |
+          if [ -d .vercel/output/static ]; then
+            node scripts/prune-unreferenced-assets.mjs .vercel/output/static
+          else
+            node scripts/prune-unreferenced-assets.mjs dist
+          fi
+          du -sh .vercel/output/static 2>/dev/null || du -sh dist
+
       - name: Deploy to Vercel Production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      # 站点媒体有 1GB 量级，每次部署都是一份完整快照，10GB 的免费 Deployment Storage
+      # 只够几次推送。这里在每次部署后把更早的部署删掉，只留最近几次（够回滚）。
+      # 用同一套 VERCEL_* 凭据，不需要额外授权。
+      - name: Prune old deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          KEEP: ${{ github.event.inputs.keep || '3' }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.error, urllib.parse, urllib.request
+
+          token = os.environ["VERCEL_TOKEN"]
+          team = os.environ.get("VERCEL_ORG_ID", "")
+          project = os.environ["VERCEL_PROJECT_ID"]
+          keep = max(1, int(os.environ.get("KEEP") or 3))
+          api = "https://api.vercel.com"
+
+          def call(method, path, **params):
+              if team:
+                  params["teamId"] = team
+              url = api + path + ("?" + urllib.parse.urlencode(params) if params else "")
+              req = urllib.request.Request(url, method=method)
+              req.add_header("Authorization", "Bearer " + token)
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  body = resp.read()
+                  return json.loads(body) if body else {}
+
+          try:
+              listing = call("GET", "/v6/deployments", projectId=project, limit=100)
+          except urllib.error.HTTPError as error:
+              print("::warning::取部署列表失败：HTTP %s %s" % (error.code, error.reason))
+              sys.exit(0)
+
+          items = listing.get("deployments", [])
+          # 已按时间倒序返回；保险起见自己排一次
+          items.sort(key=lambda d: d.get("created", 0), reverse=True)
+          keep_ids = {d["uid"] for d in items[:keep]}
+          print("部署总数 %d，保留最近 %d 次：" % (len(items), len(keep_ids)))
+          for d in items[:keep]:
+              print("  保留 %s  %s" % (d["uid"], d.get("url", "")))
+
+          removed = failed = 0
+          for d in items:
+              if d["uid"] in keep_ids:
+                  continue
+              try:
+                  call("DELETE", "/v13/deployments/" + d["uid"])
+                  removed += 1
+              except urllib.error.HTTPError as error:
+                  failed += 1
+                  print("  删除失败 %s：HTTP %s %s" % (d["uid"], error.code, error.reason))
+          print("已删除 %d 个旧部署，失败 %d 个" % (removed, failed))
+          if failed:
+              print("::warning::有 %d 个旧部署没删掉，Deployment Storage 可能仍偏高" % failed)
+          PY
+
